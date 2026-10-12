@@ -38,6 +38,7 @@
     pass: $('#reg-pass', dlg), consent: $('#reg-consent', dlg),
   };
   const err = (input) => $('#' + input.id + '-err', dlg);
+  const cc = { phone: $('#reg-phone-cc', dlg), alarm: $('#reg-alarm-cc', dlg) };
   const type = () => 'carrier'; // jeden rodzaj konta: przewoźnik (zawsze z weryfikacją PKD)
 
   let result = null;      // ostatni wynik weryfikacji
@@ -196,8 +197,32 @@
   });
   f.consent.addEventListener('change', () => { if (f.consent.checked) clearErr(f.consent); });
 
-  const normPhone = (v) => v.replace(/[\s()-]/g, '').replace(/^(\+48|0048)/, '');
-  const validPhone = (v) => /^\d{9}$/.test(normPhone(v));
+  // Telefon = numer kierunkowy z listy + numer krajowy. Wklejony numer z „+48…” / „0048…”
+  // przełącza listę na właściwy kraj. Zapisujemy w formacie międzynarodowym E.164 (+48500600700).
+  const digits = (v) => v.replace(/[\s().\/-]/g, '');
+  function splitIntl(input, select) {
+    let v = digits(input.value);
+    const m = v.match(/^(?:\+|00)(\d+)$/);
+    if (!m) return;
+    const opt = Array.from(select.options).map((o) => o.value).sort((a, b) => b.length - a.length).find((c) => m[1].startsWith(c));
+    if (!opt) return;
+    select.value = opt;
+    input.value = m[1].slice(opt.length);
+  }
+  const national = (input, select) => {
+    const v = digits(input.value);
+    return select.value === '39' ? v : v.replace(/^0+/, ''); // zero na początku usuwamy (poza Włochami)
+  };
+  const validPhone = (input, select) => {
+    const n = national(input, select);
+    return select.value === '48' ? /^\d{9}$/.test(n) : /^\d{5,12}$/.test(n) && (select.value + n).length <= 15;
+  };
+  const e164 = (input, select) => '+' + select.value + national(input, select);
+  [['phone', f.phone], ['alarm', f.alarm]].forEach(([k, input]) => {
+    input.addEventListener('blur', () => splitIntl(input, cc[k]));
+    input.addEventListener('paste', () => setTimeout(() => splitIntl(input, cc[k]), 0));
+    cc[k].addEventListener('change', () => clearErr(input));
+  });
   const validEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
   const validLogin = (v) => /^[a-zA-Z0-9._-]{3,30}$/.test(v.trim());
   const validPass = (v) => v.length >= 8 && /\p{L}/u.test(v) && /\d/.test(v);
@@ -214,8 +239,9 @@
     if (!validLicence(f.licence.value)) add(f.licence, 'reg.e.licence');
     if (!validPerson(f.person.value)) add(f.person, 'reg.e.person');
     if (!validEmail(f.email.value)) add(f.email, 'reg.e.email');
-    if (!validPhone(f.phone.value)) add(f.phone, 'reg.e.phone');
-    if (!validPhone(f.alarm.value)) add(f.alarm, 'reg.e.phone');
+    splitIntl(f.phone, cc.phone); splitIntl(f.alarm, cc.alarm);
+    if (!validPhone(f.phone, cc.phone)) add(f.phone, cc.phone.value === '48' ? 'reg.e.phone' : 'reg.e.phoneIntl');
+    if (!validPhone(f.alarm, cc.alarm)) add(f.alarm, cc.alarm.value === '48' ? 'reg.e.phone' : 'reg.e.phoneIntl');
     if (!validLogin(f.login.value)) add(f.login, 'reg.e.login');
     if (!validPass(f.pass.value)) add(f.pass, 'reg.e.pass');
     if (!f.consent.checked) add(f.consent, 'reg.e.consent');
@@ -262,7 +288,7 @@
       company: result.company.name, nip, krs: result.company.krs, regon: result.company.regon,
       pkd: (result.matched || []).map((m) => m.code),
       licence: f.licence.value.trim().toUpperCase(), contactName: f.person.value.trim().replace(/\s+/g, ' '),
-      phone: f.phone.value.trim(), alarmPhone: f.alarm.value.trim(), email: f.email.value.trim(),
+      phone: e164(f.phone, cc.phone), alarmPhone: e164(f.alarm, cc.alarm), email: f.email.value.trim(),
     });
     busy = false;
     submit.disabled = false; submit.classList.remove('is-loading'); submitLabel.textContent = t('reg.submit');

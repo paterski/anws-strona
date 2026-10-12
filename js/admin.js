@@ -20,6 +20,13 @@
   let filter = 'pending';
 
   const fmtDate = (ts) => new Date(ts).toLocaleString(root.lang === 'en' ? 'en-GB' : 'pl-PL', { dateStyle: 'short', timeStyle: 'short' });
+  // +48500600700 → +48 500 600 700 (pozostałe kraje: numer kierunkowy oddzielony spacją)
+  const fmtPhone = (p) => {
+    const m = String(p || '').match(/^\+48(\d{9})$/);
+    if (m) return '+48 ' + m[1].replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3');
+    const n = String(p || '').match(/^\+(420|421|370|371|372|380|353|351|358|359|385|386|\d{2})(\d+)$/);
+    return n ? '+' + n[1] + ' ' + n[2].replace(/(\d{3})(?=\d)/g, '$1 ') : p;
+  };
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 
   // komunikat zapamiętuje klucz tłumaczenia, żeby po zmianie języka dało się go przetłumaczyć
@@ -64,6 +71,7 @@
       const head = el('div', 'rc-head');
       head.appendChild(el('h3', null, r.company));
       const tags = el('div', 'rc-tags');
+      if (r.seed) tags.appendChild(el('span', 'rc-tag', t('adm.seed')));
       tags.appendChild(el('span', 'rc-tag st-' + r.status, t('adm.st.' + r.status)));
       head.appendChild(tags);
       card.appendChild(head);
@@ -77,8 +85,8 @@
       row(dl, t('adm.f.person'), r.contactName);
       row(dl, t('auth.login'), r.login);
       row(dl, 'E-mail', r.email, 'mailto:' + r.email);
-      row(dl, t('reg.phone'), r.phone, 'tel:' + r.phone.replace(/[^\d+]/g, ''));
-      row(dl, t('reg.alarm'), r.alarmPhone, 'tel:' + r.alarmPhone.replace(/[^\d+]/g, ''));
+      row(dl, t('reg.phone'), fmtPhone(r.phone), 'tel:' + r.phone.replace(/[^\d+]/g, ''));
+      row(dl, t('reg.alarm'), fmtPhone(r.alarmPhone), 'tel:' + r.alarmPhone.replace(/[^\d+]/g, ''));
       row(dl, t('adm.f.date'), fmtDate(r.createdAt));
       if (r.decidedAt) row(dl, t('adm.f.decision'), fmtDate(r.decidedAt));
       card.appendChild(dl);

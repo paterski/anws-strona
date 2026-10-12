@@ -1,33 +1,46 @@
-/* ANWS — konta, logowanie i rejestracja (prototyp po stronie przeglądarki).
+/* ANWS — konta, logowanie, rejestracja i reset hasła (prototyp po stronie przeglądarki).
  *
  * Strona działa na GitHub Pages, bez serwera, więc „baza” jest tu i w localStorage
- * tej przeglądarki, a hasła są zapisane jako skróty SHA-256 (nie otwartym tekstem).
+ * tej przeglądarki, a hasła i tokeny resetu są zapisane jako skróty SHA-256.
  * Docelowo każdą funkcję poniżej zastępuje zapytanie do API — reszta strony
  * z nich korzysta i nie wymaga zmian. E-maile trafiają na razie do „skrzynki
  * nadawczej” widocznej w panelu administratora (admin.html); serwer wyśle je naprawdę.
  *
  * Konta testowe (do usunięcia przy podpięciu backendu):
- *   demo  / Autobus2026!  — konto aktywne
+ *   demo  / Autobus2026!  — konto aktywne (e-mail do resetu hasła: demo@example.com)
  *   nowy  / Autobus2026!  — konto niepotwierdzone (komunikat o administratorze)
  *   admin / admin         — administrator (panel: admin.html); hasło zmienisz w panelu
+ * Wnioski testowe (SEED) — po akceptacji w panelu loguje się nimi hasłem Testowe2026!
  */
 (function () {
   const USERS = [
-    { login: 'demo', name: 'Konto demo', role: 'user', confirmed: true, hash: 'ea154322e34a4a49e147e9c13e53fd3a947cb49124268052980f0d858493a8f9' },
-    { login: 'nowy', name: 'Nowy użytkownik', role: 'user', confirmed: false, hash: 'ea154322e34a4a49e147e9c13e53fd3a947cb49124268052980f0d858493a8f9' },
+    { login: 'demo', name: 'Konto demo', role: 'user', confirmed: true, email: 'demo@example.com', hash: 'ea154322e34a4a49e147e9c13e53fd3a947cb49124268052980f0d858493a8f9' },
+    { login: 'nowy', name: 'Nowy użytkownik', role: 'user', confirmed: false, email: 'nowy@example.com', hash: 'ea154322e34a4a49e147e9c13e53fd3a947cb49124268052980f0d858493a8f9' },
     { login: 'admin', name: 'Administrator', role: 'admin', confirmed: true, hash: '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918' },
   ];
   const ADMIN_EMAIL = '[e-mail administratora]';
+  const DEFAULT_ADMIN_HASH = '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918';
+
+  // Trzy wnioski testowe — dane firm z publicznych rejestrów (Biała lista VAT, KRS), sprawdzone
+  // tym samym modułem weryfikacji co formularz. Osoby, e-maile, telefony i licencje są fikcyjne.
+  const SEED_HASH = '3e0afeb32bef3d9dca1931d9241ca68b24ca036792e4e49f8c8395d193350005';
+  const SEED = [
+    { login: 'pks.mysliborz', company: 'PRZEDSIĘBIORSTWO KOMUNIKACJI SAMOCHODOWEJ W MYŚLIBORZU SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ', nip: '5971520791', krs: '0000116139', regon: '811925262', pkd: ['49.39.Z'], licence: 'TEST-0001', contactName: 'Jan Testowy', phone: '+48500000001', alarmPhone: '+48500000011', email: 'test1@example.com', hoursAgo: 26 },
+    { login: 'polbus', company: '"POLBUS-PKS" SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ', nip: '5221017639', krs: '0000008042', regon: '010930300', pkd: ['49.39.Z', '49.31.Z'], licence: 'TEST-0002', contactName: 'Anna Przykładowa', phone: '+48500000002', alarmPhone: '+48500000022', email: 'test2@example.com', hoursAgo: 5 },
+    { login: 'intertrans', company: '"INTERTRANS" PKS SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ', nip: '6931856002', krs: '0000936367', regon: '390688876', pkd: ['49.39.Z', '49.31.Z'], licence: 'TEST-0003', contactName: 'Piotr Próbny', phone: '+420600000003', alarmPhone: '+48500000033', email: 'test3@example.com', hoursAgo: 1 },
+  ];
 
   const KEY = 'anws-session';
   const REG_KEY = 'anws-registrations';
   const OUT_KEY = 'anws-outbox';
   const PASS_KEY = 'anws-passwords'; // zmienione hasła wbudowanych kont (prototyp; docelowo baza)
-  const DEFAULT_ADMIN_HASH = '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918';
+  const RESET_KEY = 'anws-resets';
+  const SEED_FLAG = 'anws-seeded';
   const REMEMBER_DAYS = 30;
+  const RESET_MINUTES = 30;
 
   const safe = (fn, fallback = null) => { try { return fn(); } catch (e) { return fallback; } };
-  const load = (k) => safe(() => JSON.parse(localStorage.getItem(k)) || [], []);
+  const loadRaw = (k, empty) => safe(() => JSON.parse(localStorage.getItem(k)) || empty, empty);
   const save = (k, v) => safe(() => localStorage.setItem(k, JSON.stringify(v)));
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -35,6 +48,32 @@
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
     return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
   }
+  const strong = (p) => p.length >= 8 && /\p{L}/u.test(p) && /\d/.test(p);
+
+  function mail(to, subject, body) {
+    const out = loadRaw(OUT_KEY, []);
+    out.unshift({ to, subject, body, at: Date.now() });
+    save(OUT_KEY, out.slice(0, 50));
+  }
+
+  // Wnioski testowe dodajemy raz na przeglądarkę (panel nie jest pusty przy pierwszym otwarciu)
+  function ensureSeed() {
+    if (safe(() => localStorage.getItem(SEED_FLAG))) return;
+    const regs = loadRaw(REG_KEY, []);
+    const out = loadRaw(OUT_KEY, []);
+    SEED.forEach((s, i) => {
+      if (regs.some((r) => r.nip === s.nip || r.login === s.login)) return;
+      const at = Date.now() - s.hoursAgo * 36e5;
+      const r = Object.assign({ id: 'seed' + (i + 1), hash: SEED_HASH, type: 'carrier', status: 'pending', createdAt: at, consentAt: at, seed: true }, s);
+      delete r.hoursAgo;
+      regs.push(r);
+      out.push({ to: ADMIN_EMAIL, subject: `Nowy wniosek o rejestrację: ${s.company}`, body: `Firma ${s.company} (NIP ${s.nip}, licencja ${s.licence}) prosi o założenie konta „${s.login}”. Osoba do kontaktu: ${s.contactName}. Sprawdź i zaakceptuj wniosek w panelu administratora.`, at });
+    });
+    save(REG_KEY, regs.sort((a, b) => b.createdAt - a.createdAt));
+    save(OUT_KEY, out.sort((a, b) => b.at - a.at).slice(0, 50));
+    safe(() => localStorage.setItem(SEED_FLAG, '1'));
+  }
+  const loadRegs = () => { ensureSeed(); return loadRaw(REG_KEY, []); };
 
   function read(storage) {
     const raw = safe(() => storage.getItem(KEY));
@@ -44,22 +83,35 @@
     return s;
   }
 
-  function mail(to, subject, body) {
-    const out = load(OUT_KEY);
-    out.unshift({ to, subject, body, at: Date.now() });
-    save(OUT_KEY, out.slice(0, 50));
-  }
-
-  // wszystkie konta: wbudowane + zaakceptowane z rejestracji
+  // wszystkie konta: wbudowane (z ewentualnie zmienionym hasłem) + wnioski z rejestracji
   function findAccount(login) {
-    const l = login.trim().toLowerCase();
+    const l = String(login || '').trim().toLowerCase();
     const u = USERS.find((x) => x.login === l);
     if (u) {
-      const changed = safe(() => JSON.parse(localStorage.getItem(PASS_KEY)) || {}, {})[u.login];
-      return changed ? Object.assign({}, u, { hash: changed }) : u;
+      const changed = loadRaw(PASS_KEY, {})[u.login];
+      return Object.assign({ builtIn: true }, u, changed ? { hash: changed } : {});
     }
-    const r = load(REG_KEY).find((x) => x.login === l);
-    return r ? { login: r.login, name: r.company, role: 'user', confirmed: r.status === 'approved', hash: r.hash } : null;
+    const r = loadRegs().find((x) => x.login === l);
+    return r ? { login: r.login, name: r.company, role: 'user', confirmed: r.status === 'approved', hash: r.hash, email: r.email } : null;
+  }
+
+  async function setHash(login, hash) {
+    if (USERS.some((x) => x.login === login)) {
+      const map = loadRaw(PASS_KEY, {});
+      map[login] = hash;
+      save(PASS_KEY, map);
+      return;
+    }
+    const regs = loadRegs();
+    const r = regs.find((x) => x.login === login);
+    if (r) { r.hash = hash; save(REG_KEY, regs); }
+  }
+
+  function endSessionsOf(login) {
+    [localStorage, sessionStorage].forEach((st) => {
+      const s = read(st);
+      if (s && s.login === login) safe(() => st.removeItem(KEY));
+    });
   }
 
   window.ANWSAuth = {
@@ -88,7 +140,7 @@
      * Zwraca { ok: true } albo { ok: false, error: 'login_taken' | 'nip_taken' | 'email_taken' } */
     async register(d) {
       await wait(700);
-      const regs = load(REG_KEY);
+      const regs = loadRegs();
       const login = d.login.trim().toLowerCase();
       const active = regs.filter((r) => r.status !== 'rejected');
       if (USERS.some((u) => u.login === login) || active.some((r) => r.login === login)) return { ok: false, error: 'login_taken' };
@@ -115,12 +167,10 @@
       await wait(400);
       const s = this.getSession();
       const acc = s && findAccount(s.login);
-      if (!acc || !USERS.some((u) => u.login === acc.login)) return { ok: false, error: 'current' };
+      if (!acc || !acc.builtIn) return { ok: false, error: 'current' };
       if ((await sha256(current)) !== acc.hash) return { ok: false, error: 'current' };
-      if (next.length < 8 || !/\p{L}/u.test(next) || !/\d/.test(next)) return { ok: false, error: 'weak' };
-      const map = safe(() => JSON.parse(localStorage.getItem(PASS_KEY)) || {}, {});
-      map[acc.login] = await sha256(next);
-      save(PASS_KEY, map);
+      if (!strong(next)) return { ok: false, error: 'weak' };
+      await setHash(acc.login, await sha256(next));
       return { ok: true };
     },
     // czy administrator nadal ma domyślne hasło „admin”
@@ -128,11 +178,55 @@
       return findAccount('admin').hash === DEFAULT_ADMIN_HASH;
     },
 
+    /* Reset hasła — krok 1: prośba o link. Zawsze zwraca { ok: true } (bez zdradzania,
+     * czy adres istnieje). Link jest jednorazowy i ważny 30 minut; zapisujemy tylko skrót tokenu.
+     * Konto administratora odzyskuje się poza stroną (bezpieczeństwo). */
+    async requestReset(email) {
+      await wait(800);
+      const e = String(email || '').trim().toLowerCase();
+      const builtIn = USERS.find((u) => u.email && u.email === e && u.role !== 'admin' && u.confirmed);
+      const reg = loadRegs().find((r) => r.email.toLowerCase() === e && r.status === 'approved');
+      const login = builtIn ? builtIn.login : reg ? reg.login : null;
+      if (!login) return { ok: true };
+      const bytes = crypto.getRandomValues(new Uint8Array(24));
+      const token = Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+      const resets = loadRaw(RESET_KEY, []).filter((r) => r.login !== login && r.exp > Date.now()); // nowy link unieważnia poprzedni
+      resets.push({ hash: await sha256(token), login, exp: Date.now() + RESET_MINUTES * 6e4 });
+      save(RESET_KEY, resets);
+      const link = new URL('reset-hasla.html?token=' + token, location.href).href;
+      mail(e, 'Reset hasła w ANWS',
+        `Dzień dobry! Otrzymaliśmy prośbę o zmianę hasła do konta „${login}”. Aby ustawić nowe hasło, otwórz link (ważny ${RESET_MINUTES} minut, jednorazowy): ${link} Jeśli to nie Ty, zignoruj tę wiadomość — hasło pozostanie bez zmian.`);
+      return { ok: true };
+    },
+
+    // Reset hasła — krok 2: sprawdzenie linku. { ok: true, login } albo { ok: false }
+    async checkResetToken(token) {
+      if (!/^[0-9a-f]{48}$/.test(String(token || ''))) return { ok: false };
+      const h = await sha256(token);
+      const r = loadRaw(RESET_KEY, []).find((x) => x.hash === h);
+      return r && r.exp > Date.now() ? { ok: true, login: r.login } : { ok: false };
+    },
+
+    // Reset hasła — krok 3: nowe hasło. { ok: true } albo { ok: false, error: 'invalid' | 'weak' }
+    async resetPassword(token, next) {
+      await wait(600);
+      const check = await this.checkResetToken(token);
+      if (!check.ok) return { ok: false, error: 'invalid' };
+      if (!strong(next)) return { ok: false, error: 'weak' };
+      await setHash(check.login, await sha256(next));
+      save(RESET_KEY, loadRaw(RESET_KEY, []).filter((x) => x.login !== check.login)); // link jednorazowy
+      endSessionsOf(check.login);
+      const acc = findAccount(check.login);
+      if (acc && acc.email) mail(acc.email, 'Hasło do ANWS zostało zmienione',
+        `Dzień dobry! Hasło do konta „${check.login}” zostało właśnie zmienione. Jeśli to nie Ty, natychmiast skontaktuj się z nami: +48 884 106 851.`);
+      return { ok: true };
+    },
+
     // Rejestracja — etap 2 (administrator)
-    listRegistrations() { return load(REG_KEY); },
-    outbox() { return load(OUT_KEY); },
+    listRegistrations() { return loadRegs(); },
+    outbox() { ensureSeed(); return loadRaw(OUT_KEY, []); },
     decide(id, approve) {
-      const regs = load(REG_KEY);
+      const regs = loadRegs();
       const r = regs.find((x) => x.id === id);
       if (!r || r.status !== 'pending') return false;
       r.status = approve ? 'approved' : 'rejected';
