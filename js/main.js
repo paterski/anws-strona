@@ -56,7 +56,15 @@
         const c = document.createElement('span');
         c.className = 'ch';
         c.style.setProperty('--i', i++);
-        c.textContent = ch;
+        // rolka: litera + jej kopia w drugim kolorze, które zamieniają się po najechaniu
+        const roll = document.createElement('span');
+        roll.className = 'roll';
+        for (let k = 0; k < 2; k++) {
+          const face = document.createElement('span');
+          face.textContent = ch;
+          roll.appendChild(face);
+        }
+        c.appendChild(roll);
         word.appendChild(c);
       });
       vis.appendChild(word);
@@ -144,6 +152,13 @@
   /* ------------------------------------------------------------------
      Nawigacja zmniejsza się przy przewijaniu
      ------------------------------------------------------------------ */
+  const titleEl = $('.title');
+  if (titleEl) {
+    titleEl.addEventListener('animationend', (e) => {
+      if (e.animationName === 'letter') e.target.classList.add('is-set');
+    });
+  }
+
   const nav = $('#nav');
   let compact = false;
   function onScroll() {

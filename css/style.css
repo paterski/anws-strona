@@ -433,7 +433,15 @@ main { display: flex; flex-direction: column; gap: 72px; }
 .word { display: inline-block; white-space: nowrap; }
 .word-accent { color: var(--accent-text); }
 .ch { display: inline-block; transition: transform .35s var(--ease-spring); animation: letter .8s var(--ease-out) backwards; animation-delay: calc(var(--i) * 45ms + 250ms); }
-.ch:hover { transform: translateY(-.1em); }
+.ch { vertical-align: top; height: 1.25em; line-height: 1.25; }
+.ch.is-set { overflow: hidden; animation: none; }
+
+/* rolka po najechaniu na tytuł: litera zjeżdża w górę, wjeżdża jej kopia w kolorze akcentu (a w drugim słowie — w kolorze tekstu) */
+.roll { display: block; transition: transform .6s cubic-bezier(.7, 0, .2, 1); transition-delay: calc(var(--i) * 24ms); }
+.roll > span { display: block; height: 1.25em; }
+.roll > span + span { color: var(--accent-text); }
+.word-accent .roll > span + span { color: var(--ink); }
+.title:hover .roll { transform: translateY(-1.25em); }
 @keyframes letter { from { opacity: 0; transform: translateY(.55em) rotate(4deg); filter: blur(8px); } to { opacity: 1; transform: none; filter: blur(0); } }
 
 .road { display: block; width: 100%; height: auto; margin-top: .1em; overflow: visible; }
@@ -794,4 +802,5 @@ main { display: flex; flex-direction: column; gap: 72px; }
   .stop, .road-stop { transform: none !important; }
   .bus, .ride, .road-bus { display: none; }
   .tile { transform: none !important; }
+  .title:hover .roll { transform: none; }
 }
