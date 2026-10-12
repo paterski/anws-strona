@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANWS — przejścia loadera</title>
+<meta name="robots" content="noindex">
+<script>
+(function () {
+  var d = document.documentElement, theme = 'light';
+  try { theme = localStorage.getItem('anws-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch (e) {}
+  d.dataset.theme = theme;
+})();
+</script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  .demo { max-width: 900px; margin: 0 auto; padding: 48px 24px 80px; display: flex; flex-direction: column; gap: 28px; }
+  .demo h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(28px, 4vw, 44px); letter-spacing: -0.02em; }
+  .demo p.lead { max-width: 62ch; text-align: left; }
+  .list { display: grid; gap: 14px; }
+  .opt { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 18px; padding: 20px 24px; border-radius: 24px; background: var(--step-bg); border: 1px solid var(--step-border); box-shadow: var(--step-shadow); text-decoration: none; color: var(--ink); transition: transform .25s; }
+  .opt:hover { transform: translateY(-2px); color: var(--ink); }
+  .opt .tag { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--btn-bg); color: var(--btn-ink); font: 700 15px var(--font-display); }
+  .opt h2 { font-family: var(--font-display); font-size: 19px; font-weight: 600; }
+  .opt p { margin-top: 4px; font-size: 15px; line-height: 1.5; color: var(--ink-muted); }
+  .opt .go { font-weight: 600; font-size: 14px; white-space: nowrap; }
+  .rec { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; background: var(--accent); color: var(--bg); margin-left: 8px; vertical-align: 2px; }
+</style>
+</head>
+<body>
+<div class="demo">
+  <a class="login" href="../index.html" style="align-self:flex-start">← Strona główna</a>
+  <h1>Przejścia po załadowaniu</h1>
+  <p class="lead">Kliknij wariant — strona otworzy się z loaderem (logo, droga z autobusem i pasek postępu) i pokaże wybrane przejście. Wybór zapamiętuje się w przeglądarce; możesz klikać kolejne i porównywać.</p>
+  <div class="list">
+    <a class="opt" href="../index.html?loader=doors"><span class="tag">1</span><div><h2>Drzwi autobusu <span class="rec">polecam</span></h2><p>Dwa panele rozsuwają się na boki jak drzwi autobusu na przystanku, odsłaniając stronę.</p></div><span class="go">Zobacz →</span></a>
+    <a class="opt" href="../index.html?loader=sweep"><span class="tag">2</span><div><h2>Autobus przejeżdża</h2><p>Autobus przejeżdża ekran od lewej do prawej i „zjeżdża” z ekranu razem z loaderem, odsłaniając stronę.</p></div><span class="go">Zobacz →</span></a>
+    <a class="opt" href="../index.html?loader=curtain"><span class="tag">3</span><div><h2>Kurtyna w górę</h2><p>Loader unosi się do góry jak roleta — dokładnie jak w projekcie kominków.</p></div><span class="go">Zobacz →</span></a>
+    <a class="opt" href="../index.html?loader=iris"><span class="tag">4</span><div><h2>Okrąg ze środka</h2><p>Pośrodku otwiera się okrągły otwór (jak światło reflektora), który rośnie aż odsłoni całą stronę.</p></div><span class="go">Zobacz →</span></a>
+    <a class="opt" href="../index.html?loader=fade"><span class="tag">5</span><div><h2>Delikatne rozmycie</h2><p>Loader po prostu płynnie znika. Najspokojniejszy, bez ruchu na boki.</p></div><span class="go">Zobacz →</span></a>
+  </div>
+</div>
+</body>
+</html>

@@ -12,6 +12,83 @@
   };
 
   /* ------------------------------------------------------------------
+     Loader: logo + droga z paskiem postępu i autobusem, potem przejście.
+     Przejście: ?loader=doors|curtain|iris|sweep|fade (zapamiętywane).
+     ------------------------------------------------------------------ */
+  (function () {
+    const ld = $('#loader');
+    const finish = () => { root.classList.remove('is-loading'); };
+    if (!ld) return finish();
+    if (!root.classList.contains('is-loading')) { ld.remove(); return; }
+
+    const MODES = ['doors', 'curtain', 'iris', 'sweep', 'fade'];
+    const q = new URLSearchParams(location.search).get('loader');
+    if (q && MODES.includes(q)) store.set('anws-loader', q);
+    let mode = store.get('anws-loader');
+    if (!MODES.includes(mode)) mode = 'doors';
+    if (mode === 'iris' && typeof CSSPropertyRule === 'undefined') mode = 'fade';
+    ld.dataset.mode = mode;
+
+    const track = $('.ld-track', ld);
+    const setP = (v) => track.style.setProperty('--lp', v.toFixed(4));
+    let p = 0, target = 0.88, last = performance.now(), done = false;
+    // postęp rośnie płynnie do ~88%, dopóki strona się nie załaduje
+    const tickP = (now) => {
+      const dt = Math.min(64, now - last); last = now;
+      p += (target - p) * Math.min(1, dt / 420);
+      setP(p);
+      if (!done) requestAnimationFrame(tickP);
+    };
+    requestAnimationFrame(tickP);
+
+    const loaded = document.readyState === 'complete' ? Promise.resolve() : new Promise((r) => addEventListener('load', r, { once: true }));
+    const fonts = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+    const minTime = new Promise((r) => setTimeout(r, 2100));
+
+    Promise.all([loaded, fonts, minTime]).then(() => {
+      target = 1;
+      setTimeout(() => { done = true; setP(1); leave(); }, 380);
+    });
+
+    const EASE = 'cubic-bezier(.76, 0, .24, 1)';
+    const fadeInner = () => $('.ld-inner', ld).animate({ opacity: [1, 0], transform: ['scale(1)', 'scale(.92)'] }, { duration: 420, easing: 'cubic-bezier(.5, 0, 1, 1)', fill: 'forwards' });
+    const end = () => ld.remove();
+
+    function leave() {
+      ld.style.pointerEvents = 'none';
+      if (mode === 'doors') {
+        fadeInner();
+        const o = { duration: 1000, delay: 280, easing: EASE, fill: 'forwards' };
+        $('.ld-l', ld).animate({ transform: ['translateX(0)', 'translateX(-101%)'] }, o);
+        const a = $('.ld-r', ld).animate({ transform: ['translateX(0)', 'translateX(101%)'] }, o);
+        setTimeout(finish, 520);
+        a.onfinish = end;
+      } else if (mode === 'curtain') {
+        fadeInner();
+        const a = ld.animate({ clipPath: ['inset(0 0 0 0)', 'inset(0 0 100% 0)'] }, { duration: 1100, delay: 330, easing: EASE, fill: 'forwards' });
+        setTimeout(finish, 640);
+        a.onfinish = end;
+      } else if (mode === 'iris') {
+        fadeInner();
+        const a = ld.animate({ '--r': ['0%', '150%'] }, { duration: 1200, delay: 300, easing: EASE, fill: 'forwards' });
+        setTimeout(finish, 650);
+        a.onfinish = end;
+      } else if (mode === 'sweep') {
+        const bus = $('.ld-sweep-bus', ld), W = innerWidth;
+        const o = { duration: 1300, delay: 120, easing: EASE, fill: 'forwards' };
+        bus.animate({ transform: ['translateX(0)', `translateX(${W + 80}px)`] }, o);
+        const a = ld.animate({ clipPath: ['inset(0 0 0 0)', 'inset(0 0 0 100%)'] }, o);
+        setTimeout(finish, 520);
+        a.onfinish = end;
+      } else {
+        const a = ld.animate({ opacity: [1, 0] }, { duration: 800, delay: 150, easing: 'ease-in-out', fill: 'forwards' });
+        setTimeout(finish, 350);
+        a.onfinish = end;
+      }
+    }
+  })();
+
+  /* ------------------------------------------------------------------
      Liczniki zleceń — miejsce na dane z bazy.
      Wywołaj window.ANWS.setCounts({ all: 128, urgent: 7 }) po pobraniu
      danych (np. z fetch). Do tego czasu kafelki pokazują „—”.
