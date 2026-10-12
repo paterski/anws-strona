@@ -574,7 +574,7 @@
       raf = Math.abs(tx - rx) + Math.abs(ty - ry) > 0.1 ? requestAnimationFrame(tick) : 0;
     };
     const kick = () => { if (!raf) raf = requestAnimationFrame(tick); };
-    const HOVERABLE = 'a, button, label, input, textarea, summary, .tile';
+    const HOVERABLE = 'a:not(.footer-copy), button, label, input, textarea, summary, .tile'; // © w stopce ma nie zdradzać, że jest linkiem
     addEventListener('pointermove', (e) => {
       tx = e.clientX; ty = e.clientY;
       cursor.classList.remove('is-hidden');

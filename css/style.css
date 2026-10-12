@@ -918,6 +918,9 @@ main { display: flex; flex-direction: column; gap: 72px; }
   padding-top: 24px; border-top: 1px solid var(--line);
   font-size: 14px; color: var(--ink-muted);
 }
+/* ukryte wejście do panelu administratora — wygląda jak zwykły tekst */
+.footer-copy, .footer-copy:hover { color: inherit; text-decoration: none; cursor: default; }
+.has-cursor .footer-copy { cursor: none; }
 .footer-links { display: flex; flex-wrap: wrap; gap: 22px; align-items: center; }
 .footer-links a:not(.ib) { text-decoration: none; }
 .footer-links a:not(.ib):hover { text-decoration: underline; }

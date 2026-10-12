@@ -2,8 +2,16 @@
 
 (function () {
   const $ = (s) => document.querySelector(s);
+  const root = document.documentElement;
   const auth = window.ANWSAuth;
   if (!auth) return;
+
+  const DICT = window.I18N || {};
+  const t = (k) => {
+    const lang = root.lang === 'en' ? 'en' : 'pl';
+    return (DICT[lang] && DICT[lang][k] != null) ? DICT[lang][k] : DICT.pl[k];
+  };
+  const tx = (k, x) => t(k).replace('{x}', x);
 
   const loginBox = $('#admin-login');
   const panel = $('#admin-panel');
@@ -11,9 +19,15 @@
   const live = $('#adm-live');
   let filter = 'pending';
 
-  const fmtDate = (ts) => new Date(ts).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' });
+  const fmtDate = (ts) => new Date(ts).toLocaleString(root.lang === 'en' ? 'en-GB' : 'pl-PL', { dateStyle: 'short', timeStyle: 'short' });
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
-  const STATUS = { pending: 'Oczekuje', approved: 'Zaakceptowany', rejected: 'Odrzucony' };
+
+  // komunikat zapamiętuje klucz tłumaczenia, żeby po zmianie języka dało się go przetłumaczyć
+  function msg(box, key) {
+    box.dataset.key = key || '';
+    box.textContent = key ? t(key) : '';
+    box.hidden = !key;
+  }
 
   function isAdmin() {
     const s = auth.getSession();
@@ -24,7 +38,7 @@
     const s = isAdmin();
     loginBox.hidden = !!s;
     panel.hidden = !s;
-    if (s) { $('#adm-who').textContent = 'Zalogowano: ' + s.login; $('#adm-warn').hidden = !auth.adminHasDefaultPassword(); render(); }
+    if (s) { $('#adm-who').textContent = t('adm.who') + ' ' + s.login; $('#adm-warn').hidden = !auth.adminHasDefaultPassword(); render(); }
     else setTimeout(() => $('#adm-login').focus(), 50);
   }
 
@@ -43,52 +57,53 @@
     ['pending', 'approved', 'rejected'].forEach((k) => { $('#cnt-' + k).textContent = regs.filter((r) => r.status === k).length; });
     list.textContent = '';
     const shown = regs.filter((r) => r.status === filter);
-    if (!shown.length) list.appendChild(el('p', 'reg-empty', filter === 'pending' ? 'Brak wniosków czekających na decyzję.' : 'Brak wniosków w tej kategorii.'));
+    if (!shown.length) list.appendChild(el('p', 'reg-empty', t(filter === 'pending' ? 'adm.emptyPending' : 'adm.empty')));
 
     shown.forEach((r) => {
       const card = el('article', 'reg-card');
       const head = el('div', 'rc-head');
       head.appendChild(el('h3', null, r.company));
       const tags = el('div', 'rc-tags');
-      tags.appendChild(el('span', 'rc-tag st-' + r.status, STATUS[r.status]));
+      tags.appendChild(el('span', 'rc-tag st-' + r.status, t('adm.st.' + r.status)));
       head.appendChild(tags);
       card.appendChild(head);
 
       const dl = el('dl', 'rc-grid');
       row(dl, 'NIP', r.nip, 'https://www.podatki.gov.pl/wykaz-podatnikow-vat-wyszukiwarka');
-      row(dl, 'KRS', r.krs || 'brak (CEIDG)', r.krs ? 'https://wyszukiwarka-krs.ms.gov.pl/' : null);
+      row(dl, 'KRS', r.krs || t('adm.f.krsNone'), r.krs ? 'https://wyszukiwarka-krs.ms.gov.pl/' : null);
       row(dl, 'REGON', r.regon);
-      row(dl, 'PKD przewozu osób', r.pkd && r.pkd.length ? r.pkd.join(', ') : 'brak');
-      row(dl, 'Licencja na przewóz osób', r.licence ? r.licence + ' (sprawdź w rejestrze GITD)' : 'brak', r.licence ? 'https://www.gitd.gov.pl/' : null);
-      row(dl, 'Osoba do kontaktu', r.contactName);
-      row(dl, 'Login', r.login);
+      row(dl, t('adm.f.pkd'), r.pkd && r.pkd.length ? r.pkd.join(', ') : t('adm.f.none'));
+      row(dl, t('adm.f.licence'), r.licence ? r.licence + ' ' + t('adm.f.licenceCheck') : t('adm.f.none'), r.licence ? 'https://www.gitd.gov.pl/' : null);
+      row(dl, t('adm.f.person'), r.contactName);
+      row(dl, t('auth.login'), r.login);
       row(dl, 'E-mail', r.email, 'mailto:' + r.email);
-      row(dl, 'Telefon kontaktowy', r.phone, 'tel:' + r.phone.replace(/[^\d+]/g, ''));
-      row(dl, 'Telefon alarmowy', r.alarmPhone, 'tel:' + r.alarmPhone.replace(/[^\d+]/g, ''));
-      row(dl, 'Wniosek z dnia', fmtDate(r.createdAt));
-      if (r.decidedAt) row(dl, 'Decyzja', fmtDate(r.decidedAt));
+      row(dl, t('reg.phone'), r.phone, 'tel:' + r.phone.replace(/[^\d+]/g, ''));
+      row(dl, t('reg.alarm'), r.alarmPhone, 'tel:' + r.alarmPhone.replace(/[^\d+]/g, ''));
+      row(dl, t('adm.f.date'), fmtDate(r.createdAt));
+      if (r.decidedAt) row(dl, t('adm.f.decision'), fmtDate(r.decidedAt));
       card.appendChild(dl);
 
       if (r.status === 'pending') {
         const actions = el('div', 'rc-actions');
-        const ok = el('button', 'call-btn call-btn-primary', 'Akceptuj');
-        const no = el('button', 'call-btn call-btn-ghost', 'Odrzuć');
+        const ok = el('button', 'call-btn call-btn-primary', t('adm.approve'));
+        const no = el('button', 'call-btn call-btn-ghost', t('adm.reject'));
         ok.type = no.type = 'button';
         ok.addEventListener('click', () => decide(r, true));
-        no.addEventListener('click', () => { if (confirm(`Odrzucić wniosek firmy ${r.company}? Klient dostanie e-mail z informacją.`)) decide(r, false); });
+        no.addEventListener('click', () => { if (confirm(tx('adm.rejectConfirm', r.company))) decide(r, false); });
         actions.append(ok, no);
         card.appendChild(actions);
       }
       list.appendChild(card);
     });
 
+    // treść e-maili zostaje po polsku — tak trafią do klientów
     const ob = $('#ob-list');
     ob.textContent = '';
     const mails = auth.outbox();
-    if (!mails.length) ob.appendChild(el('li', null, 'Brak wiadomości.'));
+    if (!mails.length) ob.appendChild(el('li', null, t('adm.outboxEmpty')));
     mails.forEach((m) => {
       const li = el('li');
-      li.appendChild(el('span', 'ob-meta', `Do: ${m.to} · ${fmtDate(m.at)}`));
+      li.appendChild(el('span', 'ob-meta', `${t('adm.to')} ${m.to} · ${fmtDate(m.at)}`));
       li.appendChild(el('b', null, m.subject));
       li.appendChild(el('span', null, m.body));
       ob.appendChild(li);
@@ -97,7 +112,7 @@
 
   function decide(r, approve) {
     if (!auth.decide(r.id, approve)) return;
-    live.textContent = approve ? `Zaakceptowano: ${r.company}. Wysłano e-mail do klienta.` : `Odrzucono: ${r.company}. Wysłano e-mail do klienta.`;
+    live.textContent = tx(approve ? 'adm.approved' : 'adm.rejected', r.company);
     render();
   }
 
@@ -109,19 +124,20 @@
 
   $('#adm-logout').addEventListener('click', () => { auth.logout(); show(); });
 
+  // logowanie administratora
   const form = $('#admin-form');
   const errBox = $('#adm-err');
   const btn = $('.auth-submit', form);
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    errBox.hidden = true;
+    msg(errBox, null);
     const login = $('#adm-login').value.trim(), pass = $('#adm-pass').value;
-    if (!login || !pass) { errBox.textContent = 'Wpisz login i hasło.'; errBox.hidden = false; return; }
+    if (!login || !pass) return msg(errBox, 'adm.e.empty');
     btn.disabled = true; btn.classList.add('is-loading');
     const res = await auth.login(login, pass, false);
     btn.disabled = false; btn.classList.remove('is-loading');
-    if (!res.ok) { errBox.textContent = 'Nieprawidłowy login lub hasło.'; errBox.hidden = false; $('#adm-pass').value = ''; return; }
-    if (res.role !== 'admin') { auth.logout(); errBox.textContent = 'To konto nie ma uprawnień administratora.'; errBox.hidden = false; return; }
+    if (!res.ok) { msg(errBox, 'adm.e.bad'); $('#adm-pass').value = ''; return; }
+    if (res.role !== 'admin') { auth.logout(); return msg(errBox, 'adm.e.role'); }
     form.reset();
     show();
   });
@@ -131,19 +147,26 @@
   const pwErr = $('#pw-err'), pwOk = $('#pw-ok'), pwBtn = $('.auth-submit', pw);
   pw.addEventListener('submit', async (e) => {
     e.preventDefault();
-    pwErr.hidden = true; pwOk.hidden = true;
+    msg(pwErr, null); pwOk.hidden = true;
     const cur = $('#pw-current').value, nw = $('#pw-new').value, rp = $('#pw-repeat').value;
-    const fail = (msg, id) => { pwErr.textContent = msg; pwErr.hidden = false; if (id) $(id).focus(); };
-    if (!cur || !nw || !rp) return fail('Wypełnij wszystkie pola.');
-    if (nw !== rp) return fail('Nowe hasła nie są takie same.', '#pw-repeat');
-    if (nw === cur) return fail('Nowe hasło musi się różnić od obecnego.', '#pw-new');
+    const fail = (key, id) => { msg(pwErr, key); if (id) $(id).focus(); };
+    if (!cur || !nw || !rp) return fail('adm.e.fill');
+    if (nw !== rp) return fail('adm.e.mismatch', '#pw-repeat');
+    if (nw === cur) return fail('adm.e.same', '#pw-new');
     pwBtn.disabled = true; pwBtn.classList.add('is-loading');
     const res = await auth.changePassword(cur, nw);
     pwBtn.disabled = false; pwBtn.classList.remove('is-loading');
-    if (!res.ok) return fail(res.error === 'weak' ? 'Nowe hasło musi mieć min. 8 znaków, w tym literę i cyfrę.' : 'Obecne hasło jest nieprawidłowe.', res.error === 'weak' ? '#pw-new' : '#pw-current');
+    if (!res.ok) return res.error === 'weak' ? fail('adm.e.weak', '#pw-new') : fail('adm.e.current', '#pw-current');
     pw.reset();
     pwOk.hidden = false;
     $('#adm-warn').hidden = !auth.adminHasDefaultPassword();
+  });
+
+  // zmiana języka: przetłumacz to, co skrypt wygenerował sam
+  document.addEventListener('anws:lang', () => {
+    [errBox, pwErr].forEach((b) => { if (b.dataset.key) b.textContent = t(b.dataset.key); });
+    const s = isAdmin();
+    if (s) { $('#adm-who').textContent = t('adm.who') + ' ' + s.login; render(); }
   });
 
   show();

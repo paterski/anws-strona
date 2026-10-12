@@ -27,7 +27,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="css/style.css?v=202610121929">
+<link rel="stylesheet" href="css/style.css?v=202610121940">
 </head>
 <body data-title-key="legal.adminTitle">
 <a class="skip" href="#tresc" data-i18n="skip">Przejdź do treści</a>
@@ -146,67 +146,67 @@
 
     <main id="tresc" class="admin-main">
       <section class="p-hero admin-hero">
-        <span class="badge"><span class="live" aria-hidden="true"></span><span>Panel administratora</span></span>
-        <h1 class="p-title">Wnioski o rejestrację</h1>
-        <p class="lead p-lead">Sprawdź dane firmy i wynik weryfikacji w rejestrach, a potem zaakceptuj albo odrzuć wniosek. Klient dostanie e-mail z decyzją.</p>
+        <span class="badge"><span class="live" aria-hidden="true"></span><span data-i18n="adm.badge">Panel administratora</span></span>
+        <h1 class="p-title" data-i18n="adm.title">Wnioski o rejestrację</h1>
+        <p class="lead p-lead" data-i18n="adm.lead">Sprawdź dane firmy i wynik weryfikacji w rejestrach, a potem zaakceptuj albo odrzuć wniosek. Klient dostanie e-mail z decyzją.</p>
       </section>
 
       <div class="admin-card admin-login" id="admin-login" hidden>
-        <h2>Zaloguj się jako administrator</h2>
+        <h2 data-i18n="adm.loginTitle">Zaloguj się jako administrator</h2>
         <form id="admin-form" class="auth-form" novalidate>
           <div class="field">
-            <label for="adm-login">Login</label>
+            <label for="adm-login" data-i18n="auth.login">Login</label>
             <input id="adm-login" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required>
           </div>
           <div class="field">
-            <label for="adm-pass">Hasło</label>
+            <label for="adm-pass" data-i18n="auth.password">Hasło</label>
             <input id="adm-pass" type="password" autocomplete="current-password" required>
           </div>
           <p class="field-err" id="adm-err" role="alert" hidden></p>
-          <button type="submit" class="call-btn call-btn-primary auth-submit"><span class="spinner" aria-hidden="true"></span><span class="auth-submit-label">Zaloguj się</span></button>
+          <button type="submit" class="call-btn call-btn-primary auth-submit"><span class="spinner" aria-hidden="true"></span><span class="auth-submit-label" data-i18n="auth.submit">Zaloguj się</span></button>
         </form>
       </div>
 
       <div class="admin-panel" id="admin-panel" hidden>
         <div class="admin-bar">
-          <div class="admin-tabs" role="group" aria-label="Filtr wniosków">
-            <button type="button" data-filter="pending" aria-pressed="true">Oczekujące <b id="cnt-pending">0</b></button>
-            <button type="button" data-filter="approved" aria-pressed="false">Zaakceptowane <b id="cnt-approved">0</b></button>
-            <button type="button" data-filter="rejected" aria-pressed="false">Odrzucone <b id="cnt-rejected">0</b></button>
+          <div class="admin-tabs" role="group" aria-label="Filtr wniosków" data-i18n-aria="adm.filter">
+            <button type="button" data-filter="pending" aria-pressed="true"><span data-i18n="adm.tabPending">Oczekujące</span> <b id="cnt-pending">0</b></button>
+            <button type="button" data-filter="approved" aria-pressed="false"><span data-i18n="adm.tabApproved">Zaakceptowane</span> <b id="cnt-approved">0</b></button>
+            <button type="button" data-filter="rejected" aria-pressed="false"><span data-i18n="adm.tabRejected">Odrzucone</span> <b id="cnt-rejected">0</b></button>
           </div>
-          <div class="admin-who"><span id="adm-who"></span> <button type="button" class="sub-logout" id="adm-logout">Wyloguj się</button></div>
+          <div class="admin-who"><span id="adm-who"></span> <button type="button" class="sub-logout" id="adm-logout" data-i18n="sub.logout">Wyloguj się</button></div>
         </div>
         <p class="adm-warn" id="adm-warn" role="status" hidden>
-          Używasz domyślnego hasła <b>admin</b>. Zmień je poniżej w sekcji „Zmiana hasła”.
+          <span data-i18n="adm.warn1">Używasz domyślnego hasła</span> <b>admin</b>. <span data-i18n="adm.warn2">Zmień je poniżej w sekcji „Zmiana hasła administratora”.</span>
         </p>
         <p class="sr-only" id="adm-live" aria-live="polite"></p>
         <div class="reg-list" id="reg-list"></div>
 
         <section class="admin-card outbox" aria-labelledby="ob-title">
-          <h2 id="ob-title">Skrzynka nadawcza</h2>
-          <p class="field-help">E-maile, które wyśle serwer po podłączeniu poczty (do administratora o nowym wniosku i do klienta o decyzji).</p>
+          <h2 id="ob-title" data-i18n="adm.outbox">Skrzynka nadawcza</h2>
+          <p class="field-help" data-i18n="adm.outboxHelp">E-maile, które wyśle serwer po podłączeniu poczty (do administratora o nowym wniosku i do klienta o decyzji).</p>
           <ul class="ob-list" id="ob-list"></ul>
         </section>
 
         <section class="admin-card pw-card" id="pw" aria-labelledby="pw-title">
-          <h2 id="pw-title">Zmiana hasła administratora</h2>
+          <h2 id="pw-title" data-i18n="adm.pwTitle">Zmiana hasła administratora</h2>
           <form id="pw-form" class="auth-form pw-form" novalidate>
             <div class="field">
-              <label for="pw-current">Obecne hasło</label>
+              <label for="pw-current" data-i18n="adm.pwCurrent">Obecne hasło</label>
               <input id="pw-current" type="password" autocomplete="current-password" required>
             </div>
             <div class="field">
-              <label for="pw-new">Nowe hasło</label>
+              <label for="pw-new" data-i18n="adm.pwNew">Nowe hasło</label>
               <input id="pw-new" type="password" autocomplete="new-password" required aria-describedby="pw-help">
-              <p class="field-help" id="pw-help">Min. 8 znaków, w tym litera i cyfra.</p>
+              <p class="field-help" id="pw-help" data-i18n="reg.passHelp">Min. 8 znaków, w tym litera i cyfra.</p>
             </div>
             <div class="field">
-              <label for="pw-repeat">Powtórz nowe hasło</label>
+              <label for="pw-repeat" data-i18n="adm.pwRepeat">Powtórz nowe hasło</label>
               <input id="pw-repeat" type="password" autocomplete="new-password" required>
             </div>
             <p class="field-err" id="pw-err" role="alert" hidden></p>
-            <p class="pw-ok" id="pw-ok" role="status" hidden>Hasło zostało zmienione.</p>
-            <button type="submit" class="call-btn call-btn-primary auth-submit"><span class="spinner" aria-hidden="true"></span><span class="auth-submit-label">Zmień hasło</span></button>
+            <p class="pw-ok" id="pw-ok" role="status" hidden data-i18n="adm.pwOk">Hasło zostało zmienione.</p>
+            <button type="submit" class="call-btn call-btn-primary auth-submit"><span class="spinner" aria-hidden="true"></span><span class="auth-submit-label" data-i18n="adm.pwSubmit">Zmień hasło</span></button>
           </form>
         </section>
       </div>
@@ -214,7 +214,7 @@
 
     <!-- stopka -->
     <footer class="footer" id="kontakt">
-      <span>© 2026 ANWS</span>
+      <a href="admin.html" class="footer-copy">© 2026 ANWS</a>
       <div class="footer-links">
         <a href="regulamin.html" data-i18n="footer.terms">Regulamin</a>
         <a href="polityka-prywatnosci.html" data-i18n="footer.privacy">Polityka prywatności</a>
@@ -261,9 +261,9 @@
 <!-- kursor (tylko myszka) -->
 <div class="cursor" aria-hidden="true"><div class="cursor-dot"></div><div class="cursor-ring"></div></div>
 
-<script src="js/i18n.js?v=202610121929"></script>
-<script src="js/auth.js?v=202610121929"></script>
-<script src="js/main.js?v=202610121929" defer></script>
-<script src="js/admin.js?v=202610121929" defer></script>
+<script src="js/i18n.js?v=202610121940"></script>
+<script src="js/auth.js?v=202610121940"></script>
+<script src="js/main.js?v=202610121940" defer></script>
+<script src="js/admin.js?v=202610121940" defer></script>
 </body>
 </html>
