@@ -567,16 +567,6 @@ main { display: flex; flex-direction: column; gap: 72px; }
 }
 .count span { font-size: 14px; font-weight: 500; color: var(--tile-muted); }
 
-.chips { position: relative; display: flex; flex-wrap: wrap; gap: 8px; }
-.chip {
-  padding: 7px 13px; border-radius: 999px; font-size: 13px; font-weight: 500;
-  background: rgba(237, 230, 220, 0.11); border: 1px solid rgba(237, 230, 220, 0.2);
-  transition: background .3s, transform .3s;
-}
-.tile:hover .chip { background: rgba(237, 230, 220, .2); transform: translateY(-2px); }
-.tile:hover .chip.c2 { transition-delay: .05s; }
-.tile:hover .chip.c3 { transition-delay: .1s; }
-
 .cta {
   position: relative; margin-top: auto; align-self: flex-start;
   display: inline-flex; align-items: center; gap: 10px;
@@ -923,7 +913,6 @@ html.is-loading .page *, html.is-loading .page *::before, html.is-loading .page 
   .tile-desc { font-size: 15px; line-height: 1.5; }
   .desc-long { display: none !important; }
   .desc-short { display: block !important; }
-  .chips { display: none; }
   .count b { font-size: 28px; }
   .cta { align-self: stretch; justify-content: space-between; min-height: 48px; padding: 0 7px 0 20px; }
   .cta-arrow { width: 36px; height: 36px; border-radius: 50%; color: var(--cta-bg, #EDE6DC); }

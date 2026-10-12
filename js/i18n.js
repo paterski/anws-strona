@@ -29,20 +29,17 @@ window.I18N = {
     't1.title': 'Utwórz zlecenie',
     't1.long': 'Podaj trasę, termin i liczbę pasażerów.',
     't1.short': 'Podaj trasę, termin i liczbę pasażerów. Przewoźnicy odpowiedzą ofertą.',
-    't1.c1': 'Trasa', 't1.c2': 'Termin', 't1.c3': 'Pasażerowie',
     't1.cta': 'Rozpocznij',
 
     't2.title': 'Lista zleceń',
     't2.long': 'Przeglądaj dostępne przewozy według trasy i daty. Wybierz te, które pasują do Twojej floty.',
     't2.short': 'Przeglądaj przewozy według trasy i daty. Wybierz te dla swojej floty.',
     't2.count': 'zleceń w bazie',
-    't2.c1': 'Skąd – dokąd', 't2.c2': 'Data', 't2.c3': 'Typ pojazdu',
     't2.cta': 'Przeglądaj zlecenia',
 
     't3.title': 'Pilne przewozy!',
     't3.tag': 'Premium',
     't3.count': 'zleceń premium',
-    't3.c1': 'Pilne', 't3.c2': 'Okazje', 't3.c3': 'Priorytet',
     't3.cta': 'Zobacz zlecenia na już',
 
     'band.label': 'Rodzaje przewozów',
@@ -119,20 +116,17 @@ window.I18N = {
     't1.title': 'Create an order',
     't1.long': 'Enter the route, date and number of passengers.',
     't1.short': 'Enter the route, date and passengers. Carriers reply with an offer.',
-    't1.c1': 'Route', 't1.c2': 'Date', 't1.c3': 'Passengers',
     't1.cta': 'Get started',
 
     't2.title': 'Order list',
     't2.long': 'Browse available trips by route and date. Pick the ones that fit your fleet.',
     't2.short': 'Browse trips by route and date. Pick the ones for your fleet.',
     't2.count': 'orders in total',
-    't2.c1': 'From – to', 't2.c2': 'Date', 't2.c3': 'Vehicle type',
     't2.cta': 'Browse orders',
 
     't3.title': 'Urgent transport!',
     't3.tag': 'Premium',
     't3.count': 'premium orders',
-    't3.c1': 'Urgent', 't3.c2': 'One-off', 't3.c3': 'Priority',
     't3.cta': 'See urgent orders',
 
     'band.label': 'Types of trips',
