@@ -7,14 +7,16 @@
  * nadawczej” widocznej w panelu administratora (admin.html); serwer wyśle je naprawdę.
  *
  * Konta testowe (do usunięcia przy podpięciu backendu):
- *   demo  / Autobus2026!  — konto aktywne (e-mail do resetu hasła: demo@example.com)
+ *   demo      / Autobus2026!  — konto aktywne, model prowizyjny (e-mail do resetu: demo@example.com)
+ *   abonament / Autobus2026!  — konto aktywne, model abonamentowy (rezerwacje bez prowizji)
  *   nowy  / Autobus2026!  — konto niepotwierdzone (komunikat o administratorze)
  *   admin / admin         — administrator (panel: admin.html); hasło zmienisz w panelu
  * Wnioski testowe (SEED) — po akceptacji w panelu loguje się nimi hasłem Testowe2026!
  */
 (function () {
   const USERS = [
-    { login: 'demo', name: 'Konto demo', role: 'user', confirmed: true, email: 'demo@example.com', hash: 'ea154322e34a4a49e147e9c13e53fd3a947cb49124268052980f0d858493a8f9' },
+    { login: 'demo', name: 'Konto demo', role: 'user', confirmed: true, email: 'demo@example.com', plan: 'commission', activatedAt: Date.UTC(2026, 0, 15), hash: 'ea154322e34a4a49e147e9c13e53fd3a947cb49124268052980f0d858493a8f9' },
+    { login: 'abonament', name: 'Konto abonamentowe', role: 'user', confirmed: true, email: 'abonament@example.com', plan: 'subscription', activatedAt: Date.UTC(2026, 0, 15), hash: 'ea154322e34a4a49e147e9c13e53fd3a947cb49124268052980f0d858493a8f9' },
     { login: 'nowy', name: 'Nowy użytkownik', role: 'user', confirmed: false, email: 'nowy@example.com', hash: 'ea154322e34a4a49e147e9c13e53fd3a947cb49124268052980f0d858493a8f9' },
     { login: 'admin', name: 'Administrator', role: 'admin', confirmed: true, hash: '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918' },
   ];
@@ -92,7 +94,7 @@
       return Object.assign({ builtIn: true }, u, changed ? { hash: changed } : {});
     }
     const r = loadRegs().find((x) => x.login === l);
-    return r ? { login: r.login, name: r.company, role: 'user', confirmed: r.status === 'approved', hash: r.hash, email: r.email } : null;
+    return r ? { login: r.login, name: r.company, role: 'user', confirmed: r.status === 'approved', hash: r.hash, email: r.email, plan: r.plan || 'commission', activatedAt: r.approvedAt || null } : null;
   }
 
   async function setHash(login, hash) {
@@ -222,6 +224,16 @@
       return { ok: true };
     },
 
+    /* Model rozliczeń konta: { plan: 'subscription' | 'commission', freeUntil, free }
+     * free = rezerwacja bez prowizji (abonament albo pierwszy miesiąc od aktywacji konta). */
+    getPlan(login) {
+      const acc = findAccount(login);
+      if (!acc) return { plan: 'commission', freeUntil: 0, free: false };
+      const plan = acc.plan || 'commission';
+      const freeUntil = acc.activatedAt ? acc.activatedAt + 30 * 864e5 : 0;
+      return { plan, freeUntil, free: plan === 'subscription' || Date.now() < freeUntil };
+    },
+
     // Rejestracja — etap 2 (administrator)
     listRegistrations() { return loadRegs(); },
     outbox() { ensureSeed(); return loadRaw(OUT_KEY, []); },
@@ -231,6 +243,7 @@
       if (!r || r.status !== 'pending') return false;
       r.status = approve ? 'approved' : 'rejected';
       r.decidedAt = Date.now();
+      if (approve) { r.plan = r.plan || 'commission'; r.approvedAt = Date.now(); } // od aktywacji liczy się darmowy miesiąc
       save(REG_KEY, regs);
       if (approve) {
         mail(r.email, 'Twoje konto ANWS jest aktywne',

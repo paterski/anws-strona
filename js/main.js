@@ -107,6 +107,8 @@
       renderCounts();
     },
   };
+  // liczniki na kafelkach: aktywne, wolne zlecenia z giełdy
+  if (window.ANWSOrders) Object.assign(counts, window.ANWSOrders.counts());
 
   /* ------------------------------------------------------------------
      Język PL / EN
@@ -183,6 +185,7 @@
     root.lang = next;
     $$('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
     $$('[data-i18n-aria]').forEach((el) => { el.setAttribute('aria-label', t(el.dataset.i18nAria)); });
+    $$('[data-i18n-ph]').forEach((el) => { el.placeholder = t(el.dataset.i18nPh); el.setAttribute('aria-label', t(el.dataset.i18nPh)); });
     $$('[data-i18n-title]').forEach((el) => { renderTitle(el, t(el.dataset.i18nTitle)); });
     document.title = t(document.body.dataset.titleKey || 'meta.title');
     const md = $('meta[name="description"]');

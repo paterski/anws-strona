@@ -3,49 +3,342 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lista zleceń — ANWS</title>
-<meta name="robots" content="noindex">
+<title>Giełda zleceń — ANWS</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#EDE6DC">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <script>
+/* motyw i język ustawiamy przed pierwszym malowaniem, żeby strona nie „mrugała” */
 (function () {
   var d = document.documentElement, theme = 'light', lang = 'pl';
-  d.classList.add('js', 'js-guard');
+  d.classList.add('js');
   try {
-    theme = localStorage.getItem('anws-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    var st = localStorage.getItem('anws-theme');
+    theme = st || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     lang = localStorage.getItem('anws-lang') || 'pl';
   } catch (e) {}
   d.dataset.theme = theme;
   d.lang = lang;
+  var m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.content = theme === 'dark' ? '#0F1013' : '#EDE6DC';
 })();
 </script>
+<script>document.documentElement.classList.add('js-guard');</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="css/style.css?v=202610121952">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="css/style.css?v=202610130117">
+<link rel="stylesheet" href="css/gielda.css?v=202610130117">
 </head>
-<body>
-<div class="sub-page">
-  <header class="sub-head">
-    <a href="index.html" class="brand" aria-label="ANWS — strona główna">
-      <svg class="logo" viewBox="0 0 230 80" aria-hidden="true">
-        <g fill="none" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M6 68 L28 12 L50 68"></path><path d="M66 68 V12 L104 68 V12"></path><path d="M120 12 L131 68 L145 30 L159 68 L170 12"></path>
-          <path d="M222 20 C216 12 208 11 203 11 C193 11 188 17 188 25 C188 35 197 38 205 40 C214 42 224 45 224 55 C224 64 216 69 205 69 C197 69 190 66 186 60"></path>
-          <path class="d5" d="M14.6 46 H41.4"></path>
-        </g>
-      </svg>
-    </a>
-    <div class="sub-actions">
-      <span class="sub-user"><span data-i18n="sub.hello">Zalogowano jako</span> <b id="sub-who"></b></span>
-      <button type="button" class="sub-logout" id="logout" data-i18n="sub.logout">Wyloguj się</button>
+<body class="app" data-title-key="g.metaTitle">
+<a class="skip" href="#gl-body" data-i18n="skip">Przejdź do treści</a>
+
+<!-- menu giełdy: stałe u góry; na telefonie trzy główne przyciski przechodzą na dolny pasek -->
+<header class="app-head" id="nav">
+  <a href="index.html" class="brand" aria-label="ANWS — strona główna" data-i18n-aria="brand">
+        <svg class="logo" viewBox="0 0 230 80" aria-hidden="true">
+          <g class="draw" fill="none" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+            <path class="d1" pathLength="100" d="M6 68 L28 12 L50 68"></path>
+            <path class="d2" pathLength="100" d="M66 68 V12 L104 68 V12"></path>
+            <path class="d3" pathLength="100" d="M120 12 L131 68 L145 30 L159 68 L170 12"></path>
+            <path class="d4" pathLength="100" d="M222 20 C216 12 208 11 203 11 C193 11 188 17 188 25 C188 35 197 38 205 40 C214 42 224 45 224 55 C224 64 216 69 205 69 C197 69 190 66 186 60"></path>
+            <path class="d5" pathLength="100" d="M14.6 46 H41.4"></path>
+          </g>
+          <circle class="stop s1" cx="6" cy="68" r="6.5"></circle>
+          <circle class="stop s2" cx="104" cy="12" r="6.5"></circle>
+          <circle class="stop s3" cx="145" cy="30" r="6.5"></circle>
+          <circle class="stop s4" cx="186" cy="60" r="6.5"></circle>
+        </svg>
+  </a>
+
+  <nav class="app-nav" aria-label="Giełda" data-i18n-aria="g.navLabel">
+    <button type="button" class="an-btn an-create" data-action="create"><span class="an-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></span><span class="an-label" data-i18n="g.nav.create">Utwórz zlecenie</span></button>
+    <button type="button" class="an-btn an-list" data-action="list" aria-pressed="true"><span class="an-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"></path><circle cx="4.5" cy="6" r="1.3" fill="currentColor"></circle><circle cx="4.5" cy="12" r="1.3" fill="currentColor"></circle><circle cx="4.5" cy="18" r="1.3" fill="currentColor"></circle></svg></span><span class="an-label" data-i18n="g.nav.list">Lista zleceń</span></button>
+    <button type="button" class="an-btn an-urgent" data-action="urgent" aria-pressed="false"><span class="an-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2.5 5 13.5h6l-1 8 8-11h-6z"></path></svg></span><span class="an-label" data-i18n="g.nav.urgent">Pilne przewozy!</span><b class="an-count" id="urgent-count" aria-hidden="true">0</b></button>
+  </nav>
+
+  <div class="app-tools">
+        <div class="lang-switch" role="group" aria-label="Język" data-i18n-aria="lang.group">
+          <span class="lang-thumb" aria-hidden="true"></span>
+          <button type="button" lang="pl" data-lang="pl" aria-label="Polski" aria-pressed="true">PL</button>
+          <button type="button" lang="en" data-lang="en" aria-label="English" aria-pressed="false">EN</button>
+        </div>
+        <button type="button" class="ib theme-btn" id="theme-btn" aria-pressed="false" aria-label="Tryb ciemny" data-i18n-aria="theme.label">
+          <svg class="i-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"></path></svg>
+          <svg class="i-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"></path></svg>
+        </button>
+        <a href="https://wa.me/48884106851" target="_blank" rel="noopener" class="ib social" aria-label="Napisz na WhatsAppie" data-i18n-aria="social.wa"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 20.5l1.3-4.2A8.5 8.5 0 1 1 8 19.3z"></path><path d="M9 8.6c.2 2.6 3.4 5.8 6 6 .7 0 1.4-.6 1.4-1.2l-1.8-1-.9.7c-.8-.3-1.9-1.4-2.3-2.3l.7-.9-1-1.8c-.7 0-1.4.7-1.4 1.4z" fill="currentColor" stroke="none"></path></svg></a>
+        <a href="mailto:" class="ib social" aria-label="Napisz e-mail" data-i18n-aria="social.mail"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="M3.8 7.5l8.2 6 8.2-6"></path></svg></a>
+        <a href="tel:+48884106851" class="ib call" aria-label="Zadzwoń do ANWS" data-i18n-aria="call.aria">
+          <svg class="ring" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></svg>
+          <span class="phone-num" data-i18n="call.btn">Zadzwoń</span>
+        </a>
+    <span class="nav-sep" aria-hidden="true"></span>
+    <div class="user-chip" title="">
+      <span class="uc-avatar" id="uc-avatar" aria-hidden="true"></span>
+      <span class="uc-text"><b id="uc-name"></b><span class="uc-plan" id="uc-plan"></span></span>
     </div>
-  </header>
-  <main class="sub-main">
-    <div class="sub-card">
-      <h1 data-i18n="sub.list">Lista zleceń</h1>
+    <button type="button" class="ib" id="logout" aria-label="Wyloguj się" data-i18n-aria="sub.logout"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"></path></svg></button>
+  </div>
+</header>
+
+<main class="app-main" id="tresc" data-view="split">
+
+  <!-- lista zleceń (giełda) -->
+  <section class="pane pane-list" id="pane-list" aria-labelledby="g-title">
+    <div class="gl-top">
+      <div class="gl-title-row">
+        <h1 id="g-title"><span data-i18n="g.title">Giełda zleceń</span> <span class="gl-count" id="gl-count"></span></h1>
+        <div class="view-switch" role="group" aria-label="Układ ekranu" data-i18n-aria="g.view.label">
+          <button type="button" data-view-btn="list" aria-pressed="false" aria-label="Tylko lista" data-i18n-aria="g.view.list"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="3"></rect><path d="M7 9.5h10M7 14.5h10"></path></svg></button>
+          <button type="button" data-view-btn="split" aria-pressed="true" aria-label="Lista i mapa" data-i18n-aria="g.view.split"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="3"></rect><path d="M13 4.5v15"></path></svg></button>
+          <button type="button" data-view-btn="map" aria-pressed="false" aria-label="Tylko mapa" data-i18n-aria="g.view.map"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5l6-2.5 6 2.5 6-2.5v13.5l-6 2.5-6-2.5-6 2.5z"></path><path d="M9 4v13.5M15 6.5V20"></path></svg></button>
+        </div>
+      </div>
+
+      <div class="gl-filters">
+        <label class="gl-search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M20 20l-4.2-4.2"></path></svg><input type="search" id="gl-q" autocomplete="off" placeholder="Szukaj miasta lub miejsca" aria-label="Szukaj miasta lub miejsca" data-i18n-ph="g.search"></label>
+        <div class="chip-row" role="group" aria-label="Termin" data-i18n-aria="g.f.when">
+          <button type="button" class="fchip" data-date="all" aria-pressed="true" data-i18n="g.f.all">Wszystkie</button>
+          <button type="button" class="fchip" data-date="today" aria-pressed="false" data-i18n="g.f.today">Dziś</button>
+          <button type="button" class="fchip" data-date="tomorrow" aria-pressed="false" data-i18n="g.f.tomorrow">Jutro</button>
+          <button type="button" class="fchip" data-date="week" aria-pressed="false" data-i18n="g.f.week">7 dni</button>
+        </div>
+        <button type="button" class="fchip fchip-urgent" id="f-urgent" aria-pressed="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2.5 5 13.5h6l-1 8 8-11h-6z"></path></svg><span data-i18n="g.f.urgent">Pilne</span></button>
+        <button type="button" class="fchip" id="f-free" aria-pressed="false" data-i18n="g.f.free">Tylko wolne</button>
+        <button type="button" class="fchip fchip-more" id="f-more" aria-expanded="false" aria-controls="f-panel"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg><span data-i18n="g.filters">Filtry</span><b id="f-more-count" hidden></b></button>
+      </div>
+
+      <div class="f-panel" id="f-panel" hidden>
+        <div class="field"><label for="f-rate" data-i18n="g.f.rateMin">Stawka od (zł)</label><input id="f-rate" type="number" min="0" step="50" inputmode="numeric"></div>
+        <div class="field"><label for="f-km" data-i18n="g.f.kmMax">Odległość do (km)</label><input id="f-km" type="number" min="0" step="10" inputmode="numeric"></div>
+        <div class="field"><label for="f-pax" data-i18n="g.f.paxMin">Pasażerów od</label><input id="f-pax" type="number" min="0" step="1" inputmode="numeric"></div>
+        <div class="field"><label for="f-sort" data-i18n="g.sort">Sortuj</label>
+          <select id="f-sort" class="tel-cc f-sort">
+            <option value="dep:asc" data-i18n="g.s.depAsc">Najbliższy wyjazd</option>
+            <option value="dep:desc" data-i18n="g.s.depDesc">Najdalszy wyjazd</option>
+            <option value="rate:desc" data-i18n="g.s.rateDesc">Najwyższa stawka</option>
+            <option value="rate:asc" data-i18n="g.s.rateAsc">Najniższa stawka</option>
+            <option value="km:asc" data-i18n="g.s.kmAsc">Najkrótsza trasa</option>
+            <option value="km:desc" data-i18n="g.s.kmDesc">Najdłuższa trasa</option>
+            <option value="ppk:desc" data-i18n="g.s.ppkDesc">Najlepsza stawka za km</option>
+          </select>
+        </div>
+        <button type="button" class="link-btn" id="f-reset" data-i18n="g.f.reset">Wyczyść filtry</button>
+      </div>
     </div>
-  </main>
-</div>
-<script src="js/i18n.js?v=202610121952"></script>
-<script src="js/auth.js?v=202610121952"></script>
-<script src="js/sub.js?v=202610121952"></script>
+
+    <div class="gl-scroll" id="gl-scroll">
+      <table class="gl-table">
+        <caption class="sr-only" data-i18n="g.caption">Zlecenia przewozowe — domyślnie od najbliższego wyjazdu</caption>
+        <thead>
+          <tr>
+            <th scope="col" class="" aria-sort="none"><button type="button" class="th-sort" data-sort="from"><span data-i18n="g.c.from">Skąd</span><i class="sort-ic" aria-hidden="true"></i></button></th>
+            <th scope="col" class="" aria-sort="none"><button type="button" class="th-sort" data-sort="dep"><span data-i18n="g.c.dep">Wyjazd</span><i class="sort-ic" aria-hidden="true"></i></button></th>
+            <th scope="col" class="" aria-sort="none"><button type="button" class="th-sort" data-sort="to"><span data-i18n="g.c.to">Dokąd</span><i class="sort-ic" aria-hidden="true"></i></button></th>
+            <th scope="col" class="" aria-sort="none"><button type="button" class="th-sort" data-sort="arr"><span data-i18n="g.c.arr">Przyjazd</span><i class="sort-ic" aria-hidden="true"></i></button></th>
+            <th scope="col" class="num" aria-sort="none"><button type="button" class="th-sort" data-sort="km"><span data-i18n="g.c.km">Km</span><i class="sort-ic" aria-hidden="true"></i></button></th>
+            <th scope="col" class="num" aria-sort="none"><button type="button" class="th-sort" data-sort="rate"><span data-i18n="g.c.rate">Stawka</span><i class="sort-ic" aria-hidden="true"></i></button></th>
+            <th scope="col" class="th-actions"><span class="sr-only" data-i18n="g.c.actions">Akcje</span></th>
+          </tr>
+        </thead>
+        <tbody id="gl-body"></tbody>
+      </table>
+      <div class="gl-empty" id="gl-empty" hidden>
+        <p data-i18n="g.empty">Brak zleceń spełniających filtry.</p>
+        <button type="button" class="call-btn call-btn-ghost" id="gl-empty-reset" data-i18n="g.f.reset">Wyczyść filtry</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="pane-resizer" id="resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-controls="pane-list" aria-valuemin="25" aria-valuemax="80" aria-valuenow="58" aria-label="Zmień szerokość listy i mapy" data-i18n-aria="g.resize"><span class="grip" aria-hidden="true"></span></div>
+
+  <!-- mapa zleceń -->
+  <section class="pane pane-map" aria-label="Mapa zleceń" data-i18n-aria="g.map.label">
+    <div class="map-bar">
+      <div class="map-mode" role="group" aria-label="Pokaż na mapie" data-i18n-aria="g.map.show">
+        <button type="button" data-map-mode="dep" aria-pressed="true"><i class="mm-dot mm-dep" aria-hidden="true"></i><span data-i18n="g.map.dep">Odjazdy</span></button>
+        <button type="button" data-map-mode="arr" aria-pressed="false"><i class="mm-dot mm-arr" aria-hidden="true"></i><span data-i18n="g.map.arr">Przyjazdy</span></button>
+      </div>
+      <span class="map-note" id="map-note"></span>
+      <div class="view-switch map-views" role="group" aria-label="Układ ekranu" data-i18n-aria="g.view.label">
+          <button type="button" data-view-btn="list" aria-pressed="false" aria-label="Tylko lista" data-i18n-aria="g.view.list"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="3"></rect><path d="M7 9.5h10M7 14.5h10"></path></svg></button>
+          <button type="button" data-view-btn="split" aria-pressed="true" aria-label="Lista i mapa" data-i18n-aria="g.view.split"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="3"></rect><path d="M13 4.5v15"></path></svg></button>
+          <button type="button" data-view-btn="map" aria-pressed="false" aria-label="Tylko mapa" data-i18n-aria="g.view.map"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5l6-2.5 6 2.5 6-2.5v13.5l-6 2.5-6-2.5-6 2.5z"></path><path d="M9 4v13.5M15 6.5V20"></path></svg></button>
+        </div>
+    </div>
+    <div id="map" class="map"></div>
+  </section>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- nowe zlecenie: punkty startu i celu zaznaczane na mapie -->
+<dialog class="call-dlg auth-dlg cr-dlg" id="cr-dialog" aria-labelledby="cr-title">
+  <div class="call-panel cr-panel">
+    <button type="button" class="call-x" data-close aria-label="Zamknij" data-i18n-aria="call.close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+    <div class="cr-head">
+      <span class="auth-badge" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></span>
+      <div>
+        <h2 class="auth-title" id="cr-title" data-i18n="g.cr.title">Nowe zlecenie</h2>
+        <p class="auth-sub" data-i18n="g.cr.sub">Zaznacz na mapie start i cel przejazdu, potem uzupełnij termin, liczbę osób i stawkę.</p>
+      </div>
+    </div>
+    <form class="cr-form" id="cr-form" novalidate>
+      <div class="cr-mapcol">
+        <ol class="cr-steps" aria-label="Punkty trasy" data-i18n-aria="g.cr.points">
+          <li class="cr-step" id="cr-step-a"><span class="cr-pin cr-pin-a" aria-hidden="true">A</span><span data-i18n="g.cr.stepA">Start</span></li>
+          <li class="cr-step" id="cr-step-b"><span class="cr-pin cr-pin-b" aria-hidden="true">B</span><span data-i18n="g.cr.stepB">Cel</span></li>
+        </ol>
+        <div class="cr-search">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M20 20l-4.2-4.2"></path></svg>
+          <input type="search" id="cr-q" autocomplete="off" placeholder="Szukaj adresu…" aria-label="Szukaj adresu" data-i18n-ph="g.cr.search" role="combobox" aria-expanded="false" aria-controls="cr-results" aria-autocomplete="list">
+          <ul class="cr-results" id="cr-results" role="listbox" hidden></ul>
+        </div>
+        <div id="cr-map" class="cr-map" aria-describedby="cr-hint"></div>
+        <div class="cr-maprow">
+          <p class="cr-hint" id="cr-hint" aria-live="polite"></p>
+          <button type="button" class="link-btn" id="cr-clear" data-i18n="g.cr.clear">Wyczyść punkty</button>
+        </div>
+      </div>
+
+      <div class="cr-fields">
+        <div class="field">
+          <label for="cr-from"><span class="cr-pin cr-pin-a" aria-hidden="true">A</span> <span data-i18n="g.cr.from">Skąd</span></label>
+          <input id="cr-from" type="text" autocomplete="off" required aria-describedby="cr-from-err">
+          <p class="field-err" id="cr-from-err" hidden></p>
+        </div>
+        <div class="field">
+          <label for="cr-to"><span class="cr-pin cr-pin-b" aria-hidden="true">B</span> <span data-i18n="g.cr.to">Dokąd</span></label>
+          <input id="cr-to" type="text" autocomplete="off" required aria-describedby="cr-to-err">
+          <p class="field-err" id="cr-to-err" hidden></p>
+        </div>
+        <div class="reg-cols">
+          <div class="field">
+            <label for="cr-dep" data-i18n="g.cr.dep">Wyjazd</label>
+            <input id="cr-dep" type="datetime-local" required aria-describedby="cr-dep-err">
+            <p class="field-err" id="cr-dep-err" hidden></p>
+          </div>
+          <div class="field">
+            <label for="cr-arr" data-i18n="g.cr.arr">Przyjazd</label>
+            <input id="cr-arr" type="datetime-local" required aria-describedby="cr-arr-help cr-arr-err">
+            <p class="field-help" id="cr-arr-help" data-i18n="g.cr.arrHelp">Podpowiemy na podstawie czasu przejazdu.</p>
+            <p class="field-err" id="cr-arr-err" hidden></p>
+          </div>
+        </div>
+        <div class="reg-cols">
+          <div class="field">
+            <label for="cr-pax" data-i18n="g.cr.pax">Liczba pasażerów</label>
+            <input id="cr-pax" type="number" min="1" max="100" step="1" inputmode="numeric" required aria-describedby="cr-pax-err">
+            <p class="field-err" id="cr-pax-err" hidden></p>
+          </div>
+          <div class="field">
+            <label for="cr-km" data-i18n="g.cr.km">Odległość (km)</label>
+            <input id="cr-km" type="number" min="1" step="1" inputmode="numeric" required aria-describedby="cr-km-help cr-km-err">
+            <p class="field-help" id="cr-km-help" data-i18n="g.cr.kmHelp">Liczymy z trasy drogowej — możesz poprawić.</p>
+            <p class="field-err" id="cr-km-err" hidden></p>
+          </div>
+        </div>
+        <div class="field">
+          <label for="cr-rate" data-i18n="g.cr.rate">Stawka</label>
+          <div class="suffix-wrap"><input id="cr-rate" type="number" min="1" step="10" inputmode="numeric" required aria-describedby="cr-rate-help cr-rate-err"><span aria-hidden="true">zł</span></div>
+          <p class="field-help" id="cr-rate-help"></p>
+          <p class="field-err" id="cr-rate-err" hidden></p>
+        </div>
+        <label class="check cr-urgent">
+          <input type="checkbox" id="cr-urgent">
+          <span class="check-box" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span>
+          <span><b data-i18n="g.cr.urgent">Pilny przewóz</b> <span class="cr-urgent-help" data-i18n="g.cr.urgentHelp">— trafi do zakładki „Pilne przewozy!” i na telefony alarmowe przewoźników.</span></span>
+        </label>
+        <div class="field">
+          <label for="cr-notes" data-i18n="g.cr.notes">Uwagi (opcjonalnie)</label>
+          <textarea id="cr-notes" rows="2" maxlength="400"></textarea>
+        </div>
+        <button type="submit" class="call-btn call-btn-primary auth-submit"><span class="spinner" aria-hidden="true"></span><span class="auth-submit-label" data-i18n="g.cr.submit">Opublikuj zlecenie</span></button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<!-- rezerwacja: bez opłat (abonament / pierwszy miesiąc) albo z prowizją wg cennika -->
+<dialog class="call-dlg auth-dlg" id="rv-dialog" aria-labelledby="rv-title">
+  <div class="call-panel auth-panel g-dlg">
+    <button type="button" class="call-x" data-close aria-label="Zamknij" data-i18n-aria="call.close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+    <h2 class="auth-title" id="rv-title" data-i18n="g.rv.title">Rezerwacja zlecenia</h2>
+    <div class="dlg-route" id="rv-route"></div>
+    <div class="dlg-box" id="rv-box"></div>
+    <div class="dlg-actions">
+      <button type="button" class="call-btn call-btn-ghost" data-close data-i18n="g.cancel">Anuluj</button>
+      <button type="button" class="call-btn call-btn-primary" id="rv-confirm"></button>
+    </div>
+  </div>
+</dialog>
+
+<!-- negocjacja stawki -->
+<dialog class="call-dlg auth-dlg" id="ng-dialog" aria-labelledby="ng-title">
+  <div class="call-panel auth-panel g-dlg">
+    <button type="button" class="call-x" data-close aria-label="Zamknij" data-i18n-aria="call.close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+    <h2 class="auth-title" id="ng-title" data-i18n="g.ng.title">Negocjuj stawkę</h2>
+    <div class="dlg-route" id="ng-route"></div>
+    <form id="ng-form" class="auth-form" novalidate>
+      <div class="field">
+        <label for="ng-rate" data-i18n="g.ng.offer">Twoja propozycja</label>
+        <div class="suffix-wrap"><input id="ng-rate" type="number" min="1" step="10" inputmode="numeric" required aria-describedby="ng-help ng-err"><span aria-hidden="true">zł</span></div>
+        <p class="field-help" id="ng-help"></p>
+        <p class="field-err" id="ng-err" hidden></p>
+      </div>
+      <div class="field">
+        <label for="ng-msg" data-i18n="g.ng.msg">Wiadomość do zlecającego (opcjonalnie)</label>
+        <textarea id="ng-msg" rows="3" maxlength="400"></textarea>
+      </div>
+      <div class="dlg-actions">
+        <button type="button" class="call-btn call-btn-ghost" data-close data-i18n="g.cancel">Anuluj</button>
+        <button type="submit" class="call-btn call-btn-primary" data-i18n="g.ng.send">Wyślij propozycję</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<!-- okienko „Zadzwoń” na komputerze: numer, kod QR, osoba do kontaktu -->
+<dialog class="call-dlg" id="call-dialog" aria-labelledby="call-name">
+  <div class="call-panel">
+    <button type="button" class="call-x" data-call-close aria-label="Zamknij" data-i18n-aria="call.close">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+    </button>
+    <div class="call-who">
+      <span class="call-avatar" aria-hidden="true">DS</span>
+      <div>
+        <p class="call-label" data-i18n="call.label">Osoba do kontaktu</p>
+        <h2 class="call-name" id="call-name">Daria Skowronek</h2>
+      </div>
+    </div>
+    <a class="call-num" href="tel:+48884106851">+48 884 106 851</a>
+    <div class="call-qr-wrap">
+      <div class="call-qr" id="call-qr" aria-hidden="true"></div>
+      <p class="call-hint" data-i18n="call.qr">Zeskanuj aparatem telefonu — od razu wybierze numer.</p>
+    </div>
+    <div class="call-row">
+      <a class="call-btn call-btn-primary" href="tel:+48884106851" data-direct>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></svg>
+        <span data-i18n="call.app">Zadzwoń przez aplikację</span>
+      </a>
+      <button type="button" class="call-btn call-btn-ghost" data-call-copy>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5"></rect><path d="M5 15V6.5A2.5 2.5 0 0 1 7.5 4H15"></path></svg>
+        <span data-i18n="call.copy">Kopiuj numer</span>
+      </button>
+    </div>
+  </div>
+</dialog>
+
+<!-- kursor (tylko myszka) -->
+<div class="cursor" aria-hidden="true"><div class="cursor-dot"></div><div class="cursor-ring"></div></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="js/i18n.js?v=202610130117"></script>
+<script src="js/auth.js?v=202610130117"></script>
+<script src="js/orders.js?v=202610130117"></script>
+<script src="js/main.js?v=202610130117" defer></script>
+<script src="js/gielda.js?v=202610130117" defer></script>
 </body>
 </html>
