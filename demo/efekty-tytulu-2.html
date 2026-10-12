@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANWS — efekty tytułu, runda 2</title>
+<meta name="robots" content="noindex">
+<script>
+(function () {
+  var d = document.documentElement, theme = 'light';
+  try { theme = localStorage.getItem('anws-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch (e) {}
+  d.dataset.theme = theme;
+})();
+</script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  .demo { max-width: 1220px; margin: 0 auto; padding: 40px 24px 80px; display: flex; flex-direction: column; gap: 32px; }
+  .demo-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px; }
+  .demo-head h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(28px, 4vw, 44px); letter-spacing: -0.02em; }
+  .demo-head p { margin-top: 8px; max-width: 62ch; color: var(--ink-muted); line-height: 1.55; }
+  .demo-tools { display: flex; gap: 8px; align-items: center; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 20px; }
+  .card { display: flex; flex-direction: column; gap: 16px; padding: 28px; border-radius: 28px; background: var(--step-bg); border: 1px solid var(--step-border); box-shadow: var(--step-shadow); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
+  .card-top { display: flex; align-items: center; gap: 12px; }
+  .tag { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--btn-bg); color: var(--btn-ink); font: 700 14px var(--font-display); }
+  .card h2 { font-family: var(--font-display); font-size: 20px; font-weight: 600; }
+  .card p.desc { font-size: 15px; line-height: 1.5; color: var(--ink-muted); }
+  .stage { position: relative; display: grid; place-items: center; min-height: 200px; border-radius: 20px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; padding: 24px 12px; }
+  .t { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.03em; font-size: clamp(32px, 4.4vw, 46px); line-height: 1.1; text-align: center; color: var(--ink); white-space: nowrap; }
+  .t .ch { display: inline-block; animation: none; }
+  .t .sp { display: inline-block; width: .26em; }
+  .t .w2 { color: var(--accent-text); }
+
+  /* G — autobus przejeżdża przez napis */
+  .stage-g { padding-bottom: 56px; }
+  .g-road { position: absolute; left: 14px; right: 14px; bottom: 30px; height: 0; border-top: 3px dashed var(--ink); opacity: .28; }
+  .g-bus { position: absolute; left: 0; bottom: 34px; width: 50px; height: 30px; will-change: transform; transform: translateX(-80px); }
+  .fx-g .ch { will-change: transform; }
+
+  /* H — rysowana linia trasy */
+  .h-svg { width: 100%; height: auto; max-width: 560px; overflow: visible; }
+  .h-text { font-family: var(--font-display); font-weight: 600; font-size: 54px; letter-spacing: -0.03em; fill: var(--ink); stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; stroke-dasharray: 1400; stroke-dashoffset: 1400; transition: fill .4s; }
+  .h-text .acc { fill: var(--accent-text); }
+  .h-svg.is-draw .h-text { animation: hdraw 1.9s cubic-bezier(.6, 0, .2, 1) forwards; }
+  .h-svg.is-draw .h-text, .h-svg.is-draw .h-text .acc { fill-opacity: 0; animation: hdraw 1.9s cubic-bezier(.6, 0, .2, 1) forwards, hfill .7s ease 1.45s forwards; }
+  @keyframes hdraw { from { stroke-dashoffset: 1400; } to { stroke-dashoffset: 0; } }
+  @keyframes hfill { to { fill-opacity: 1; } }
+  .h-svg:not(.is-draw) .h-text { stroke-dashoffset: 1400; }
+  .h-dot { fill: var(--bg-soft); stroke: var(--accent); stroke-width: 4; transform-box: fill-box; transform-origin: center; transform: scale(0); }
+  .h-svg.is-draw .h-dot { animation: pop .45s ease-out forwards; animation-delay: calc(var(--d) * 1s); }
+
+  /* I — odbicie na mokrej drodze */
+  .stage-i { align-content: center; gap: 0; }
+  .i-wrap { display: grid; justify-items: center; }
+  .i-refl { transform: scaleY(-1); opacity: .32; margin-top: 4px; -webkit-mask-image: linear-gradient(to top, #000 0, transparent 85%); mask-image: linear-gradient(to top, #000 0, transparent 85%); filter: url(#ripple); pointer-events: none; }
+  .i-line { width: 78%; height: 2px; margin-top: 6px; background: repeating-linear-gradient(90deg, var(--ink) 0 8px, transparent 8px 16px); opacity: .3; }
+
+  /* J — rolka */
+  .fx-j .ch { overflow: hidden; vertical-align: top; height: 1.28em; line-height: 1.28; }
+  .fx-j .roll { display: block; transition: transform .6s cubic-bezier(.7, 0, .2, 1); transition-delay: calc(var(--i) * 24ms); }
+  .fx-j .roll > span { display: block; height: 1.28em; }
+  .fx-j .roll > span + span { color: var(--accent-text); }
+  .fx-j .w2 .roll > span + span { color: var(--ink); }
+  .stage:hover .fx-j .roll { transform: translateY(-1.28em); }
+
+  /* K — oddech (rozsunięcie liter) */
+  .fx-k { transition: letter-spacing .9s cubic-bezier(.2, .8, .2, 1), filter .9s; }
+  .fx-k .w2 { transition: color .9s; }
+  .stage:hover .fx-k { letter-spacing: .045em; }
+  .stage:hover .fx-k .w2 { color: var(--ink); }
+  .stage:hover .fx-k .w1 { color: var(--accent-text); }
+  .fx-k .w1 { transition: color .9s; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <filter id="ripple" x="-5%" y="-5%" width="110%" height="110%">
+    <feTurbulence id="rip-turb" type="fractalNoise" baseFrequency="0.012 0.09" numOctaves="2" seed="3" result="n">
+      <animate attributeName="baseFrequency" dur="6s" values="0.012 0.09;0.016 0.12;0.012 0.09" repeatCount="indefinite"/>
+    </feTurbulence>
+    <feDisplacementMap id="rip-disp" in="SourceGraphic" in2="n" scale="2" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
+
+<div class="demo">
+  <header class="demo-head">
+    <div>
+      <h1>Efekty tytułu — runda 2</h1>
+      <p>Pięć zupełnie innych pomysłów niż poprzednie (A–F). Najedź kursorem na każdy napis; trzy z nich nawiązują do autobusów i drogi, dwa to czysta typografia.</p>
+    </div>
+    <div class="demo-tools">
+      <button type="button" class="ib theme-btn" id="theme" aria-label="Przełącz motyw" aria-pressed="false">
+        <svg class="i-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"></path></svg>
+        <svg class="i-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"></path></svg>
+      </button>
+      <a class="login" href="../index.html">← Strona główna</a>
+    </div>
+  </header>
+
+  <div class="grid">
+    <article class="card">
+      <div class="card-top"><span class="tag">G</span><h2>Autobus przejeżdża przez tytuł</h2></div>
+      <p class="desc">Po najechaniu po napisie przejeżdża autobus, a litery po kolei podskakują, gdy tylko je mija — jak koła na nierównościach. Bezpośrednie nawiązanie do branży.</p>
+      <div class="stage stage-g" data-fx="g">
+        <div class="t fx-g" data-text="Zlecenia przewozowe"></div>
+        <div class="g-road" aria-hidden="true"></div>
+        <svg class="g-bus" viewBox="0 0 50 30" aria-hidden="true"><rect class="bus-body" x="1" y="2" width="48" height="22" rx="6"></rect><rect class="bus-win" x="6" y="6" width="28" height="8" rx="2"></rect><rect class="bus-win" x="38" y="6" width="7" height="12" rx="2"></rect><circle class="bus-wheel" cx="14" cy="25" r="5" stroke-width="2.4"></circle><circle class="bus-wheel" cx="37" cy="25" r="5" stroke-width="2.4"></circle></svg>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card-top"><span class="tag">H</span><h2>Rysowana linia trasy</h2></div>
+      <p class="desc">Napis zamienia się w kontur, który „rysuje się” jedną linią jak trasa na mapie (tak jak logo ANWS), po czym wypełnia się kolorem. Nad nim zapalają się przystanki.</p>
+      <div class="stage" data-fx="h">
+        <svg class="h-svg" viewBox="0 0 560 96" role="img" aria-label="Zlecenia przewozowe">
+          <text class="h-text" x="280" y="70" text-anchor="middle">Zlecenia <tspan class="acc">przewozowe</tspan></text>
+          <circle class="h-dot" style="--d:.2" cx="46" cy="14" r="7"></circle>
+          <circle class="h-dot" style="--d:.5" cx="280" cy="10" r="7"></circle>
+          <circle class="h-dot" style="--d:.8" cx="514" cy="14" r="7"></circle>
+        </svg>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card-top"><span class="tag">I</span><h2>Odbicie na mokrej drodze</h2></div>
+      <p class="desc">Pod napisem leży jego rozmyte odbicie jak na mokrym asfalcie; po najechaniu odbicie faluje, jakby przejechało przez nie auto. Bardzo „kinowe”.</p>
+      <div class="stage stage-i" data-fx="i">
+        <div class="i-wrap">
+          <div class="t" data-text="Zlecenia przewozowe" data-plain="1"></div>
+          <div class="i-line" aria-hidden="true"></div>
+          <div class="t i-refl" data-text="Zlecenia przewozowe" data-plain="1" aria-hidden="true"></div>
+        </div>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card-top"><span class="tag">J</span><h2>Rolka</h2></div>
+      <p class="desc">Każda litera płynnie „zjeżdża” w górę i w jej miejsce wjeżdża ta sama litera w kolorze akcentu — jak licznik w taksometrze. Bez losowych znaków, spokojnie i elegancko.</p>
+      <div class="stage" data-fx="j"><div class="t fx-j" data-text="Zlecenia przewozowe"></div></div>
+    </article>
+
+    <article class="card">
+      <div class="card-top"><span class="tag">K</span><h2>Oddech</h2></div>
+      <p class="desc">Litery powoli się rozsuwają, jakby napis brał oddech, a kolory obu słów zamieniają się miejscami. Minimalistyczny, bardzo „designerski”. Na stronie rozciągnęłaby się też droga pod tytułem.</p>
+      <div class="stage" data-fx="k"><div class="t fx-k" data-text="Zlecenia przewozowe"></div></div>
+    </article>
+  </div>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var tb = document.getElementById('theme');
+  tb.setAttribute('aria-pressed', String(root.dataset.theme === 'dark'));
+  tb.addEventListener('click', function () {
+    var n = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    root.dataset.theme = n; tb.setAttribute('aria-pressed', String(n === 'dark'));
+    try { localStorage.setItem('anws-theme', n); } catch (e) {}
+  });
+
+  function split(el, roll) {
+    var text = el.dataset.text, words = text.split(' '), i = 0;
+    if (!el.hasAttribute('aria-hidden')) el.setAttribute('aria-label', text);
+    el.textContent = '';
+    words.forEach(function (w, wi) {
+      var word = document.createElement('span');
+      word.className = 'w w' + (wi + 1); word.setAttribute('aria-hidden', 'true');
+      word.style.display = 'inline-block'; word.style.whiteSpace = 'nowrap';
+      Array.from(w).forEach(function (c) {
+        var s = document.createElement('span'); s.className = 'ch'; s.style.setProperty('--i', i++);
+        if (roll) {
+          var r = document.createElement('span'); r.className = 'roll';
+          var a = document.createElement('span'); a.textContent = c;
+          var b = document.createElement('span'); b.textContent = c;
+          r.append(a, b); s.appendChild(r);
+        } else s.textContent = c;
+        word.appendChild(s);
+      });
+      el.appendChild(word);
+      if (wi < words.length - 1) { var sp = document.createElement('span'); sp.className = 'sp'; sp.setAttribute('aria-hidden', 'true'); el.appendChild(sp); }
+    });
+    return Array.from(el.querySelectorAll('.ch'));
+  }
+
+  document.querySelectorAll('.stage').forEach(function (stage) {
+    var fx = stage.dataset.fx;
+    var titles = stage.querySelectorAll('.t');
+    var chars = [];
+    titles.forEach(function (t) { chars = chars.concat(split(t, fx === 'j')); });
+    if (reduce) return;
+
+    if (fx === 'g') {
+      var bus = stage.querySelector('.g-bus'), ch = chars, running = false;
+      stage.addEventListener('pointerenter', function () {
+        if (running) return; running = true;
+        var sr = stage.getBoundingClientRect(), W = sr.width, t0 = performance.now(), dur = 1900;
+        var centers = ch.map(function (c) { var r = c.getBoundingClientRect(); return r.left - sr.left + r.width / 2; });
+        (function frame(now) {
+          var p = Math.min(1, (now - t0) / dur), e = p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+          var x = -70 + e * (W + 140);
+          bus.style.transform = 'translateX(' + x.toFixed(1) + 'px)';
+          ch.forEach(function (c, i) {
+            var d = Math.abs(x + 25 - centers[i]), k = Math.exp(-Math.pow(d / 38, 2));
+            c.style.transform = 'translateY(' + (-k * 18).toFixed(1) + 'px) rotate(' + (k * (i % 2 ? 6 : -6)).toFixed(1) + 'deg)';
+          });
+          if (p < 1) requestAnimationFrame(frame);
+          else { ch.forEach(function (c) { c.style.transform = ''; }); bus.style.transform = 'translateX(-80px)'; running = false; }
+        })(t0);
+      });
+    }
+
+    if (fx === 'h') {
+      var svg = stage.querySelector('.h-svg'), busy = false;
+      stage.addEventListener('pointerenter', function () {
+        if (busy) return; busy = true; svg.classList.remove('is-draw'); void svg.getBoundingClientRect(); svg.classList.add('is-draw');
+        setTimeout(function () { busy = false; }, 2200);
+      });
+    }
+
+    if (fx === 'i') {
+      var disp = document.getElementById('rip-disp'), target = 2, cur = 2, raf = 0;
+      function step() { cur += (target - cur) * 0.1; disp.setAttribute('scale', cur.toFixed(2)); raf = Math.abs(target - cur) > 0.05 ? requestAnimationFrame(step) : 0; }
+      function go(v) { target = v; if (!raf) raf = requestAnimationFrame(step); }
+      stage.addEventListener('pointerenter', function () { go(16); });
+      stage.addEventListener('pointerleave', function () { go(2); });
+    }
+  });
+})();
+</script>
+</body>
+</html>
