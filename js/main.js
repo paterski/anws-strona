@@ -363,6 +363,137 @@
   }
 
   /* ------------------------------------------------------------------
+     Logowanie: karty prowadzą na podstrony dopiero po zalogowaniu.
+     Z zapamiętaną sesją (checkbox „Zapamiętaj mnie”) przechodzimy od razu.
+     ------------------------------------------------------------------ */
+  const auth = window.ANWSAuth;
+  const authDlg = $('#auth-dialog');
+  if (auth && authDlg) {
+    const form = $('#auth-form', authDlg);
+    const panel = $('.auth-panel', authDlg);
+    const fLogin = $('#auth-login', authDlg);
+    const fPass = $('#auth-pass', authDlg);
+    const fRemember = $('#auth-remember', authDlg);
+    const eLogin = $('#auth-login-err', authDlg);
+    const ePass = $('#auth-pass-err', authDlg);
+    const alertBox = $('#auth-alert', authDlg);
+    const submit = $('.auth-submit', authDlg);
+    const submitLabel = $('.auth-submit-label', authDlg);
+    const toggle = $('.pass-toggle', authDlg);
+    const SAFE_NEXT = /^[a-z0-9-]+\.html(\?[a-z0-9=&-]*)?$/i;
+    let next = null;
+    let busy = false;
+
+    const showErr = (input, box, msg, withForgot) => {
+      input.setAttribute('aria-invalid', 'true');
+      const span = $('span', box);
+      (span || box).textContent = msg;
+      box.classList.toggle('with-forgot', !!withForgot);
+      box.hidden = false;
+    };
+    const clearField = (input, box) => { input.removeAttribute('aria-invalid'); box.hidden = true; };
+    const clearAll = () => { clearField(fLogin, eLogin); clearField(fPass, ePass); alertBox.hidden = true; };
+    const shake = () => {
+      if (reduceMotion.matches) return;
+      panel.classList.remove('shake'); void panel.offsetWidth; panel.classList.add('shake');
+    };
+
+    function openAuth(target) {
+      next = target && SAFE_NEXT.test(target) ? target : 'lista-zlecen.html';
+      clearAll();
+      if (!authDlg.open) {
+        authDlg.classList.remove('is-closing');
+        authDlg.showModal();
+      }
+      setTimeout(() => fLogin.focus(), 30);
+    }
+    function closeAuth() {
+      if (!authDlg.open || authDlg.classList.contains('is-closing')) return;
+      authDlg.classList.add('is-closing');
+      setTimeout(() => { authDlg.close(); authDlg.classList.remove('is-closing'); }, reduceMotion.matches ? 0 : 160);
+    }
+
+    $('[data-auth-close]', authDlg).addEventListener('click', closeAuth);
+    authDlg.addEventListener('cancel', (e) => { e.preventDefault(); closeAuth(); });
+    authDlg.addEventListener('click', (e) => { if (e.target === authDlg) closeAuth(); });
+
+    toggle.addEventListener('click', () => {
+      const show = fPass.type === 'password';
+      fPass.type = show ? 'text' : 'password';
+      toggle.setAttribute('aria-pressed', String(show));
+      toggle.setAttribute('aria-label', t(show ? 'auth.hide' : 'auth.show'));
+      fPass.focus();
+    });
+
+    fLogin.addEventListener('input', () => { clearField(fLogin, eLogin); alertBox.hidden = true; });
+    fPass.addEventListener('input', () => clearField(fPass, ePass));
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (busy) return;
+      clearAll();
+      const login = fLogin.value.trim();
+      const pass = fPass.value;
+      if (!login || !pass) {
+        if (!login) showErr(fLogin, eLogin, t('auth.errLogin'));
+        if (!pass) showErr(fPass, ePass, t('auth.errPass'));
+        (login ? fPass : fLogin).focus();
+        shake();
+        return;
+      }
+      busy = true;
+      submit.disabled = true;
+      submit.classList.add('is-loading');
+      submitLabel.textContent = t('auth.loading');
+      let res;
+      try {
+        res = await auth.login(login, pass, fRemember.checked);
+      } catch (err) {
+        res = { ok: false, error: 'network' };
+      }
+      busy = false;
+      submit.disabled = false;
+      submit.classList.remove('is-loading');
+      submitLabel.textContent = t('auth.submit');
+
+      if (res.ok) { location.href = next; return; }
+      if (res.error === 'user') {
+        fLogin.setAttribute('aria-invalid', 'true');
+        alertBox.hidden = false;
+        fLogin.focus(); fLogin.select();
+      } else if (res.error === 'password') {
+        fPass.value = '';
+        showErr(fPass, ePass, t('auth.errWrongPass'), true);
+        fPass.focus();
+      } else {
+        showErr(fPass, ePass, t('auth.errNetwork'));
+      }
+      shake();
+    });
+
+    // Karty: bez sesji najpierw logowanie (zwykły klik; Ctrl/⌘+klik zostawiamy przeglądarce)
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest && e.target.closest('a[data-auth]');
+      if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (auth.getSession()) return;
+      e.preventDefault();
+      openAuth(a.getAttribute('href'));
+    });
+
+    // Wejście z podstrony bez sesji: index.html?next=lista-zlecen.html → otwieramy logowanie po loaderze
+    const wanted = new URLSearchParams(location.search).get('next');
+    if (wanted && !auth.getSession()) {
+      const go = () => openAuth(wanted);
+      if (!root.classList.contains('is-loading')) go();
+      else new MutationObserver((m, o) => {
+        if (root.classList.contains('is-loading')) return;
+        o.disconnect();
+        setTimeout(go, 500);
+      }).observe(root, { attributes: true, attributeFilter: ['class'] });
+    }
+  }
+
+  /* ------------------------------------------------------------------
      Kursor (tylko myszka): kropka + pierścień, jak w projekcie kominków
      ------------------------------------------------------------------ */
   const cursor = $('.cursor');
@@ -394,9 +525,9 @@
     // <dialog> otwarty modalnie leży w warstwie wierzchniej przeglądarki, ponad
     // całą stroną — kursor przenosimy do środka, żeby dalej był widoczny.
     const home = cursor.parentNode;
-    const follow = () => {
-      const open = $$('dialog[open]').pop();
-      const target = open || home;
+    const follow = (muts) => {
+      const d = muts[0].target;
+      const target = d.open ? d : ($$('dialog[open]').pop() || home);
       if (cursor.parentNode !== target) target.appendChild(cursor);
     };
     $$('dialog').forEach((d) => new MutationObserver(follow).observe(d, { attributes: true, attributeFilter: ['open'] }));

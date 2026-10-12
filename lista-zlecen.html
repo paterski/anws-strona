@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lista zleceń — ANWS</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<script>
+(function () {
+  var d = document.documentElement, theme = 'light', lang = 'pl';
+  d.classList.add('js', 'js-guard');
+  try {
+    theme = localStorage.getItem('anws-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    lang = localStorage.getItem('anws-lang') || 'pl';
+  } catch (e) {}
+  d.dataset.theme = theme;
+  d.lang = lang;
+})();
+</script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="sub-page">
+  <header class="sub-head">
+    <a href="index.html" class="brand" aria-label="ANWS — strona główna">
+      <svg class="logo" viewBox="0 0 230 80" aria-hidden="true">
+        <g fill="none" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 68 L28 12 L50 68"></path><path d="M66 68 V12 L104 68 V12"></path><path d="M120 12 L131 68 L145 30 L159 68 L170 12"></path>
+          <path d="M222 20 C216 12 208 11 203 11 C193 11 188 17 188 25 C188 35 197 38 205 40 C214 42 224 45 224 55 C224 64 216 69 205 69 C197 69 190 66 186 60"></path>
+          <path class="d5" d="M14.6 46 H41.4"></path>
+        </g>
+      </svg>
+    </a>
+    <div class="sub-actions">
+      <span class="sub-user"><span data-i18n="sub.hello">Zalogowano jako</span> <b id="sub-who"></b></span>
+      <button type="button" class="sub-logout" id="logout" data-i18n="sub.logout">Wyloguj się</button>
+    </div>
+  </header>
+  <main class="sub-main">
+    <div class="sub-card">
+      <h1 data-i18n="sub.list">Lista zleceń</h1>
+    </div>
+  </main>
+</div>
+<script src="js/i18n.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/sub.js"></script>
+</body>
+</html>
