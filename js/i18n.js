@@ -41,8 +41,6 @@ window.I18N = {
 
     't3.title': 'Pilne przewozy!',
     't3.tag': 'Premium',
-    't3.long': 'Pilne i okazjonalne przewozy z priorytetem. Podstaw autobus od ręki i zgarnij zlecenie jako pierwszy.',
-    't3.short': 'Pilne i okazjonalne przewozy z priorytetem. Bądź pierwszy.',
     't3.count': 'zleceń premium',
     't3.c1': 'Pilne', 't3.c2': 'Okazje', 't3.c3': 'Priorytet',
     't3.cta': 'Zobacz zlecenia na już',
@@ -133,8 +131,6 @@ window.I18N = {
 
     't3.title': 'Urgent transport!',
     't3.tag': 'Premium',
-    't3.long': 'Urgent, one-off trips with priority. Have a bus ready and claim the order first.',
-    't3.short': 'Urgent, one-off priority trips. Be the first.',
     't3.count': 'premium orders',
     't3.c1': 'Urgent', 't3.c2': 'One-off', 't3.c3': 'Priority',
     't3.cta': 'See urgent orders',
