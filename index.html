@@ -377,8 +377,9 @@
     <footer class="footer" id="kontakt">
       <span>© 2026 ANWS</span>
       <div class="footer-links">
-        <a href="#" data-i18n="footer.terms">Regulamin</a>
-        <a href="#" data-i18n="footer.privacy">Prywatność</a>
+        <a href="regulamin.html" data-i18n="footer.terms">Regulamin</a>
+        <a href="polityka-prywatnosci.html" data-i18n="footer.privacy">Polityka prywatności</a>
+        <a href="regulamin.html#zgloszenia" data-i18n="footer.report">Zgłoś treść</a>
         <a href="https://wa.me/48884106851" target="_blank" rel="noopener" class="ib" aria-label="Napisz na WhatsAppie" data-i18n-aria="social.wa"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 20.5l1.3-4.2A8.5 8.5 0 1 1 8 19.3z"></path><path d="M9 8.6c.2 2.6 3.4 5.8 6 6 .7 0 1.4-.6 1.4-1.2l-1.8-1-.9.7c-.8-.3-1.9-1.4-2.3-2.3l.7-.9-1-1.8c-.7 0-1.4.7-1.4 1.4z" fill="currentColor" stroke="none"></path></svg></a>
         <a href="mailto:" class="ib" aria-label="Napisz e-mail" data-i18n-aria="social.mail"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="M3.8 7.5l8.2 6 8.2-6"></path></svg></a>
         <a href="tel:+48884106851" class="ib call" aria-label="Zadzwoń do ANWS" data-i18n-aria="call.aria"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></svg></a>
@@ -465,7 +466,150 @@
       </button>
     </form>
 
-    <p class="auth-foot"><span data-i18n="auth.noAccount">Nie masz konta?</span> <a href="#" class="auth-link" data-i18n="auth.register">Zarejestruj się</a></p>
+    <p class="auth-foot"><span data-i18n="auth.noAccount">Nie masz konta?</span> <a href="#" class="auth-link" data-open-register data-i18n="auth.register">Zarejestruj się</a></p>
+  </div>
+</dialog>
+
+<!-- okienko rejestracji: wniosek → akceptacja administratora → e-mail i logowanie -->
+<dialog class="call-dlg auth-dlg reg-dlg" id="reg-dialog" aria-labelledby="reg-title">
+  <div class="call-panel auth-panel reg-panel">
+    <button type="button" class="call-x" data-reg-close aria-label="Zamknij" data-i18n-aria="call.close">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+    </button>
+    <div class="auth-head">
+      <span class="auth-badge" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="4"></circle><path d="M2.5 20.5c.8-4 3.8-6 7.5-6s6.7 2 7.5 6M19 8v6M16 11h6"></path></svg>
+      </span>
+      <h2 class="auth-title" id="reg-title" data-i18n="reg.title">Załóż konto</h2>
+      <p class="auth-sub" data-i18n="reg.sub">Rejestracja ma dwa etapy: wysyłasz wniosek, a administrator weryfikuje firmę i aktywuje konto.</p>
+    </div>
+    <ol class="reg-steps" aria-label="Etapy rejestracji" data-i18n-aria="reg.stepsLabel">
+      <li class="rs-step is-current"><span class="rs-num" aria-hidden="true">1</span><span data-i18n="reg.step1">Wniosek</span></li>
+      <li class="rs-step"><span class="rs-num" aria-hidden="true">2</span><span data-i18n="reg.step2">Weryfikacja</span></li>
+      <li class="rs-step"><span class="rs-num" aria-hidden="true">3</span><span data-i18n="reg.step3">Aktywne konto</span></li>
+    </ol>
+
+    <form class="auth-form reg-form" id="reg-form" novalidate>
+      <div class="reg-summary" id="reg-summary" role="alert" tabindex="-1" hidden>
+        <p data-i18n="reg.summary">Popraw zaznaczone pola:</p>
+        <ul id="reg-summary-list"></ul>
+      </div>
+
+      <fieldset class="reg-group">
+        <legend data-i18n="reg.typeLegend">Rodzaj konta</legend>
+        <div class="reg-types">
+          <label class="type-card">
+            <input type="radio" name="type" value="carrier" checked>
+            <span class="type-body">
+              <b data-i18n="reg.typeCarrier">Wykonuję przewozy</b>
+              <span data-i18n="reg.typeCarrierSub">Przewoźnik — wymagany kod PKD przewozu osób</span>
+            </span>
+          </label>
+          <label class="type-card">
+            <input type="radio" name="type" value="client">
+            <span class="type-body">
+              <b data-i18n="reg.typeClient">Zlecam przewozy</b>
+              <span data-i18n="reg.typeClientSub">Firma lub instytucja zamawiająca transport</span>
+            </span>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset class="reg-group">
+        <legend data-i18n="reg.companyLegend">Dane firmy</legend>
+        <div class="field">
+          <label for="reg-nip">NIP</label>
+          <div class="nip-row">
+            <input id="reg-nip" name="nip" type="text" inputmode="numeric" autocomplete="off" maxlength="13" required aria-describedby="reg-nip-err reg-verify">
+            <button type="button" class="nip-check" id="reg-nip-check" data-i18n="reg.check">Sprawdź</button>
+          </div>
+          <p class="field-err" id="reg-nip-err" hidden></p>
+          <div class="verify" id="reg-verify" data-state="idle" aria-live="polite">
+            <span class="verify-icon" aria-hidden="true"></span>
+            <div class="verify-text"><p id="reg-verify-msg" data-i18n="v.idle">Po wpisaniu NIP sprawdzimy firmę w publicznych rejestrach (Biała lista VAT, KRS).</p></div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="reg-company" data-i18n="reg.company">Nazwa firmy</label>
+          <input id="reg-company" name="organization" type="text" autocomplete="organization" readonly required aria-describedby="reg-company-help reg-company-err" placeholder="—">
+          <p class="field-help" id="reg-company-help" data-i18n="reg.companyHelp">Uzupełni się automatycznie z rejestru po sprawdzeniu NIP.</p>
+          <p class="field-err" id="reg-company-err" hidden></p>
+        </div>
+      </fieldset>
+
+      <fieldset class="reg-group">
+        <legend data-i18n="reg.contactLegend">Kontakt</legend>
+        <div class="field">
+          <label for="reg-email" data-i18n="reg.email">Adres e-mail</label>
+          <input id="reg-email" name="email" type="email" autocomplete="email" required aria-describedby="reg-email-err">
+          <p class="field-err" id="reg-email-err" hidden></p>
+        </div>
+        <div class="reg-cols">
+          <div class="field">
+            <label for="reg-phone" data-i18n="reg.phone">Telefon kontaktowy</label>
+            <input id="reg-phone" name="tel" type="tel" autocomplete="tel" required aria-describedby="reg-phone-err">
+            <p class="field-err" id="reg-phone-err" hidden></p>
+          </div>
+          <div class="field">
+            <label for="reg-alarm" data-i18n="reg.alarm">Telefon alarmowy</label>
+            <input id="reg-alarm" name="alarm" type="tel" autocomplete="off" required aria-describedby="reg-alarm-help reg-alarm-err">
+            <p class="field-err" id="reg-alarm-err" hidden></p>
+          </div>
+        </div>
+        <p class="field-help" id="reg-alarm-help" data-i18n="reg.alarmHelp">Telefon alarmowy służy do powiadomień o pilnych zleceniach — może być taki sam jak kontaktowy.</p>
+      </fieldset>
+
+      <fieldset class="reg-group">
+        <legend data-i18n="reg.loginLegend">Dane logowania</legend>
+        <div class="reg-cols">
+          <div class="field">
+            <label for="reg-login" data-i18n="auth.login">Login</label>
+            <input id="reg-login" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required aria-describedby="reg-login-help reg-login-err">
+            <p class="field-help" id="reg-login-help" data-i18n="reg.loginHelp">3–30 znaków: litery, cyfry, kropka, myślnik.</p>
+            <p class="field-err" id="reg-login-err" hidden></p>
+          </div>
+          <div class="field">
+            <label for="reg-pass" data-i18n="auth.password">Hasło</label>
+            <div class="pass-wrap">
+              <input id="reg-pass" name="new-password" type="password" autocomplete="new-password" required aria-describedby="reg-pass-help reg-pass-err">
+              <button type="button" class="pass-toggle" aria-label="Pokaż hasło" aria-pressed="false" data-i18n-aria="auth.show"><svg class="i-eye" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"></path><circle cx="12" cy="12" r="3"></circle></svg><svg class="i-eye-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 5.6A9.9 9.9 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-3 3.8M6.5 7.1C4 8.8 2.5 12 2.5 12s3.5 6.5 9.5 6.5c1.6 0 3-.4 4.2-1"></path><path d="M9.9 10a3 3 0 0 0 4.2 4.1"></path></svg></button>
+            </div>
+            <div class="strength" id="reg-strength" data-score="0" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+            <p class="field-help" id="reg-pass-help"><span data-i18n="reg.passHelp">Min. 8 znaków, w tym litera i cyfra.</span> <b id="reg-strength-label"></b></p>
+            <p class="field-err" id="reg-pass-err" hidden></p>
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="field">
+        <label class="check reg-consent">
+          <input type="checkbox" id="reg-consent" required aria-describedby="reg-consent-err">
+          <span class="check-box" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span>
+          <span><span data-i18n="reg.consent1">Akceptuję</span> <a href="regulamin.html" target="_blank" rel="noopener" data-i18n="reg.terms">Regulamin</a> <span data-i18n="reg.consent2">i</span> <a href="polityka-prywatnosci.html" target="_blank" rel="noopener" data-i18n="reg.privacy">Politykę prywatności</a>.</span>
+        </label>
+        <p class="field-err" id="reg-consent-err" hidden></p>
+      </div>
+      <p class="reg-rodo"><span data-i18n="reg.rodo">Administratorem danych podanych w formularzu jest operator platformy ANWS. Przetwarzamy je, aby zweryfikować firmę, założyć i obsługiwać konto.</span> <a href="polityka-prywatnosci.html" target="_blank" rel="noopener" data-i18n="reg.rodoMore">Więcej w Polityce prywatności.</a></p>
+
+      <button type="submit" class="call-btn call-btn-primary auth-submit" id="reg-submit">
+        <span class="spinner" aria-hidden="true"></span>
+        <span class="auth-submit-label" data-i18n="reg.submit">Wyślij wniosek o rejestrację</span>
+      </button>
+    </form>
+
+    <div class="reg-done" id="reg-done" tabindex="-1" hidden>
+      <span class="done-icon" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span>
+      <h3 data-i18n="reg.doneTitle">Wniosek wysłany!</h3>
+      <p><span data-i18n="reg.doneText">Administrator sprawdzi dane firmy. Po akceptacji wyślemy e-mail z potwierdzeniem na adres</span> <b id="reg-done-email"></b><span data-i18n="reg.doneText2"> — wtedy zalogujesz się swoim loginem i hasłem.</span></p>
+      <ol class="reg-steps is-sent" aria-label="Etapy rejestracji" data-i18n-aria="reg.stepsLabel">
+      <li class="rs-step is-current"><span class="rs-num" aria-hidden="true">1</span><span data-i18n="reg.step1">Wniosek</span></li>
+      <li class="rs-step"><span class="rs-num" aria-hidden="true">2</span><span data-i18n="reg.step2">Weryfikacja</span></li>
+      <li class="rs-step"><span class="rs-num" aria-hidden="true">3</span><span data-i18n="reg.step3">Aktywne konto</span></li>
+    </ol>
+      <button type="button" class="call-btn call-btn-primary" data-reg-close data-i18n="reg.doneBtn">Wróć na stronę</button>
+    </div>
+
+    <p class="auth-foot" id="reg-foot"><span data-i18n="reg.haveAccount">Masz już konto?</span> <a href="#" class="auth-link" data-open-login data-i18n="auth.title">Zaloguj się</a></p>
   </div>
 </dialog>
 
@@ -474,6 +618,8 @@
 
 <script src="js/i18n.js"></script>
 <script src="js/auth.js"></script>
+<script src="js/verify.js"></script>
 <script src="js/main.js" defer></script>
+<script src="js/register.js" defer></script>
 </body>
 </html>

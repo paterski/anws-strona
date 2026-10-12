@@ -414,6 +414,7 @@
       setTimeout(() => { authDlg.close(); authDlg.classList.remove('is-closing'); }, reduceMotion.matches ? 0 : 160);
     }
 
+    window.ANWSOpenAuth = openAuth; // używa tego okno rejestracji („Masz już konto? Zaloguj się”)
     $('[data-auth-close]', authDlg).addEventListener('click', closeAuth);
     authDlg.addEventListener('cancel', (e) => { e.preventDefault(); closeAuth(); });
     authDlg.addEventListener('click', (e) => { if (e.target === authDlg) closeAuth(); });
