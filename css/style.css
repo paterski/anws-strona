@@ -1217,6 +1217,12 @@ body[data-title-key^="legal."] .bg-desktop, body[data-title-key^="legal."] .bg-m
 .rc-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .rc-actions .call-btn { min-width: 160px; }
 .ob-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.adm-warn { padding: 12px 16px; border-radius: 14px; background: rgba(233, 201, 138, .3); border: 1px solid var(--stamp); font-size: 14.5px; }
+.adm-warn[hidden] { display: none; }
+.adm-warn b { font-family: ui-monospace, monospace; }
+.pw-card { max-width: 520px; }
+.pw-ok { font-size: 14px; font-weight: 600; color: var(--ok-ink); }
+.pw-ok[hidden] { display: none; }
 .ob-list li { padding: 14px 16px; border-radius: 16px; background: var(--ib-bg); display: grid; gap: 4px; font-size: 14px; }
 .ob-list .ob-meta { font-size: 12.5px; color: var(--ink-muted); }
 .ob-list b { overflow-wrap: anywhere; }

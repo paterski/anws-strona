@@ -32,12 +32,13 @@
   const strengthLabel = $('#reg-strength-label', dlg);
 
   const f = {
-    nip: $('#reg-nip', dlg), company: $('#reg-company', dlg), email: $('#reg-email', dlg),
+    nip: $('#reg-nip', dlg), company: $('#reg-company', dlg), licence: $('#reg-licence', dlg),
+    person: $('#reg-person', dlg), email: $('#reg-email', dlg),
     phone: $('#reg-phone', dlg), alarm: $('#reg-alarm', dlg), login: $('#reg-login', dlg),
     pass: $('#reg-pass', dlg), consent: $('#reg-consent', dlg),
   };
   const err = (input) => $('#' + input.id + '-err', dlg);
-  const type = () => $('input[name="type"]:checked', form).value;
+  const type = () => 'carrier'; // jeden rodzaj konta: przewoźnik (zawsze z weryfikacją PKD)
 
   let result = null;      // ostatni wynik weryfikacji
   let checking = null;    // trwające sprawdzanie (Promise)
@@ -49,7 +50,7 @@
     form.hidden = false; foot.hidden = false; topSteps.hidden = false; done.hidden = true;
     if (!dlg.open) { dlg.classList.remove('is-closing'); dlg.showModal(); }
     panel.scrollTop = 0;
-    setTimeout(() => $('input[name="type"]:checked', form).focus(), 30);
+    setTimeout(() => f.nip.focus(), 30);
   }
   function close(force) {
     if (!dlg.open || dlg.classList.contains('is-closing')) return;
@@ -94,7 +95,7 @@
     if (r.state === 'checking') { p(t('v.checking')); return; }
     const res = r.res;
     if (res.ok) {
-      p(t(type() === 'carrier' ? 'v.okCarrier' : 'v.okClient'));
+      p(t('v.okCarrier'));
       const b = document.createElement('b'); b.textContent = res.company.name; boxText.appendChild(b);
       const meta = [res.company.krs ? 'KRS ' + res.company.krs : '', res.company.regon ? 'REGON ' + res.company.regon : '', t('v.vat') + ': ' + res.company.vat].filter(Boolean).join(' · ');
       p(meta, 'verify-meta');
@@ -151,7 +152,6 @@
     if (verify.clean(f.nip.value).length === 10) runCheck();
   });
   f.nip.addEventListener('blur', () => { if (!result && verify.clean(f.nip.value)) runCheck(); });
-  $$('input[name="type"]', form).forEach((r) => r.addEventListener('change', () => { if (verify.clean(f.nip.value)) { result = null; runCheck(); } }));
 
   /* ---------- siła hasła ---------- */
   function setStrength(v) {
@@ -201,6 +201,8 @@
   const validEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim());
   const validLogin = (v) => /^[a-zA-Z0-9._-]{3,30}$/.test(v.trim());
   const validPass = (v) => v.length >= 8 && /\p{L}/u.test(v) && /\d/.test(v);
+  const validPerson = (v) => /^\p{L}[\p{L}'’.-]*(\s+\p{L}[\p{L}'’.-]*)+$/u.test(v.trim()) && v.trim().length <= 80;
+  const validLicence = (v) => /^[\p{L}\d][\p{L}\d\s/.-]{2,39}$/u.test(v.trim()) && /\d/.test(v);
 
   function validate() {
     const errors = [];
@@ -209,6 +211,8 @@
     if (!nip) add(f.nip, 'reg.e.nip');
     else if (!verify.nipValid(nip)) add(f.nip, 'v.checksum');
     else if (!result || !result.ok || result.nip !== nip || result.type !== type()) add(f.nip, 'reg.e.verify');
+    if (!validLicence(f.licence.value)) add(f.licence, 'reg.e.licence');
+    if (!validPerson(f.person.value)) add(f.person, 'reg.e.person');
     if (!validEmail(f.email.value)) add(f.email, 'reg.e.email');
     if (!validPhone(f.phone.value)) add(f.phone, 'reg.e.phone');
     if (!validPhone(f.alarm.value)) add(f.alarm, 'reg.e.phone');
@@ -257,6 +261,7 @@
       type: type(), login: f.login.value.trim(), password: f.pass.value,
       company: result.company.name, nip, krs: result.company.krs, regon: result.company.regon,
       pkd: (result.matched || []).map((m) => m.code),
+      licence: f.licence.value.trim().toUpperCase(), contactName: f.person.value.trim().replace(/\s+/g, ' '),
       phone: f.phone.value.trim(), alarmPhone: f.alarm.value.trim(), email: f.email.value.trim(),
     });
     busy = false;

@@ -14,7 +14,6 @@
   const fmtDate = (ts) => new Date(ts).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' });
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   const STATUS = { pending: 'Oczekuje', approved: 'Zaakceptowany', rejected: 'Odrzucony' };
-  const TYPE = { carrier: 'Przewoźnik', client: 'Zlecający' };
 
   function isAdmin() {
     const s = auth.getSession();
@@ -25,7 +24,7 @@
     const s = isAdmin();
     loginBox.hidden = !!s;
     panel.hidden = !s;
-    if (s) { $('#adm-who').textContent = 'Zalogowano: ' + s.login; render(); }
+    if (s) { $('#adm-who').textContent = 'Zalogowano: ' + s.login; $('#adm-warn').hidden = !auth.adminHasDefaultPassword(); render(); }
     else setTimeout(() => $('#adm-login').focus(), 50);
   }
 
@@ -51,7 +50,6 @@
       const head = el('div', 'rc-head');
       head.appendChild(el('h3', null, r.company));
       const tags = el('div', 'rc-tags');
-      tags.appendChild(el('span', 'rc-tag', TYPE[r.type] || r.type));
       tags.appendChild(el('span', 'rc-tag st-' + r.status, STATUS[r.status]));
       head.appendChild(tags);
       card.appendChild(head);
@@ -60,7 +58,9 @@
       row(dl, 'NIP', r.nip, 'https://www.podatki.gov.pl/wykaz-podatnikow-vat-wyszukiwarka');
       row(dl, 'KRS', r.krs || 'brak (CEIDG)', r.krs ? 'https://wyszukiwarka-krs.ms.gov.pl/' : null);
       row(dl, 'REGON', r.regon);
-      row(dl, 'PKD przewozu osób', r.pkd && r.pkd.length ? r.pkd.join(', ') : (r.type === 'client' ? 'nie dotyczy (zlecający)' : 'brak'));
+      row(dl, 'PKD przewozu osób', r.pkd && r.pkd.length ? r.pkd.join(', ') : 'brak');
+      row(dl, 'Licencja na przewóz osób', r.licence ? r.licence + ' (sprawdź w rejestrze GITD)' : 'brak', r.licence ? 'https://www.gitd.gov.pl/' : null);
+      row(dl, 'Osoba do kontaktu', r.contactName);
       row(dl, 'Login', r.login);
       row(dl, 'E-mail', r.email, 'mailto:' + r.email);
       row(dl, 'Telefon kontaktowy', r.phone, 'tel:' + r.phone.replace(/[^\d+]/g, ''));
@@ -124,6 +124,26 @@
     if (res.role !== 'admin') { auth.logout(); errBox.textContent = 'To konto nie ma uprawnień administratora.'; errBox.hidden = false; return; }
     form.reset();
     show();
+  });
+
+  // zmiana hasła administratora
+  const pw = $('#pw-form');
+  const pwErr = $('#pw-err'), pwOk = $('#pw-ok'), pwBtn = $('.auth-submit', pw);
+  pw.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    pwErr.hidden = true; pwOk.hidden = true;
+    const cur = $('#pw-current').value, nw = $('#pw-new').value, rp = $('#pw-repeat').value;
+    const fail = (msg, id) => { pwErr.textContent = msg; pwErr.hidden = false; if (id) $(id).focus(); };
+    if (!cur || !nw || !rp) return fail('Wypełnij wszystkie pola.');
+    if (nw !== rp) return fail('Nowe hasła nie są takie same.', '#pw-repeat');
+    if (nw === cur) return fail('Nowe hasło musi się różnić od obecnego.', '#pw-new');
+    pwBtn.disabled = true; pwBtn.classList.add('is-loading');
+    const res = await auth.changePassword(cur, nw);
+    pwBtn.disabled = false; pwBtn.classList.remove('is-loading');
+    if (!res.ok) return fail(res.error === 'weak' ? 'Nowe hasło musi mieć min. 8 znaków, w tym literę i cyfrę.' : 'Obecne hasło jest nieprawidłowe.', res.error === 'weak' ? '#pw-new' : '#pw-current');
+    pw.reset();
+    pwOk.hidden = false;
+    $('#adm-warn').hidden = !auth.adminHasDefaultPassword();
   });
 
   show();

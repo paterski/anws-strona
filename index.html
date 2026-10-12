@@ -31,7 +31,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=202610121929">
 </head>
 <body>
 <!-- loader: logo, droga z paskiem postępu i autobusem; przejście wybierane w js/main.js (?loader=) -->
@@ -481,7 +481,7 @@
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="4"></circle><path d="M2.5 20.5c.8-4 3.8-6 7.5-6s6.7 2 7.5 6M19 8v6M16 11h6"></path></svg>
       </span>
       <h2 class="auth-title" id="reg-title" data-i18n="reg.title">Załóż konto</h2>
-      <p class="auth-sub" data-i18n="reg.sub">Rejestracja ma dwa etapy: wysyłasz wniosek, a administrator weryfikuje firmę i aktywuje konto.</p>
+      <p class="auth-sub" data-i18n="reg.sub">Platforma jest dla przewoźników osób. Rejestracja ma dwa etapy: wysyłasz wniosek, a administrator weryfikuje firmę i aktywuje konto.</p>
     </div>
     <ol class="reg-steps" aria-label="Etapy rejestracji" data-i18n-aria="reg.stepsLabel">
       <li class="rs-step is-current"><span class="rs-num" aria-hidden="true">1</span><span data-i18n="reg.step1">Wniosek</span></li>
@@ -494,26 +494,6 @@
         <p data-i18n="reg.summary">Popraw zaznaczone pola:</p>
         <ul id="reg-summary-list"></ul>
       </div>
-
-      <fieldset class="reg-group">
-        <legend data-i18n="reg.typeLegend">Rodzaj konta</legend>
-        <div class="reg-types">
-          <label class="type-card">
-            <input type="radio" name="type" value="carrier" checked>
-            <span class="type-body">
-              <b data-i18n="reg.typeCarrier">Wykonuję przewozy</b>
-              <span data-i18n="reg.typeCarrierSub">Przewoźnik — wymagany kod PKD przewozu osób</span>
-            </span>
-          </label>
-          <label class="type-card">
-            <input type="radio" name="type" value="client">
-            <span class="type-body">
-              <b data-i18n="reg.typeClient">Zlecam przewozy</b>
-              <span data-i18n="reg.typeClientSub">Firma lub instytucja zamawiająca transport</span>
-            </span>
-          </label>
-        </div>
-      </fieldset>
 
       <fieldset class="reg-group">
         <legend data-i18n="reg.companyLegend">Dane firmy</legend>
@@ -535,10 +515,21 @@
           <p class="field-help" id="reg-company-help" data-i18n="reg.companyHelp">Uzupełni się automatycznie z rejestru po sprawdzeniu NIP.</p>
           <p class="field-err" id="reg-company-err" hidden></p>
         </div>
+        <div class="field">
+          <label for="reg-licence" data-i18n="reg.licence">Numer licencji na przewóz osób</label>
+          <input id="reg-licence" name="licence" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="40" required aria-describedby="reg-licence-help reg-licence-err">
+          <p class="field-help" id="reg-licence-help" data-i18n="reg.licenceHelp">Licencja na wykonywanie transportu drogowego osób — administrator sprawdzi ją przed aktywacją konta.</p>
+          <p class="field-err" id="reg-licence-err" hidden></p>
+        </div>
       </fieldset>
 
       <fieldset class="reg-group">
         <legend data-i18n="reg.contactLegend">Kontakt</legend>
+        <div class="field">
+          <label for="reg-person" data-i18n="reg.person">Imię i nazwisko osoby do kontaktu</label>
+          <input id="reg-person" name="name" type="text" autocomplete="name" required aria-describedby="reg-person-err">
+          <p class="field-err" id="reg-person-err" hidden></p>
+        </div>
         <div class="field">
           <label for="reg-email" data-i18n="reg.email">Adres e-mail</label>
           <input id="reg-email" name="email" type="email" autocomplete="email" required aria-describedby="reg-email-err">
@@ -616,10 +607,10 @@
 <!-- kursor (tylko myszka) -->
 <div class="cursor" aria-hidden="true"><div class="cursor-dot"></div><div class="cursor-ring"></div></div>
 
-<script src="js/i18n.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/verify.js"></script>
-<script src="js/main.js" defer></script>
-<script src="js/register.js" defer></script>
+<script src="js/i18n.js?v=202610121929"></script>
+<script src="js/auth.js?v=202610121929"></script>
+<script src="js/verify.js?v=202610121929"></script>
+<script src="js/main.js?v=202610121929" defer></script>
+<script src="js/register.js?v=202610121929" defer></script>
 </body>
 </html>

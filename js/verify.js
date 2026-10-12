@@ -14,7 +14,6 @@
 (function () {
   const PKD_ALLOWED = {
     '49.31.Z': 'Transport lądowy pasażerski, miejski i podmiejski',
-    '49.32.Z': 'Działalność taksówek osobowych',
     '49.39.Z': 'Pozostały transport lądowy pasażerski, gdzie indziej niesklasyfikowany',
   };
   const PKD_ENDPOINT = ''; // np. 'https://api.anws.pl/pkd' — serwer dla firm z CEIDG
