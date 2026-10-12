@@ -433,11 +433,7 @@ main { display: flex; flex-direction: column; gap: 72px; }
 .word { display: inline-block; white-space: nowrap; }
 .word-accent { color: var(--accent-text); }
 .ch { display: inline-block; transition: transform .35s var(--ease-spring); animation: letter .8s var(--ease-out) backwards; animation-delay: calc(var(--i) * 45ms + 250ms); }
-/* po wejściu animacja wejścia jest wyłączona, żeby klatki „tablicy odjazdów” jej nie restartowały */
-.ch.is-set { animation: none; }
-.ch { text-align: center; transform-origin: 50% 50%; backface-visibility: hidden; }
-.ch.is-set.flip { animation: flap .16s linear; }
-@keyframes flap { 0% { transform: rotateX(0); } 50% { transform: rotateX(90deg); } 100% { transform: rotateX(0); } }
+.ch:hover { transform: translateY(-.1em); }
 @keyframes letter { from { opacity: 0; transform: translateY(.55em) rotate(4deg); filter: blur(8px); } to { opacity: 1; transform: none; filter: blur(0); } }
 
 .road { display: block; width: 100%; height: auto; margin-top: .1em; overflow: visible; }
