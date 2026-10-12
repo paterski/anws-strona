@@ -277,6 +277,7 @@
      Menu mobilne
      ------------------------------------------------------------------ */
   function setMenu(open) {
+    if (!menu || !menuBtn) return; // na giełdzie nie ma menu mobilnego strony głównej
     menu.hidden = !open;
     menuBtn.setAttribute('aria-expanded', String(open));
     syncMenuLabel();

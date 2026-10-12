@@ -28,8 +28,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-<link rel="stylesheet" href="css/style.css?v=202610130117">
-<link rel="stylesheet" href="css/gielda.css?v=202610130117">
+<link rel="stylesheet" href="css/style.css?v=202610130150">
+<link rel="stylesheet" href="css/gielda.css?v=202610130150">
 </head>
 <body class="app" data-title-key="g.metaTitle">
 <a class="skip" href="#gl-body" data-i18n="skip">Przejdź do treści</a>
@@ -56,6 +56,7 @@
     <button type="button" class="an-btn an-create" data-action="create"><span class="an-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></span><span class="an-label" data-i18n="g.nav.create">Utwórz zlecenie</span></button>
     <button type="button" class="an-btn an-list" data-action="list" aria-pressed="true"><span class="an-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"></path><circle cx="4.5" cy="6" r="1.3" fill="currentColor"></circle><circle cx="4.5" cy="12" r="1.3" fill="currentColor"></circle><circle cx="4.5" cy="18" r="1.3" fill="currentColor"></circle></svg></span><span class="an-label" data-i18n="g.nav.list">Lista zleceń</span></button>
     <button type="button" class="an-btn an-urgent" data-action="urgent" aria-pressed="false"><span class="an-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2.5 5 13.5h6l-1 8 8-11h-6z"></path></svg></span><span class="an-label" data-i18n="g.nav.urgent">Pilne przewozy!</span><b class="an-count" id="urgent-count" aria-hidden="true">0</b></button>
+    <button type="button" class="an-btn an-mine" data-action="mine" aria-pressed="false"><span class="an-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="7" width="17" height="12.5" rx="2.5"></rect><path d="M8.5 7V5.5a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2V7M3.5 12.5h17"></path></svg></span><span class="an-label" data-i18n="g.nav.mine">Twoje zlecenia</span><b class="an-count an-count-mine" id="mine-count" aria-hidden="true">0</b></button>
   </nav>
 
   <div class="app-tools">
@@ -74,6 +75,7 @@
           <svg class="ring" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></svg>
           <span class="phone-num" data-i18n="call.btn">Zadzwoń</span>
         </a>
+    <div class="acct" data-acct></div>
     <span class="nav-sep" aria-hidden="true"></span>
     <div class="user-chip" title="">
       <span class="uc-avatar" id="uc-avatar" aria-hidden="true"></span>
@@ -114,6 +116,7 @@
         <div class="field"><label for="f-rate" data-i18n="g.f.rateMin">Stawka od (zł)</label><input id="f-rate" type="number" min="0" step="50" inputmode="numeric"></div>
         <div class="field"><label for="f-km" data-i18n="g.f.kmMax">Odległość do (km)</label><input id="f-km" type="number" min="0" step="10" inputmode="numeric"></div>
         <div class="field"><label for="f-pax" data-i18n="g.f.paxMin">Pasażerów od</label><input id="f-pax" type="number" min="0" step="1" inputmode="numeric"></div>
+        <div class="field"><label for="f-pax-max" data-i18n="g.f.paxMax">Pasażerów do</label><input id="f-pax-max" type="number" min="0" step="1" inputmode="numeric"></div>
         <div class="field"><label for="f-sort" data-i18n="g.sort">Sortuj</label>
           <select id="f-sort" class="tel-cc f-sort">
             <option value="dep:asc" data-i18n="g.s.depAsc">Najbliższy wyjazd</option>
@@ -123,6 +126,8 @@
             <option value="km:asc" data-i18n="g.s.kmAsc">Najkrótsza trasa</option>
             <option value="km:desc" data-i18n="g.s.kmDesc">Najdłuższa trasa</option>
             <option value="ppk:desc" data-i18n="g.s.ppkDesc">Najlepsza stawka za km</option>
+            <option value="pax:desc" data-i18n="g.s.paxDesc">Najwięcej pasażerów</option>
+            <option value="pax:asc" data-i18n="g.s.paxAsc">Najmniej pasażerów</option>
           </select>
         </div>
         <button type="button" class="link-btn" id="f-reset" data-i18n="g.f.reset">Wyczyść filtry</button>
@@ -182,15 +187,15 @@
       <span class="auth-badge" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></span>
       <div>
         <h2 class="auth-title" id="cr-title" data-i18n="g.cr.title">Nowe zlecenie</h2>
-        <p class="auth-sub" data-i18n="g.cr.sub">Zaznacz na mapie start i cel przejazdu, potem uzupełnij termin, liczbę osób i stawkę.</p>
+        <p class="auth-sub" data-i18n="g.cr.sub">Zaznacz na mapie miejsca odbioru i miejsca docelowe (może być ich kilka), potem uzupełnij termin, liczbę osób i stawkę.</p>
       </div>
     </div>
     <form class="cr-form" id="cr-form" novalidate>
       <div class="cr-mapcol">
-        <ol class="cr-steps" aria-label="Punkty trasy" data-i18n-aria="g.cr.points">
-          <li class="cr-step" id="cr-step-a"><span class="cr-pin cr-pin-a" aria-hidden="true">A</span><span data-i18n="g.cr.stepA">Start</span></li>
-          <li class="cr-step" id="cr-step-b"><span class="cr-pin cr-pin-b" aria-hidden="true">B</span><span data-i18n="g.cr.stepB">Cel</span></li>
-        </ol>
+        <div class="cr-mode" role="group" aria-label="Kliknięcie na mapie dodaje" data-i18n-aria="g.cr.modeLabel">
+          <button type="button" data-cr-mode="A" aria-pressed="true"><span class="cr-pin cr-pin-a" aria-hidden="true">A</span><span data-i18n="g.cr.modeA">Miejsce odbioru</span></button>
+          <button type="button" data-cr-mode="B" aria-pressed="false"><span class="cr-pin cr-pin-b" aria-hidden="true">B</span><span data-i18n="g.cr.modeB">Miejsce docelowe</span></button>
+        </div>
         <div class="cr-search">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M20 20l-4.2-4.2"></path></svg>
           <input type="search" id="cr-q" autocomplete="off" placeholder="Szukaj adresu…" aria-label="Szukaj adresu" data-i18n-ph="g.cr.search" role="combobox" aria-expanded="false" aria-controls="cr-results" aria-autocomplete="list">
@@ -204,16 +209,20 @@
       </div>
 
       <div class="cr-fields">
-        <div class="field">
-          <label for="cr-from"><span class="cr-pin cr-pin-a" aria-hidden="true">A</span> <span data-i18n="g.cr.from">Skąd</span></label>
-          <input id="cr-from" type="text" autocomplete="off" required aria-describedby="cr-from-err">
-          <p class="field-err" id="cr-from-err" hidden></p>
-        </div>
-        <div class="field">
-          <label for="cr-to"><span class="cr-pin cr-pin-b" aria-hidden="true">B</span> <span data-i18n="g.cr.to">Dokąd</span></label>
-          <input id="cr-to" type="text" autocomplete="off" required aria-describedby="cr-to-err">
-          <p class="field-err" id="cr-to-err" hidden></p>
-        </div>
+        <fieldset class="cr-stops">
+          <legend><span class="cr-pin cr-pin-a" aria-hidden="true">A</span> <span data-i18n="g.cr.pickups">Miejsca odbioru</span></legend>
+          <ol class="stop-list" id="cr-list-a"></ol>
+          <p class="stop-empty" id="cr-empty-a" data-i18n="g.cr.emptyList">Kliknij na mapie albo wyszukaj adres.</p>
+          <button type="button" class="link-btn" data-add="A" data-i18n="g.cr.addA">+ Dodaj miejsce odbioru</button>
+          <p class="field-err" id="cr-a-err" hidden></p>
+        </fieldset>
+        <fieldset class="cr-stops">
+          <legend><span class="cr-pin cr-pin-b" aria-hidden="true">B</span> <span data-i18n="g.cr.drops">Miejsca docelowe</span></legend>
+          <ol class="stop-list" id="cr-list-b"></ol>
+          <p class="stop-empty" id="cr-empty-b" data-i18n="g.cr.emptyList">Kliknij na mapie albo wyszukaj adres.</p>
+          <button type="button" class="link-btn" data-add="B" data-i18n="g.cr.addB">+ Dodaj miejsce docelowe</button>
+          <p class="field-err" id="cr-b-err" hidden></p>
+        </fieldset>
         <div class="reg-cols">
           <div class="field">
             <label for="cr-dep" data-i18n="g.cr.dep">Wyjazd</label>
@@ -335,10 +344,11 @@
 <div class="cursor" aria-hidden="true"><div class="cursor-dot"></div><div class="cursor-ring"></div></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script src="js/i18n.js?v=202610130117"></script>
-<script src="js/auth.js?v=202610130117"></script>
-<script src="js/orders.js?v=202610130117"></script>
-<script src="js/main.js?v=202610130117" defer></script>
-<script src="js/gielda.js?v=202610130117" defer></script>
+<script src="js/i18n.js?v=202610130150"></script>
+<script src="js/auth.js?v=202610130150"></script>
+<script src="js/orders.js?v=202610130150"></script>
+<script src="js/main.js?v=202610130150" defer></script>
+<script src="js/account.js?v=202610130150" defer></script>
+<script src="js/gielda.js?v=202610130150" defer></script>
 </body>
 </html>

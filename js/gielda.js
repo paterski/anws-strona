@@ -87,8 +87,9 @@
   /* ---------- stan filtrów i sortowania ---------- */
   const params = new URLSearchParams(location.search);
   const state = {
-    q: '', date: 'all', urgent: params.get('pilne') === '1', free: false,
-    rateMin: null, kmMax: null, paxMin: null,
+    q: '', date: 'all', free: false,
+    scope: params.get('pilne') === '1' ? 'urgent' : params.get('moje') === '1' ? 'mine' : 'all',
+    rateMin: null, kmMax: null, paxMin: null, paxMax: null,
     sort: { key: 'dep', dir: 'asc' }, mapMode: 'dep',
   };
 
@@ -97,7 +98,8 @@
     const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const q = norm(state.q.trim());
     let list = store.active().filter((o) => {
-      if (state.urgent && !o.urgent) return false;
+      if (state.scope === 'urgent' && !o.urgent) return false;
+      if (state.scope === 'mine' && o.owner !== me) return false;
       if (state.free && o.status !== 'open') return false;
       if (state.date === 'today' && !(o.dep < startToday + 864e5)) return false;
       if (state.date === 'tomorrow' && !(o.dep >= startToday + 864e5 && o.dep < startToday + 2 * 864e5)) return false;
@@ -105,7 +107,11 @@
       if (state.rateMin != null && o.rate < state.rateMin) return false;
       if (state.kmMax != null && o.km > state.kmMax) return false;
       if (state.paxMin != null && o.pax < state.paxMin) return false;
-      if (q && !(norm(o.from.label).includes(q) || norm(o.to.label).includes(q))) return false;
+      if (state.paxMax != null && o.pax > state.paxMax) return false;
+      if (q) {
+        const st = store.stops(o);
+        if (!st.pickups.concat(st.drops).some((x) => norm(x.label).includes(q))) return false;
+      }
       return true;
     });
     const { key, dir } = state.sort;
@@ -157,14 +163,26 @@
     if (o.urgent) tr.classList.add('is-urgent');
     if (o.status !== 'open') tr.classList.add('is-done');
 
+    const st = store.stops(o);
+    const moreChip = (list, key) => {
+      const c = el('span', 'tag-stops', t('g.stopsMore', { x: list.length - 1 }));
+      const all = list.map((x, i) => (i + 1) + '. ' + x.label).join('; ');
+      c.title = t(key, { x: all });
+      c.setAttribute('aria-label', t(key, { x: all }));
+      return c;
+    };
     const meta = [];
     if (o.urgent) { const u = el('span', 'tag-urgent'); u.innerHTML = BOLT; u.appendChild(document.createTextNode(t('g.urgentTag'))); meta.push(u); }
+    if (st.pickups.length > 1) meta.push(moreChip(st.pickups, 'g.morePickT'));
     meta.push(el('span', null, t('g.pax', { x: o.pax })));
+    const toMeta = [];
+    if (st.drops.length > 1) toMeta.push(moreChip(st.drops, 'g.moreDropT'));
+    if (o.notes) toMeta.push(el('span', null, o.notes.length > 60 ? o.notes.slice(0, 57) + '…' : o.notes));
 
     const td = (child, cls) => { const c = el('td', cls); if (child) c.appendChild(child); tr.appendChild(c); return c; };
     td(placeCell(o.from, false, meta));
     td(timeCell(o.dep, true));
-    td(placeCell(o.to, true, o.notes ? [el('span', null, o.notes.length > 60 ? o.notes.slice(0, 57) + '…' : o.notes)] : null));
+    td(placeCell(o.to, true, toMeta));
     td(timeCell(o.arr, false));
     td(el('span', 'km', t('g.km', { x: num(o.km) })), 'num');
     const rate = el('div', 'rate');
@@ -188,6 +206,12 @@
     const cell = td(acts);
     const myOffer = (o.offers || []).find((x) => x.by === me);
     if (myOffer && o.status === 'open') cell.appendChild(el('span', 'offer-note', t('g.offerSent', { x: zl(myOffer.rate) })));
+    // właściciel widzi propozycje stawek i to, kto zarezerwował
+    if (own && o.status !== 'open' && o.reservedBy) cell.appendChild(el('span', 'offer-note', t('g.reservedBy', { x: auth.nameOf(o.reservedBy) })));
+    if (own && o.status === 'open' && (o.offers || []).length) {
+      const best = Math.max.apply(null, o.offers.map((x) => x.rate));
+      cell.appendChild(el('span', 'offer-note', t('g.offersN', { x: o.offers.length, y: zl(best) })));
+    }
 
     tr.addEventListener('mouseenter', () => setHl(o.id, false));
     tr.addEventListener('mouseleave', () => setHl(null, false));
@@ -202,8 +226,11 @@
     list.forEach((o) => tbody.appendChild(row(o)));
     $('#gl-count').textContent = list.length + ' ' + plural(list.length);
     $('#gl-empty').hidden = list.length > 0;
-    $('#g-title span').textContent = t(state.urgent ? 'g.urgentTitle' : 'g.title');
-    $('#urgent-count').textContent = store.counts().urgent;
+    $('#g-title span').textContent = t(state.scope === 'urgent' ? 'g.urgentTitle' : state.scope === 'mine' ? 'g.mineTitle' : 'g.title');
+    const cnt = store.counts(me);
+    $('#urgent-count').textContent = cnt.urgent;
+    $('#mine-count').textContent = cnt.mine;
+    $('#gl-empty p').textContent = t(state.scope === 'mine' && !hasFilters() ? 'g.emptyMine' : 'g.empty');
     // nagłówki sortowania
     $$('.gl-table th[aria-sort]').forEach((th) => {
       const k = $('.th-sort', th).dataset.sort;
@@ -222,37 +249,40 @@
     $$('[data-date]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
     render();
   }));
-  function setUrgent(on) {
-    state.urgent = on;
-    $('#f-urgent').setAttribute('aria-pressed', String(on));
-    $('.an-urgent').setAttribute('aria-pressed', String(on));
-    $('.an-list').setAttribute('aria-pressed', String(!on));
+  // zakres listy (menu): wszystkie zlecenia / pilne przewozy / Twoje zlecenia
+  function setScope(scope) {
+    state.scope = scope;
+    $('#f-urgent').setAttribute('aria-pressed', String(scope === 'urgent'));
+    $('.an-list').setAttribute('aria-pressed', String(scope === 'all'));
+    $('.an-urgent').setAttribute('aria-pressed', String(scope === 'urgent'));
+    $('.an-mine').setAttribute('aria-pressed', String(scope === 'mine'));
     render();
   }
-  $('#f-urgent').addEventListener('click', () => setUrgent(!state.urgent));
+  const hasFilters = () => !!(state.q || state.date !== 'all' || state.free || state.rateMin != null || state.kmMax != null || state.paxMin != null || state.paxMax != null);
+  $('#f-urgent').addEventListener('click', () => setScope(state.scope === 'urgent' ? 'all' : 'urgent'));
   $('#f-free').addEventListener('click', (e) => { state.free = !state.free; e.currentTarget.setAttribute('aria-pressed', String(state.free)); render(); });
   const more = $('#f-more'), panel = $('#f-panel');
   more.addEventListener('click', () => { const open = panel.hidden; panel.hidden = !open; more.setAttribute('aria-expanded', String(open)); if (open) $('#f-rate').focus(); });
   function readNum(id) { const v = $(id).value.trim(); return v === '' ? null : Math.max(0, +v); }
   function syncAdvanced() {
-    state.rateMin = readNum('#f-rate'); state.kmMax = readNum('#f-km'); state.paxMin = readNum('#f-pax');
-    const n = [state.rateMin, state.kmMax, state.paxMin].filter((v) => v != null).length;
+    state.rateMin = readNum('#f-rate'); state.kmMax = readNum('#f-km'); state.paxMin = readNum('#f-pax'); state.paxMax = readNum('#f-pax-max');
+    const n = [state.rateMin, state.kmMax, state.paxMin, state.paxMax].filter((v) => v != null).length;
     const b = $('#f-more-count'); b.textContent = n; b.hidden = !n;
     render();
   }
-  ['#f-rate', '#f-km', '#f-pax'].forEach((id) => $(id).addEventListener('input', syncAdvanced));
+  ['#f-rate', '#f-km', '#f-pax', '#f-pax-max'].forEach((id) => $(id).addEventListener('input', syncAdvanced));
   $('#f-sort').addEventListener('change', (e) => { const [key, dir] = e.target.value.split(':'); state.sort = { key, dir }; render(); });
-  function resetFilters() {
+  function resetFilters(keepScope) {
     state.q = ''; $('#gl-q').value = '';
     state.date = 'all'; $$('[data-date]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.date === 'all')));
     state.free = false; $('#f-free').setAttribute('aria-pressed', 'false');
-    ['#f-rate', '#f-km', '#f-pax'].forEach((id) => { $(id).value = ''; });
-    state.rateMin = state.kmMax = state.paxMin = null; $('#f-more-count').hidden = true;
+    ['#f-rate', '#f-km', '#f-pax', '#f-pax-max'].forEach((id) => { $(id).value = ''; });
+    state.rateMin = state.kmMax = state.paxMin = state.paxMax = null; $('#f-more-count').hidden = true;
     state.sort = { key: 'dep', dir: 'asc' }; $('#f-sort').value = 'dep:asc';
-    setUrgent(false);
+    setScope(keepScope ? state.scope : 'all');
   }
-  $('#f-reset').addEventListener('click', resetFilters);
-  $('#gl-empty-reset').addEventListener('click', resetFilters);
+  $('#f-reset').addEventListener('click', () => resetFilters(true));
+  $('#gl-empty-reset').addEventListener('click', () => resetFilters(true));
 
   // sortowanie nagłówkami (pierwsze kliknięcie: stawka i km — malejąco/rosnąco tak, jak zwykle się szuka)
   $$('.th-sort').forEach((b) => b.addEventListener('click', () => {
@@ -268,8 +298,9 @@
   $$('[data-action]').forEach((b) => b.addEventListener('click', () => {
     const a = b.dataset.action;
     if (a === 'create') openCreate();
-    if (a === 'list') { setUrgent(false); if (main.dataset.view === 'map' && narrow.matches) setView('list'); }
-    if (a === 'urgent') { setUrgent(true); }
+    if (a === 'list') { setScope('all'); if (main.dataset.view === 'map' && narrow.matches) setView('list'); }
+    if (a === 'urgent') setScope('urgent');
+    if (a === 'mine') setScope('mine');
   }));
 
   /* ---------- układ: lista / podział / mapa + przeciągany uchwyt ---------- */
@@ -396,10 +427,16 @@
     const o = store.get(id);
     if (map && o) {
       const css = getComputedStyle(root);
-      routeLayer = L.layerGroup([
-        L.polyline([[o.from.lat, o.from.lng], [o.to.lat, o.to.lng]], { color: css.getPropertyValue('--accent').trim() || '#6B7F42', weight: 3, dashArray: '6 8', opacity: .9 }),
-        L.circleMarker(state.mapMode === 'dep' ? [o.to.lat, o.to.lng] : [o.from.lat, o.from.lng], { radius: 6, color: css.getPropertyValue('--ln-a').trim() || '#3A1F3D', weight: 3, fillColor: '#fff', fillOpacity: 1 }),
-      ]).addTo(map);
+      const st = store.stops(o);
+      const all = st.pickups.concat(st.drops);
+      const shown = state.mapMode === 'dep' ? o.from : o.to;
+      const layers = [L.polyline(all.map((x) => [x.lat, x.lng]), { color: css.getPropertyValue('--accent').trim() || '#6B7F42', weight: 3, dashArray: '6 8', opacity: .9 })];
+      all.forEach((x, i) => {
+        if (x === shown || (x.lat === shown.lat && x.lng === shown.lng)) return;
+        const pick = i < st.pickups.length;
+        layers.push(L.circleMarker([x.lat, x.lng], { radius: 6, color: pick ? (css.getPropertyValue('--bubble-olive').trim() || '#6B7F42') : (css.getPropertyValue('--ln-a').trim() || '#3A1F3D'), weight: 3, fillColor: '#fff', fillOpacity: 1 }));
+      });
+      routeLayer = L.layerGroup(layers).addTo(map);
     }
   }
 
@@ -440,8 +477,9 @@
   function routeSummary(box, o) {
     box.textContent = '';
     const line = (p, cls, letter) => { const l = el('div', 'dr-line'); const pin = el('span', 'cr-pin ' + cls, letter); pin.setAttribute('aria-hidden', 'true'); l.append(pin, el('span', null, p.label)); return l; };
-    box.appendChild(line(o.from, 'cr-pin-a', 'A'));
-    box.appendChild(line(o.to, 'cr-pin-b', 'B'));
+    const st = store.stops(o);
+    st.pickups.forEach((p, i) => box.appendChild(line(p, 'cr-pin-a', st.pickups.length > 1 ? 'A' + (i + 1) : 'A')));
+    st.drops.forEach((p, i) => box.appendChild(line(p, 'cr-pin-b', st.drops.length > 1 ? 'B' + (i + 1) : 'B')));
     const meta = el('div', 'dr-meta');
     meta.appendChild(el('span', null, `${dayLabel(o.dep)} ${timeLabel(o.dep)} → ${timeLabel(o.arr)}`));
     meta.appendChild(el('span', null, t('g.km', { x: num(o.km) })));
@@ -524,14 +562,18 @@
     render();
   });
 
-  /* ---------- nowe zlecenie ---------- */
+  /* ---------- nowe zlecenie: kilka miejsc odbioru (A1, A2…) i kilka docelowych (B1, B2…) ---------- */
   const cr = {
-    dlg: $('#cr-dialog'), form: $('#cr-form'), from: $('#cr-from'), to: $('#cr-to'), dep: $('#cr-dep'), arr: $('#cr-arr'),
+    dlg: $('#cr-dialog'), form: $('#cr-form'), dep: $('#cr-dep'), arr: $('#cr-arr'),
     pax: $('#cr-pax'), km: $('#cr-km'), rate: $('#cr-rate'), urgent: $('#cr-urgent'), notes: $('#cr-notes'),
     hint: $('#cr-hint'), q: $('#cr-q'), results: $('#cr-results'),
+    list: { A: $('#cr-list-a'), B: $('#cr-list-b') }, empty: { A: $('#cr-empty-a'), B: $('#cr-empty-b') }, err: { A: $('#cr-a-err'), B: $('#cr-b-err') },
   };
-  let crMap = null, mA = null, mB = null, crLine = null, ptA = null, ptB = null;
-  let kmTouched = false, arrAuto = false, durMin = null, crDirty = false, kmApprox = false;
+  const MAX_STOPS = 8;
+  const XS = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>';
+  let crMap = null, crLine = null, mode = 'A';
+  const pts = { A: [], B: [] }; // { lat, lng, label, marker, input, pin, li }
+  let kmTouched = false, arrAuto = false, durMin = null, crDirty = false;
 
   const pad = (n) => String(n).padStart(2, '0');
   const toLocalInput = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
@@ -545,16 +587,31 @@
     input.removeAttribute('aria-invalid');
     const e = $('#' + input.id + '-err'); if (e) { e.hidden = true; e.dataset.key = ''; }
   }
+  function listErr(which, key) { const e = cr.err[which]; e.textContent = t(key); e.dataset.key = key; e.hidden = false; }
+  function clearListErr(which) { const e = cr.err[which]; e.hidden = true; e.dataset.key = ''; }
+
+  function setMode(m) {
+    mode = m;
+    $$('[data-cr-mode]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.crMode === m)));
+    updateSteps();
+  }
+  $$('[data-cr-mode]').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.crMode)));
+  $$('[data-add]', cr.form).forEach((b) => b.addEventListener('click', () => { setMode(b.dataset.add); cr.q.focus(); }));
 
   function updateSteps() {
-    $('#cr-step-a').classList.toggle('is-set', !!ptA);
-    $('#cr-step-b').classList.toggle('is-set', !!ptB);
-    $('#cr-step-a').classList.toggle('is-current', !ptA);
-    $('#cr-step-b').classList.toggle('is-current', !!ptA && !ptB);
-    cr.hint.textContent = t(!ptA ? 'g.cr.hintA' : !ptB ? 'g.cr.hintB' : 'g.cr.hintDone');
+    cr.hint.textContent = t(!pts.A.length ? 'g.cr.hintA' : !pts.B.length ? 'g.cr.hintB' : mode === 'A' ? 'g.cr.hintMoreA' : 'g.cr.hintMoreB');
+    ['A', 'B'].forEach((w) => { cr.empty[w].hidden = pts[w].length > 0; });
+  }
+  function renumber() {
+    ['A', 'B'].forEach((w) => pts[w].forEach((p, i) => {
+      const code = w + (i + 1);
+      p.pin.textContent = code;
+      p.marker.setIcon(icon(w === 'A' ? 'mk-a' : 'mk-b', code));
+      p.input.setAttribute('aria-label', t(w === 'A' ? 'g.cr.pickN' : 'g.cr.dropN', { x: i + 1 }));
+    }));
   }
 
-  // Adres z punktu (Nominatim / OpenStreetMap): „ulica numer, miejscowość”
+  // Adres z punktu (Nominatim / OpenStreetMap): „miejscowość, ulica numer”
   async function reverse(lat, lng) {
     try {
       const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=17&addressdetails=1&accept-language=${root.lang === 'en' ? 'en' : 'pl'}`);
@@ -571,73 +628,93 @@
     return out || (j.display_name || '').split(',').slice(0, 2).join(',').trim();
   }
 
-  function setPoint(which, latlng, label) {
-    const isA = which === 'A';
-    const pt = { lat: latlng.lat, lng: latlng.lng, label: label || '' };
-    const input = isA ? cr.from : cr.to;
-    let m = isA ? mA : mB;
-    if (!m) {
-      m = L.marker(latlng, { icon: icon(isA ? 'mk-a' : 'mk-b', which), draggable: true, keyboard: true, title: which }).addTo(crMap);
-      m.on('dragend', async () => {
-        const ll = m.getLatLng();
-        const p = isA ? ptA : ptB;
-        p.lat = ll.lat; p.lng = ll.lng;
-        input.value = t('g.cr.locating');
-        const lb = await reverse(ll.lat, ll.lng);
-        p.label = lb; input.value = lb; crClear(input);
-        updateRoute();
-      });
-      if (isA) mA = m; else mB = m;
-    } else m.setLatLng(latlng);
-    if (isA) ptA = pt; else ptB = pt;
+  function addPoint(which, latlng, label) {
+    if (pts[which].length >= MAX_STOPS) { toast(t('g.cr.max', { x: MAX_STOPS })); return; }
+    const p = { lat: latlng.lat, lng: latlng.lng, label: label || '' };
+    p.marker = L.marker(latlng, { icon: icon(which === 'A' ? 'mk-a' : 'mk-b', which), draggable: true, keyboard: true }).addTo(crMap);
+    p.marker.on('dragend', async () => {
+      const ll = p.marker.getLatLng();
+      p.lat = ll.lat; p.lng = ll.lng;
+      p.input.value = t('g.cr.locating');
+      const lb = await reverse(ll.lat, ll.lng);
+      p.label = lb; p.input.value = lb;
+      updateRoute();
+    });
+    const li = el('li', 'stop-row');
+    const pin = el('span', 'cr-pin ' + (which === 'A' ? 'cr-pin-a' : 'cr-pin-b'));
+    pin.setAttribute('aria-hidden', 'true');
+    const input = el('input');
+    input.type = 'text'; input.autocomplete = 'off'; input.maxLength = 120;
+    input.addEventListener('input', () => { p.label = input.value; crDirty = true; clearListErr(which); });
+    const rm = el('button', 'stop-rm');
+    rm.type = 'button'; rm.innerHTML = XS; rm.setAttribute('aria-label', t('g.cr.remove'));
+    rm.addEventListener('click', () => removePoint(which, p));
+    li.append(pin, input, rm);
+    cr.list[which].appendChild(li);
+    Object.assign(p, { pin, input, li });
+    pts[which].push(p);
     crDirty = true;
-    crClear(input);
-    updateSteps();
+    clearListErr(which);
     if (label) input.value = label;
     else {
       input.value = t('g.cr.locating');
-      reverse(latlng.lat, latlng.lng).then((lb) => { if ((isA ? ptA : ptB) === pt) { pt.label = lb; input.value = lb; } });
+      reverse(latlng.lat, latlng.lng).then((lb) => { if (pts[which].includes(p)) { p.label = lb; input.value = lb; } });
     }
+    // po pierwszym miejscu odbioru kolejne kliknięcie dodaje miejsce docelowe
+    if (which === 'A' && pts.A.length === 1 && !pts.B.length) setMode('B');
+    renumber();
+    updateSteps();
     updateRoute();
   }
-
+  function removePoint(which, p) {
+    if (crMap) crMap.removeLayer(p.marker);
+    p.li.remove();
+    pts[which] = pts[which].filter((x) => x !== p);
+    crDirty = true;
+    renumber(); updateSteps(); updateRoute();
+  }
   function clearPoints() {
-    [mA, mB, crLine].forEach((x) => { if (x && crMap) crMap.removeLayer(x); });
-    mA = mB = crLine = null; ptA = ptB = null; durMin = null;
-    cr.from.value = ''; cr.to.value = '';
+    ['A', 'B'].forEach((w) => { pts[w].forEach((p) => { if (crMap) crMap.removeLayer(p.marker); p.li.remove(); }); pts[w] = []; });
+    if (crLine && crMap) crMap.removeLayer(crLine);
+    crLine = null; durMin = null;
     if (!kmTouched) cr.km.value = '';
-    updateSteps(); updateRateHelp();
+    setMode('A');
+    updateRateHelp();
   }
   $('#cr-clear').addEventListener('click', clearPoints);
 
-  // Trasa drogowa (OSRM, OpenStreetMap): długość i czas przejazdu; bez trasy — szacunek z linii prostej
+  // Trasa drogowa (OSRM, OpenStreetMap) przez wszystkie punkty: odbiory, potem cele
   let routeReq = 0;
   async function updateRoute() {
-    if (!ptA || !ptB || !crMap) return;
+    if (!crMap) return;
+    const all = pts.A.concat(pts.B);
+    if (crLine) { crMap.removeLayer(crLine); crLine = null; }
+    // jeden punkt: tylko przesuń mapę (bez przybliżania — łatwiej kliknąć kolejne miasto); kilka: pokaż wszystkie
+    if (all.length === 1) crMap.panTo([all[0].lat, all[0].lng]);
+    else if (all.length > 1) crMap.fitBounds(L.latLngBounds(all.map((p) => [p.lat, p.lng])), { padding: [50, 50], maxZoom: 12 });
+    if (!pts.A.length || !pts.B.length) { durMin = null; return; }
     const id = ++routeReq;
-    if (crLine) crMap.removeLayer(crLine);
-    const css = getComputedStyle(root);
-    const color = css.getPropertyValue('--accent').trim() || '#6B7F42';
-    crLine = L.polyline([[ptA.lat, ptA.lng], [ptB.lat, ptB.lng]], { color, weight: 3, dashArray: '6 8' }).addTo(crMap);
-    crMap.fitBounds(L.latLngBounds([[ptA.lat, ptA.lng], [ptB.lat, ptB.lng]]), { padding: [50, 50], maxZoom: 13 });
+    const color = getComputedStyle(root).getPropertyValue('--accent').trim() || '#6B7F42';
+    crLine = L.polyline(all.map((p) => [p.lat, p.lng]), { color, weight: 3, dashArray: '6 8' }).addTo(crMap);
     let km, dur, approx = false;
     try {
-      const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${ptA.lng},${ptA.lat};${ptB.lng},${ptB.lat}?overview=simplified&geometries=geojson`);
+      const coords = all.map((p) => `${p.lng},${p.lat}`).join(';');
+      const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=simplified&geometries=geojson`);
       const j = await r.json();
       if (id !== routeReq) return;
       const route = j.routes && j.routes[0];
       if (!route) throw new Error('no route');
       km = Math.max(1, Math.round(route.distance / 1000));
       dur = Math.round(route.duration / 60);
-      crMap.removeLayer(crLine);
+      if (crLine) crMap.removeLayer(crLine);
       crLine = L.geoJSON(route.geometry, { style: { color, weight: 4, opacity: .85 } }).addTo(crMap);
     } catch (e) {
       if (id !== routeReq) return;
-      km = Math.max(1, Math.round(store.haversine(ptA, ptB) * 1.25));
+      km = Math.max(1, Math.round(store.pathKm(all) * 1.25));
       dur = Math.round(km / 70 * 60);
       approx = true;
     }
-    durMin = dur; kmApprox = approx;
+    durMin = dur;
     $('#cr-km-help').textContent = t(approx ? 'g.cr.kmApprox' : 'g.cr.kmHelp');
     if (!kmTouched) { cr.km.value = km; crClear(cr.km); }
     suggestArrival();
@@ -659,18 +736,16 @@
   cr.rate.addEventListener('input', () => { crClear(cr.rate); updateRateHelp(); });
   cr.dep.addEventListener('input', () => { crClear(cr.dep); suggestArrival(); });
   cr.arr.addEventListener('input', () => { arrAuto = false; crClear(cr.arr); });
-  [cr.from, cr.to, cr.pax].forEach((i) => i.addEventListener('input', () => { crClear(i); crDirty = true; }));
-  cr.from.addEventListener('input', () => { if (ptA) ptA.label = cr.from.value; });
-  cr.to.addEventListener('input', () => { if (ptB) ptB.label = cr.to.value; });
+  cr.pax.addEventListener('input', () => crClear(cr.pax));
   cr.form.addEventListener('input', () => { crDirty = true; });
 
-  // wyszukiwarka adresu nad mapą
+  // wyszukiwarka adresu nad mapą — wynik trafia na listę wybraną przełącznikiem (odbiór / cel)
   let qT, results = [], active = -1;
   function renderResults(list, empty) {
     cr.results.textContent = '';
     results = list; active = -1;
     if (!list.length && !empty) { cr.results.hidden = true; cr.q.setAttribute('aria-expanded', 'false'); return; }
-    if (!list.length) { const li = el('li', 'is-empty', t('g.cr.noResults')); cr.results.appendChild(li); }
+    if (!list.length) cr.results.appendChild(el('li', 'is-empty', t('g.cr.noResults')));
     list.forEach((r, i) => {
       const li = el('li', null, r.label);
       li.id = 'cr-opt-' + i; li.setAttribute('role', 'option'); li.setAttribute('aria-selected', 'false');
@@ -684,9 +759,8 @@
     if (!r) return;
     renderResults([], false);
     cr.q.value = '';
-    const which = !ptA ? 'A' : 'B';
-    crMap.setView([r.lat, r.lng], 15);
-    setPoint(which, L.latLng(r.lat, r.lng), r.label);
+    crMap.setView([r.lat, r.lng], 14);
+    addPoint(mode, L.latLng(r.lat, r.lng), r.label);
   }
   cr.q.addEventListener('input', () => {
     clearTimeout(qT);
@@ -705,6 +779,7 @@
     if (cr.results.hidden) return;
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
+      if (!results.length) return;
       active = (active + (e.key === 'ArrowDown' ? 1 : -1) + results.length) % results.length;
       $$('li[role="option"]', cr.results).forEach((li, i) => li.setAttribute('aria-selected', String(i === active)));
       cr.q.setAttribute('aria-activedescendant', 'cr-opt-' + active);
@@ -729,10 +804,10 @@
       if (!crMap) {
         crMap = L.map('cr-map', { zoomControl: true }).setView([52.1, 19.4], 6);
         L.tileLayer(TILE, { maxZoom: 19, attribution: ATTR }).addTo(crMap);
-        crMap.on('click', (e) => { if (!ptA) setPoint('A', e.latlng); else if (!ptB) setPoint('B', e.latlng); });
+        crMap.on('click', (e) => addPoint(mode, e.latlng));
       }
       crMap.invalidateSize();
-      updateSteps();
+      if (!pts.A.length) setMode('A'); else updateSteps();
       cr.q.focus();
     }, 80);
   }
@@ -747,8 +822,11 @@
     e.preventDefault();
     const errs = [];
     const fail = (input, key) => { crErr(input, key); errs.push(input); };
-    if (!ptA) fail(cr.from, 'g.e.from'); else if (!cr.from.value.trim() || cr.from.value === t('g.cr.locating')) fail(cr.from, 'g.e.label');
-    if (!ptB) fail(cr.to, 'g.e.to'); else if (!cr.to.value.trim() || cr.to.value === t('g.cr.locating')) fail(cr.to, 'g.e.label');
+    const badLabel = (p) => !p.input.value.trim() || p.input.value === t('g.cr.locating');
+    ['A', 'B'].forEach((w) => {
+      if (!pts[w].length) { listErr(w, w === 'A' ? 'g.e.from' : 'g.e.to'); errs.push(cr.list[w].parentNode.querySelector('[data-add]')); }
+      else if (pts[w].some(badLabel)) { listErr(w, 'g.e.label'); errs.push(pts[w].find(badLabel).input); }
+    });
     const dep = fromInput(cr.dep.value), arr = fromInput(cr.arr.value);
     if (isNaN(dep) || dep < Date.now() - 6e4) fail(cr.dep, 'g.e.dep');
     if (isNaN(arr) || !(arr > dep)) fail(cr.arr, 'g.e.arr');
@@ -756,17 +834,17 @@
     const km = +cr.km.value; if (!(km > 0)) fail(cr.km, 'g.e.km');
     const rate = +cr.rate.value; if (!(rate > 0)) fail(cr.rate, 'g.e.rate');
     if (errs.length) { errs[0].focus(); return; }
+    const plain = (p) => ({ label: p.input.value.trim(), lat: p.lat, lng: p.lng });
     const o = store.add({
-      from: { label: cr.from.value.trim(), lat: ptA.lat, lng: ptA.lng },
-      to: { label: cr.to.value.trim(), lat: ptB.lat, lng: ptB.lng },
+      pickups: pts.A.map(plain), drops: pts.B.map(plain),
       dep, arr, km: Math.round(km), rate: Math.round(rate), pax, urgent: cr.urgent.checked, notes: cr.notes.value.trim(),
     }, me);
     crDirty = false;
     closeCreate(true);
     resetCreate();
-    // pokaż nowe zlecenie: bez filtrów, które mogłyby je ukryć
+    // pokaż nowe zlecenie w „Twoich zleceniach”, bez filtrów, które mogłyby je ukryć
     resetFilters();
-    if (o.urgent) setUrgent(false);
+    setScope('mine');
     toast(t('g.done'));
     setTimeout(() => { showRow(o.id); focusOnMap(o.id); }, 200);
   });
@@ -778,16 +856,17 @@
     if (cr.dlg.open) updateSteps();
     updateRateHelp();
     $$('.field-err', cr.form).forEach((e) => { if (e.dataset.key) e.textContent = t(e.dataset.key); });
+    if (crMap) renumber();
   });
 
   /* ---------- start ---------- */
   renderUser();
   if (layout.split) setSplit(layout.split);
   setView(narrow.matches ? 'list' : (layout.view || 'split'));
-  setUrgent(state.urgent);
+  setScope(state.scope);
   updateSteps();
   if (params.get('nowe') === '1') setTimeout(openCreate, 250);
-  if (params.has('nowe') || params.has('pilne')) history.replaceState(null, '', location.pathname);
+  if (params.has('nowe') || params.has('pilne') || params.has('moje')) history.replaceState(null, '', location.pathname);
   // terminy względne („za 3 godziny”) odświeżamy co minutę
   setInterval(() => { if (!document.hidden && !$$('dialog[open]').length) render(); }, 60000);
 })();

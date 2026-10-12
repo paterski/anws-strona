@@ -38,6 +38,7 @@
   const PASS_KEY = 'anws-passwords'; // zmienione hasła wbudowanych kont (prototyp; docelowo baza)
   const RESET_KEY = 'anws-resets';
   const SEED_FLAG = 'anws-seeded';
+  const NOTE_KEY = 'anws-notifications';
   const REMEMBER_DAYS = 30;
   const RESET_MINUTES = 30;
 
@@ -232,6 +233,32 @@
       const plan = acc.plan || 'commission';
       const freeUntil = acc.activatedAt ? acc.activatedAt + 30 * 864e5 : 0;
       return { plan, freeUntil, free: plan === 'subscription' || Date.now() < freeUntil };
+    },
+
+    // nazwa konta do wyświetlania (firma albo nazwa konta testowego)
+    nameOf(login) {
+      const acc = findAccount(login);
+      return acc ? (acc.name || acc.login) : login;
+    },
+
+    /* Powiadomienia dla właściciela zlecenia (rezerwacja, propozycja stawki).
+     * Zapisujemy je w panelu powiadomień i wysyłamy e-mailem na adres podany przy rejestracji. */
+    notify(toLogin, n) {
+      const list = loadRaw(NOTE_KEY, []);
+      const item = Object.assign({ id: 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to: toLogin, at: Date.now(), read: false }, n);
+      delete item.subject; delete item.body;
+      list.unshift(item);
+      save(NOTE_KEY, list.slice(0, 300));
+      const acc = findAccount(toLogin);
+      if (acc && acc.email && n.subject) mail(acc.email, n.subject, n.body);
+      return item;
+    },
+    notifications(login) { return loadRaw(NOTE_KEY, []).filter((x) => x.to === login); },
+    unreadCount(login) { return this.notifications(login).filter((x) => !x.read).length; },
+    markNotificationsRead(login) {
+      const list = loadRaw(NOTE_KEY, []);
+      list.forEach((x) => { if (x.to === login) x.read = true; });
+      save(NOTE_KEY, list);
     },
 
     // Rejestracja — etap 2 (administrator)

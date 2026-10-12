@@ -24,7 +24,7 @@ body.app { height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-
 /* ---------- menu giełdy ---------- */
 
 .app-head {
-  position: relative; z-index: 20; flex-shrink: 0;
+  position: relative; z-index: 1100; flex-shrink: 0;
   display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 18px;
   padding: 10px 18px;
   background: var(--glass);
@@ -237,6 +237,10 @@ th[aria-sort="ascending"] .th-sort, th[aria-sort="descending"] .th-sort { color:
 :root[data-theme="dark"] .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.88) contrast(.92) saturate(.55); }
 .leaflet-control-attribution { font-size: 10.5px; }
 .leaflet-bar a { color: #1B1D22; }
+/* Leaflet ustawia własny kursor (grab/crosshair) na swoich elementach, nad naszym
+   „cursor: none” z html — bez tego nadpisania systemowy kursor wracał nad mapą. */
+.has-cursor .leaflet-container, .has-cursor .leaflet-interactive, .has-cursor .leaflet-marker-icon,
+.has-cursor .leaflet-grab, .has-cursor .leaflet-dragging .leaflet-container { cursor: none; }
 
 /* pinezki w kształcie kropli */
 .mk { position: relative; display: block; width: 30px; height: 30px; }
@@ -255,6 +259,34 @@ th[aria-sort="ascending"] .th-sort, th[aria-sort="descending"] .th-sort { color:
 .mp-title { font-weight: 700; margin-bottom: 2px; }
 .mp-meta { color: var(--ink-muted); }
 .mp-btn { margin-top: 8px; padding: 6px 12px; border: 0; border-radius: 999px; background: var(--btn-bg); color: var(--btn-ink); font: 600 12.5px var(--font-body); cursor: pointer; }
+
+
+/* „Twoje zlecenia” w menu */
+.an-mine .an-ic { background: var(--bubble-brown); }
+.an-mine[aria-pressed="true"] { background: var(--tile1); color: var(--tile-ink); border-color: transparent; }
+.an-count-mine { background: var(--ib-border); color: var(--ink); }
+.an-mine[aria-pressed="true"] .an-count-mine { background: var(--tile-ink); color: var(--tile1); }
+
+/* dodatkowe przystanki w wierszu */
+.tag-stops { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: var(--ib-bg); border: 1px solid var(--ib-border); color: var(--ink); font-size: 11.5px; font-weight: 700; cursor: help; }
+
+/* formularz: przełącznik „kliknięcie dodaje” i listy punktów */
+.cr-mode { display: inline-flex; flex-wrap: wrap; gap: 3px; padding: 3px; border-radius: 999px; background: var(--ib-bg); border: 1px solid var(--ib-border); justify-self: start; }
+.cr-mode button { display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 0 14px 0 6px; border: 0; border-radius: 999px; background: none; color: var(--ink-muted); font: 600 13.5px var(--font-body); cursor: pointer; transition: background-color .2s, color .2s; }
+.cr-mode button[aria-pressed="true"] { background: var(--btn-bg); color: var(--btn-ink); }
+.cr-stops { border: 0; margin: 0; padding: 12px 14px; display: grid; gap: 8px; border-radius: 16px; background: var(--ib-bg); min-width: 0; }
+.cr-stops legend { float: left; width: 100%; display: flex; align-items: center; gap: 8px; padding: 0; margin-bottom: 2px; font-size: 14px; font-weight: 600; }
+.stop-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; clear: both; }
+.stop-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.stop-row .cr-pin { width: 30px; height: 30px; font-size: 11px; }
+.stop-row input { width: 100%; min-height: 42px; padding: 0 12px; border-radius: 12px; border: 1.5px solid var(--input-border); background: var(--input-bg); color: var(--ink); font: 500 14.5px var(--font-body); }
+.stop-row input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px var(--input-ring); }
+.stop-rm { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 50%; background: none; color: var(--ink-muted); cursor: pointer; }
+.stop-rm:hover { background: var(--err-bg); color: var(--err-ink); }
+.stop-empty { font-size: 13px; color: var(--ink-muted); clear: both; }
+.stop-empty[hidden] { display: none; }
+.cr-stops .link-btn { padding: 2px 0; }
+.mk-a b, .mk-b b { font-size: 10px; }
 
 /* ---------- powiadomienie (toast) ---------- */
 
@@ -322,6 +354,10 @@ th[aria-sort="ascending"] .th-sort, th[aria-sort="descending"] .th-sort { color:
 
 /* ---------- węższe ekrany ---------- */
 
+@media (max-width: 1360px) {
+  .an-btn { padding: 0 14px 0 7px; font-size: 14px; }
+  .app-head .social { display: none; }
+}
 @media (max-width: 1240px) {
   .uc-text { display: none; }
   .user-chip { padding: 3px; }
@@ -342,7 +378,7 @@ th[aria-sort="ascending"] .th-sort, th[aria-sort="descending"] .th-sort { color:
     justify-content: space-around; gap: 4px; padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
     background: var(--menu-bg); border-top: 1px solid var(--line); box-shadow: 0 -8px 24px rgba(0, 0, 0, .08);
   }
-  .an-btn { flex: 1; flex-direction: column; gap: 4px; min-height: 58px; padding: 6px 4px; border-radius: 16px; font-size: 12px; border: 0; background: none; }
+  .an-btn { flex: 1 1 0; min-width: 0; flex-direction: column; gap: 4px; min-height: 58px; padding: 6px 2px; text-align: center; line-height: 1.15; white-space: normal; border-radius: 16px; font-size: 12px; border: 0; background: none; }
   .an-btn:hover { transform: none; background: var(--ib-bg); }
   .an-create { background: var(--an-create); }
   .an-count { position: absolute; top: 4px; left: calc(50% + 10px); padding: 1px 6px; font-size: 11px; }
@@ -356,6 +392,8 @@ th[aria-sort="ascending"] .th-sort, th[aria-sort="descending"] .th-sort { color:
 }
 @media (max-width: 640px) {
   .app-head .logo { --logo-w: 74px; }
+  .app-head .user-chip, .app-head #logout, .app-head .nav-sep { display: none; }
+  .app-head .acct-panel { position: fixed; top: 64px; right: 12px; }
   .gl-top { padding: 14px 14px 10px; }
   .gl-scroll { padding: 0 8px 20px; }
   .chip-row { order: 3; }
