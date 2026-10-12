@@ -494,6 +494,68 @@
   }
 
   /* ------------------------------------------------------------------
+     „Jak to działa”: mapa dwóch linii. Przełącznik roli podświetla jedną
+     drogę, a po liniach jeżdżą autobusy (tylko szeroki ekran, bez
+     ograniczenia ruchu, gdy sekcja jest widoczna).
+     ------------------------------------------------------------------ */
+  const net = $('#net');
+  if (net) {
+    const roleBtns = $$('[data-role-btn]');
+    const narrow = matchMedia('(max-width: 900px)');
+    const setRole = (role) => {
+      if (narrow.matches && role === 'both') role = 'a';
+      net.dataset.role = role;
+      roleBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.roleBtn === role)));
+    };
+    roleBtns.forEach((b) => b.addEventListener('click', () => setRole(b.dataset.roleBtn)));
+    narrow.addEventListener('change', () => setRole(net.dataset.role));
+    setRole(net.dataset.role);
+
+    // linie rysują się, a przystanki pojawiają, gdy sekcja wjedzie na ekran
+    let visible = false;
+    const io = new IntersectionObserver((entries) => {
+      visible = entries[0].isIntersecting;
+      if (visible && !net.classList.contains('is-in')) {
+        net.classList.add('is-in');
+        setTimeout(() => net.classList.add('is-done'), 2200); // dalej bez opóźnień wejścia (np. przy zmianie roli)
+      }
+      if (visible) kick();
+    }, { threshold: 0.25 });
+    io.observe(net);
+
+    // autobusy: pozycja liczona z prawdziwej ścieżki SVG (współrzędne 1000 × 540)
+    const lines = $$('.ln[data-role]', net);
+    const buses = [
+      { el: $('.bus-a', net), path: lines.find((l) => l.dataset.role === 'a'), offset: 0 },
+      { el: $('.bus-b', net), path: lines.find((l) => l.dataset.role === 'b'), offset: 0.5 },
+    ].filter((b) => b.el && b.path);
+    buses.forEach((b) => { b.len = b.path.getTotalLength(); });
+    const PERIOD = 9000;
+    const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+    let raf = 0;
+    function frame(now) {
+      raf = 0;
+      if (!visible || narrow.matches || reduceMotion.matches) { buses.forEach((b) => { b.el.style.opacity = 0; }); return; }
+      const w = net.clientWidth, h = net.clientHeight;
+      const sx = w / 1000, sy = h / 540;
+      buses.forEach((b) => {
+        const t = ((now / PERIOD) + b.offset) % 1;
+        const l = ease(t) * b.len;
+        const p = b.path.getPointAtLength(l);
+        const q = b.path.getPointAtLength(Math.min(b.len, l + 2));
+        const ang = Math.atan2((q.y - p.y) * sy, (q.x - p.x) * sx) * 180 / Math.PI;
+        const fade = Math.min(1, t / 0.06, (1 - t) / 0.06);
+        b.el.style.transform = `translate(${(p.x * sx).toFixed(1)}px, ${(p.y * sy).toFixed(1)}px) rotate(${ang.toFixed(1)}deg)`;
+        b.el.style.opacity = '';
+        b.el.style.setProperty('--fade', fade.toFixed(3));
+      });
+      raf = requestAnimationFrame(frame);
+    }
+    function kick() { if (!raf) raf = requestAnimationFrame(frame); }
+    narrow.addEventListener('change', kick);
+  }
+
+  /* ------------------------------------------------------------------
      Kursor (tylko myszka): kropka + pierścień, jak w projekcie kominków
      ------------------------------------------------------------------ */
   const cursor = $('.cursor');

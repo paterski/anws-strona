@@ -297,35 +297,79 @@
         </div>
       </section>
 
-      <!-- jak to działa -->
+      <!-- jak to działa: mapa dwóch linii (zlecający / przewoźnik), które spotykają się przy zleceniu -->
       <section class="how in t7" id="jak-to-dziala" aria-labelledby="how-title">
         <div class="how-head">
           <h2 id="how-title" data-i18n="how.title">Jak to działa</h2>
-          <span data-i18n="how.sub">Trzy przystanki od zlecenia do wyjazdu</span>
+          <span data-i18n="how.sub">Giełda przewozów osób: dwie drogi, jeden wspólny kurs</span>
         </div>
-        <div class="track" aria-hidden="true">
-          <div class="track-line"></div>
-          <div class="ride">
-            <svg class="bob" width="44" height="28" viewBox="0 0 44 28"><rect class="bus-body" x="2" y="2" width="40" height="20" rx="6"></rect><rect class="bus-win" x="6" y="6" width="24" height="7" rx="2"></rect><rect class="bus-win" x="33" y="6" width="6" height="10" rx="2"></rect><circle class="bus-wheel" cx="12" cy="22" r="4.5" stroke-width="2.4"></circle><circle class="bus-wheel" cx="32" cy="22" r="4.5" stroke-width="2.4"></circle></svg>
-          </div>
+
+        <div class="role-switch" role="group" aria-label="Pokaż drogę dla" data-i18n-aria="role.label">
+          <button type="button" data-role-btn="both" aria-pressed="true" data-i18n="role.both">Obie strony</button>
+          <button type="button" data-role-btn="a" aria-pressed="false"><i class="rs-dot rs-a" aria-hidden="true"></i><span data-i18n="role.a">Zlecam przewóz</span></button>
+          <button type="button" data-role-btn="b" aria-pressed="false"><i class="rs-dot rs-b" aria-hidden="true"></i><span data-i18n="role.b">Wykonuję przewozy</span></button>
         </div>
-        <ol class="steps">
-          <li class="step">
-            <span class="step-dot" aria-hidden="true">1</span>
-            <h3 data-i18n="s1.t">Opisz przejazd</h3>
-            <p data-i18n="s1.p">Skąd, dokąd, kiedy i ile osób. Wystarczy kilka pól.</p>
-          </li>
-          <li class="step">
-            <span class="step-dot" aria-hidden="true">2</span>
-            <h3 data-i18n="s2.t">Przewoźnicy odpowiadają</h3>
-            <p data-i18n="s2.p">Firmy przewozowe widzą zlecenie i przesyłają swoje oferty.</p>
-          </li>
-          <li class="step">
-            <span class="step-dot" aria-hidden="true">3</span>
-            <h3 data-i18n="s3.t">Wybierz i jedź</h3>
-            <p data-i18n="s3.p">Porównaj oferty, wybierz przewoźnika i potwierdź przejazd.</p>
-          </li>
-        </ol>
+
+        <div class="net" id="net" data-role="both">
+          <svg class="net-lines" viewBox="0 0 1000 540" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+            <path class="ln ln-a" data-role="a" d="M90 280 L280 280 C340 280 340 160 400 160 L780 160 C840 160 840 280 900 280 L920 280"></path>
+            <path class="ln ln-b" data-role="b" d="M90 280 L280 280 C340 280 340 400 400 400 L780 400 C840 400 840 280 900 280 L920 280"></path>
+            <path class="ln-flow" data-role="a" d="M90 280 L280 280 C340 280 340 160 400 160 L780 160 C840 160 840 280 900 280 L920 280"></path>
+            <path class="ln-flow" data-role="b" d="M90 280 L280 280 C340 280 340 400 400 400 L780 400 C840 400 840 280 900 280 L920 280"></path>
+            <path class="ln ln-trunk" d="M90 280 L280 280 M900 280 L920 280"></path>
+          </svg>
+
+          <span class="ln-badge badge-a" data-role="a" aria-hidden="true" data-i18n="tag.a">Zlecający</span>
+          <span class="ln-badge badge-b" data-role="b" aria-hidden="true" data-i18n="tag.b">Przewoźnik</span>
+          <span class="handshake" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4v16M4 16l4 4 4-4M16 20V4M12 8l4-4 4 4"></path></svg>
+            <span data-i18n="how.handshake">pobiera zlecenie</span>
+          </span>
+
+          <ol class="nstops">
+            <li class="nstop st1" data-role="both">
+              <span class="nstop-dot" aria-hidden="true">1</span>
+              <div class="nstop-card">
+                <span class="nstop-tag tag-all" data-i18n="tag.all">Wszyscy</span>
+                <h3 data-i18n="s1.t">Zarejestruj się</h3>
+                <p data-i18n="s1.p">Poczekaj na potwierdzenie konta i zaloguj się.</p>
+              </div>
+            </li>
+            <li class="nstop st2" data-role="a">
+              <span class="nstop-dot" aria-hidden="true">2</span>
+              <div class="nstop-card">
+                <span class="nstop-tag tag-a" data-i18n="tag.a">Zlecający</span>
+                <h3 data-i18n="s2.t">Opisz przejazd</h3>
+                <p data-i18n="s2.p">W krótkim formularzu podaj trasę, datę i liczbę osób.</p>
+              </div>
+            </li>
+            <li class="nstop st3" data-role="a">
+              <span class="nstop-dot" aria-hidden="true">3</span>
+              <div class="nstop-card">
+                <span class="nstop-tag tag-a" data-i18n="tag.a">Zlecający</span>
+                <h3 data-i18n="s3.t">Przewoźnicy odpowiadają</h3>
+                <p data-i18n="s3.p">Zainteresowany przewoźnik pobiera Twoje zlecenie.</p>
+              </div>
+            </li>
+            <li class="nstop st4" data-role="b">
+              <span class="nstop-dot" aria-hidden="true">4</span>
+              <div class="nstop-card">
+                <span class="nstop-tag tag-b" data-i18n="tag.b">Przewoźnik</span>
+                <h3 data-i18n="s4.t">Wybierz i jedź</h3>
+                <p data-i18n="s4.p">Wybierz zlecenie z listy i ruszaj w trasę.</p>
+              </div>
+            </li>
+            <li class="nstop st-end" data-role="both">
+              <span class="nstop-dot end-dot" aria-hidden="true"><svg viewBox="0 0 44 28" aria-hidden="true"><rect class="nb-body" x="2" y="2" width="40" height="20" rx="6"></rect><rect class="nb-win" x="6" y="6" width="24" height="7" rx="2"></rect><rect class="nb-win" x="33" y="6" width="6" height="10" rx="2"></rect><circle class="nb-wheel" cx="12" cy="22" r="4.5" stroke-width="2.4"></circle><circle class="nb-wheel" cx="32" cy="22" r="4.5" stroke-width="2.4"></circle></svg></span>
+              <div class="nstop-card">
+                <h3 data-i18n="how.end">Jedziecie!</h3>
+              </div>
+            </li>
+          </ol>
+
+          <span class="net-bus bus-a" data-role="a" aria-hidden="true"><svg viewBox="0 0 44 28" aria-hidden="true"><rect class="nb-body" x="2" y="2" width="40" height="20" rx="6"></rect><rect class="nb-win" x="6" y="6" width="24" height="7" rx="2"></rect><rect class="nb-win" x="33" y="6" width="6" height="10" rx="2"></rect><circle class="nb-wheel" cx="12" cy="22" r="4.5" stroke-width="2.4"></circle><circle class="nb-wheel" cx="32" cy="22" r="4.5" stroke-width="2.4"></circle></svg></span>
+          <span class="net-bus bus-b" data-role="b" aria-hidden="true"><svg viewBox="0 0 44 28" aria-hidden="true"><rect class="nb-body" x="2" y="2" width="40" height="20" rx="6"></rect><rect class="nb-win" x="6" y="6" width="24" height="7" rx="2"></rect><rect class="nb-win" x="33" y="6" width="6" height="10" rx="2"></rect><circle class="nb-wheel" cx="12" cy="22" r="4.5" stroke-width="2.4"></circle><circle class="nb-wheel" cx="32" cy="22" r="4.5" stroke-width="2.4"></circle></svg></span>
+        </div>
       </section>
     </main>
 
