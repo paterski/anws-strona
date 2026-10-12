@@ -638,6 +638,9 @@ main { display: flex; flex-direction: column; gap: 72px; }
 .footer-links a:not(.ib) { text-decoration: none; }
 .footer-links a:not(.ib):hover { text-decoration: underline; }
 .footer .ib { border: 0; }
+/* w stopce ikona „zadzwoń” wygląda jak pozostałe okrągłe ikony, bez zielonej pigułki z nawigacji */
+.footer .ib.call { width: var(--btn, 44px); padding: 0; gap: 0; border-radius: 50%; background: var(--ib-bg); color: var(--ink); }
+.footer .ib.call:hover { background: var(--ib-hover); color: var(--ink); }
 
 /* ---------- okienko „Zadzwoń” ---------- */
 
