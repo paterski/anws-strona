@@ -59,7 +59,7 @@ window.I18N = {
     's3.t': 'Przewoźnicy odpowiadają', 's3.p': 'Zainteresowany przewoźnik pobiera Twoje zlecenie.',
     's4.t': 'Wybierz i jedź', 's4.p': 'Wybierz zlecenie z listy i ruszaj w trasę.',
     'how.handshake': 'pobiera zlecenie',
-    'how.end': 'Jedziecie!',
+    'how.end': 'Szerokiej drogi!',
 
     'footer.terms': 'Regulamin',
     'footer.privacy': 'Prywatność',
