@@ -142,6 +142,40 @@
   applyLang(lang, true);
 
   /* ------------------------------------------------------------------
+     Tytuł po najechaniu: „tablica odjazdów” — litery przekręcają się jak
+     na dworcowej tablicy i zatrzymują kolejno na właściwych znakach.
+     ------------------------------------------------------------------ */
+  const titleEl = $('.title');
+  if (titleEl) {
+    let run = 0;
+    titleEl.addEventListener('animationend', (e) => {
+      if (e.animationName === 'letter') e.target.classList.add('is-set');
+    });
+    titleEl.addEventListener('pointerenter', () => {
+      if (reduceMotion.matches) return;
+      const chars = $$('.ch', titleEl);
+      if (!chars.length || !chars.every((c) => c.classList.contains('is-set'))) return;
+      const id = ++run;
+      const UP = 'ABCDEFGHIJKLMNOPRSTUWYZ';
+      const LOW = UP.toLowerCase();
+      chars.forEach((c, i) => {
+        if (!c.dataset.c) c.dataset.c = c.textContent;
+        if (!c.style.minWidth) c.style.minWidth = c.getBoundingClientRect().width + 'px';
+        const real = c.dataset.c;
+        const pool = real === real.toUpperCase() && real !== real.toLowerCase() ? UP : LOW;
+        const steps = 4 + Math.floor(i * 0.9);
+        let n = 0;
+        (function tick() {
+          if (id !== run) { c.textContent = real; return; }
+          c.classList.remove('flip'); void c.offsetWidth; c.classList.add('flip');
+          if (n++ < steps) { c.textContent = pool[Math.floor(Math.random() * pool.length)]; setTimeout(tick, 70); }
+          else c.textContent = real;
+        })();
+      });
+    });
+  }
+
+  /* ------------------------------------------------------------------
      Nawigacja zmniejsza się przy przewijaniu
      ------------------------------------------------------------------ */
   const nav = $('#nav');
