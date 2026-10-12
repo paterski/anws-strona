@@ -184,13 +184,14 @@
     $$('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
     $$('[data-i18n-aria]').forEach((el) => { el.setAttribute('aria-label', t(el.dataset.i18nAria)); });
     $$('[data-i18n-title]').forEach((el) => { renderTitle(el, t(el.dataset.i18nTitle)); });
-    document.title = t('meta.title');
+    document.title = t(document.body.dataset.titleKey || 'meta.title');
     const md = $('meta[name="description"]');
     if (md) md.content = t('meta.desc');
     langBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === next)));
     renderBand();
     renderCounts();
     syncMenuLabel();
+    document.dispatchEvent(new CustomEvent('anws:lang', { detail: next }));
     if (!animateTitle) $$('.title .ch').forEach((c) => { c.style.animation = 'none'; });
   }
 
