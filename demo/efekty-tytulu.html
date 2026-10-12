@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANWS — efekty tytułu po najechaniu</title>
+<meta name="robots" content="noindex">
+<script>
+(function () {
+  var d = document.documentElement, theme = 'light';
+  try { theme = localStorage.getItem('anws-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch (e) {}
+  d.dataset.theme = theme;
+})();
+</script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  .demo { max-width: 1220px; margin: 0 auto; padding: 40px 24px 80px; display: flex; flex-direction: column; gap: 32px; }
+  .demo-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px; }
+  .demo-head h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(28px, 4vw, 44px); letter-spacing: -0.02em; }
+  .demo-head p { margin-top: 8px; max-width: 60ch; color: var(--ink-muted); line-height: 1.55; }
+  .demo-tools { display: flex; gap: 8px; align-items: center; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 20px; }
+  .card {
+    display: flex; flex-direction: column; gap: 16px; padding: 28px; border-radius: 28px;
+    background: var(--step-bg); border: 1px solid var(--step-border); box-shadow: var(--step-shadow);
+    -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+  }
+  .card-top { display: flex; align-items: center; gap: 12px; }
+  .tag { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--btn-bg); color: var(--btn-ink); font: 700 14px var(--font-display); }
+  .card h2 { font-family: var(--font-display); font-size: 20px; font-weight: 600; }
+  .card p.desc { font-size: 15px; line-height: 1.5; color: var(--ink-muted); }
+  .stage { display: grid; place-items: center; min-height: 190px; border-radius: 20px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; padding: 24px 12px; cursor: default; }
+  .t {
+    font-family: var(--font-display); font-weight: 600; letter-spacing: -0.03em;
+    font-size: clamp(32px, 4.4vw, 46px); line-height: 1.1; text-align: center; color: var(--ink); white-space: nowrap;
+  }
+  .t .ch { display: inline-block; animation: none; transition: none; }
+  .t .sp { display: inline-block; width: .26em; }
+  .t .w2 .ch { color: var(--accent-text); }
+  .hint { font-size: 13px; color: var(--ink-muted); }
+
+  /* A — reflektor */
+  .fx-a .ch, .fx-a .w2 .ch { --k: 0; color: color-mix(in srgb, var(--accent-text) calc(var(--k) * 100%), var(--ink)); text-shadow: 0 0 calc(var(--k) * 22px) color-mix(in srgb, var(--accent) calc(var(--k) * 70%), transparent); transition: color .25s, text-shadow .25s; }
+  :root[data-theme="dark"] .fx-a .ch, :root[data-theme="dark"] .fx-a .w2 .ch { color: color-mix(in srgb, #fff calc(var(--k) * 100%), var(--ink-muted)); }
+
+  /* B — lupa */
+  .fx-b .ch { transition: transform .18s ease-out, color .2s; will-change: transform; }
+
+  /* C — odpychanie */
+  .fx-c .ch { transition: transform .6s cubic-bezier(.3, 1.6, .5, 1); will-change: transform; }
+
+  /* D — połysk */
+  .fx-d {
+    color: transparent;
+    background: linear-gradient(105deg, var(--ink) 0 42%, rgba(255,255,255,.95) 50%, var(--ink) 58% 100%) 140% 0 / 250% 100% no-repeat, var(--ink);
+    -webkit-background-clip: text; background-clip: text;
+    transition: background-position 0s;
+  }
+  .fx-d .w2 .ch { color: transparent; background: none; }
+  .fx-d.is-on { background-position: -40% 0, 0 0; transition: background-position 1.1s cubic-bezier(.4, 0, .2, 1); }
+  :root[data-theme="dark"] .fx-d { background: linear-gradient(105deg, var(--ink) 0 42%, var(--accent) 50%, var(--ink) 58% 100%) 140% 0 / 250% 100% no-repeat, var(--ink); -webkit-background-clip: text; background-clip: text; }
+  .fx-d .accent-layer { color: var(--accent-text); }
+
+  /* E — tablica odjazdów */
+  .fx-e .ch { min-width: .6em; text-align: center; transform-origin: 50% 50%; backface-visibility: hidden; }
+  .fx-e .ch.flip { animation: flap .16s linear; }
+  @keyframes flap { 0% { transform: rotateX(0); } 50% { transform: rotateX(90deg); } 100% { transform: rotateX(0); } }
+  .fx-e .ch.done { animation: none; }
+
+  /* F — głębia 3D */
+  .stage-f { perspective: 900px; }
+  .fx-f { transform-style: preserve-3d; transition: transform .25s ease-out; will-change: transform; }
+  .fx-f .ch { transform: translateZ(var(--z, 0px)); text-shadow: var(--sx, 0px) var(--sy, 0px) 14px rgba(0,0,0,.22); transform-style: preserve-3d; }
+  .fx-f.is-rest { transition: transform .8s var(--ease-spring); }
+
+  .demo .skip-link { position: absolute; left: -999px; }
+</style>
+</head>
+<body>
+<div class="demo">
+  <header class="demo-head">
+    <div>
+      <h1>Efekty tytułu po najechaniu</h1>
+      <p>Najedź kursorem na każdy napis. To są propozycje do wyboru — wybrany wariant wdrożę w tytule strony. Można też połączyć dwa (np. A + F).</p>
+    </div>
+    <div class="demo-tools">
+      <button type="button" class="ib theme-btn" id="theme" aria-label="Przełącz motyw" aria-pressed="false">
+        <svg class="i-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"></path></svg>
+        <svg class="i-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"></path></svg>
+      </button>
+      <a class="login" href="../index.html">← Strona główna</a>
+    </div>
+  </header>
+
+  <div class="grid">
+    <article class="card">
+      <div class="card-top"><span class="tag">A</span><h2>Reflektor</h2></div>
+      <p class="desc">Za kursorem sunie punktowe światło: litery pod nim rozjaśniają się na kolor akcentu, reszta zostaje w tle. Spokojny, elegancki, bez „skakania”.</p>
+      <div class="stage" data-fx="a"><div class="t fx-a" data-text="Zlecenia przewozowe"></div></div>
+    </article>
+
+    <article class="card">
+      <div class="card-top"><span class="tag">B</span><h2>Lupa</h2></div>
+      <p class="desc">Litery blisko kursora powiększają się i unoszą, płynnie opadają dalej od niego — jak fala przesuwająca się po napisie.</p>
+      <div class="stage" data-fx="b"><div class="t fx-b" data-text="Zlecenia przewozowe"></div></div>
+    </article>
+
+    <article class="card">
+      <div class="card-top"><span class="tag">C</span><h2>Odpychanie</h2></div>
+      <p class="desc">Kursor delikatnie rozpycha litery na boki, a po odjechaniu wracają na miejsce sprężyście. Daje wrażenie „żywego” materiału.</p>
+      <div class="stage" data-fx="c"><div class="t fx-c" data-text="Zlecenia przewozowe"></div></div>
+    </article>
+
+    <article class="card">
+      <div class="card-top"><span class="tag">D</span><h2>Połysk</h2></div>
+      <p class="desc">Po najechaniu po napisie przebiega jeden szklisty błysk, jak refleks światła na lakierze autobusu. Najbardziej „premium”, ale subtelny.</p>
+      <div class="stage" data-fx="d"><div class="t fx-d" data-text="Zlecenia przewozowe"></div></div>
+    </article>
+
+    <article class="card">
+      <div class="card-top"><span class="tag">E</span><h2>Tablica odjazdów</h2></div>
+      <p class="desc">Litery „przekręcają się” jak na dworcowej tablicy, przeskakują przez inne znaki i zatrzymują się po kolei. Pasuje do tematu przewozów.</p>
+      <div class="stage" data-fx="e"><div class="t fx-e" data-text="Zlecenia przewozowe"></div></div>
+    </article>
+
+    <article class="card">
+      <div class="card-top"><span class="tag">F</span><h2>Głębia 3D</h2></div>
+      <p class="desc">Cały napis pochyla się w stronę kursora, a litery unoszą się nad tłem z miękkim cieniem — wrażenie przestrzeni, jak na kafelkach poniżej.</p>
+      <div class="stage stage-f" data-fx="f"><div class="t fx-f" data-text="Zlecenia przewozowe"></div></div>
+    </article>
+  </div>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var tb = document.getElementById('theme');
+  tb.setAttribute('aria-pressed', String(root.dataset.theme === 'dark'));
+  tb.addEventListener('click', function () {
+    var n = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    root.dataset.theme = n; tb.setAttribute('aria-pressed', String(n === 'dark'));
+    try { localStorage.setItem('anws-theme', n); } catch (e) {}
+  });
+
+  function split(el) {
+    var text = el.dataset.text, words = text.split(' ');
+    el.setAttribute('aria-label', text);
+    el.textContent = '';
+    words.forEach(function (w, wi) {
+      var word = document.createElement('span');
+      word.className = 'w w' + (wi + 1); word.setAttribute('aria-hidden', 'true');
+      word.style.display = 'inline-block'; word.style.whiteSpace = 'nowrap';
+      Array.from(w).forEach(function (c) { var s = document.createElement('span'); s.className = 'ch'; s.textContent = c; s.dataset.c = c; word.appendChild(s); });
+      el.appendChild(word);
+      if (wi < words.length - 1) { var sp = document.createElement('span'); sp.className = 'sp'; sp.setAttribute('aria-hidden', 'true'); el.appendChild(sp); }
+    });
+    return Array.from(el.querySelectorAll('.ch'));
+  }
+
+  document.querySelectorAll('.stage').forEach(function (stage) {
+    var fx = stage.dataset.fx, el = stage.firstElementChild, ch = split(el);
+    if (reduce) return;
+
+    if (fx === 'a') {
+      stage.addEventListener('pointermove', function (e) {
+        ch.forEach(function (c) {
+          var r = c.getBoundingClientRect(), d = Math.hypot(e.clientX - (r.left + r.width / 2), (e.clientY - (r.top + r.height / 2)) * 0.5);
+          c.style.setProperty('--k', Math.exp(-Math.pow(d / 80, 2)).toFixed(3));
+        });
+      });
+      stage.addEventListener('pointerleave', function () { ch.forEach(function (c) { c.style.setProperty('--k', 0); }); });
+    }
+
+    if (fx === 'b') {
+      stage.addEventListener('pointermove', function (e) {
+        ch.forEach(function (c) {
+          var r = c.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+          var d = Math.hypot(e.clientX - cx, (e.clientY - cy) * 0.6);
+          var k = Math.exp(-Math.pow(d / 90, 2));
+          c.style.transform = 'translateY(' + (-k * 14).toFixed(1) + 'px) scale(' + (1 + k * 0.55).toFixed(3) + ')';
+        });
+      });
+      stage.addEventListener('pointerleave', function () { ch.forEach(function (c) { c.style.transform = ''; }); });
+    }
+
+    if (fx === 'c') {
+      stage.addEventListener('pointermove', function (e) {
+        ch.forEach(function (c) {
+          var r = c.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+          var dx = cx - e.clientX, dy = cy - e.clientY, d = Math.hypot(dx, dy) || 1, R = 130;
+          if (d > R) { c.style.transform = ''; return; }
+          var f = Math.pow(1 - d / R, 1.5) * 34;
+          c.style.transform = 'translate(' + (dx / d * f).toFixed(1) + 'px,' + (dy / d * f).toFixed(1) + 'px)';
+        });
+      });
+      stage.addEventListener('pointerleave', function () { ch.forEach(function (c) { c.style.transform = ''; }); });
+    }
+
+    if (fx === 'd') {
+      var busy = false;
+      stage.addEventListener('pointerenter', function () {
+        if (busy) return; busy = true; el.classList.add('is-on');
+        setTimeout(function () { el.classList.remove('is-on'); busy = false; }, 1300);
+      });
+    }
+
+    if (fx === 'e') {
+      var CH = 'ABCDEFGHIJKLMNOPRSTUWYZ', run = 0;
+      ch.forEach(function (c) { c.style.minWidth = c.getBoundingClientRect().width + 'px'; });
+      stage.addEventListener('pointerenter', function () {
+        var id = ++run;
+        ch.forEach(function (c, i) {
+          var real = c.dataset.c, steps = 4 + Math.floor(i * 0.9), n = 0;
+          (function tick() {
+            if (id !== run) { c.textContent = real; return; }
+            c.classList.remove('flip'); void c.offsetWidth; c.classList.add('flip');
+            if (n++ < steps) { c.textContent = CH[Math.floor(Math.random() * CH.length)]; setTimeout(tick, 70); }
+            else { c.textContent = real; }
+          })();
+        });
+      });
+    }
+
+    if (fx === 'f') {
+      var layer = [].map.call(ch, function (c, i) { c.style.setProperty('--z', (18 + (i % 4) * 10) + 'px'); return c; });
+      stage.addEventListener('pointermove', function (e) {
+        var r = stage.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+        el.classList.remove('is-rest');
+        el.style.transform = 'rotateX(' + (-y * 22).toFixed(2) + 'deg) rotateY(' + (x * 28).toFixed(2) + 'deg)';
+        layer.forEach(function (c) { c.style.setProperty('--sx', (-x * 22).toFixed(1) + 'px'); c.style.setProperty('--sy', (-y * 22 + 8).toFixed(1) + 'px'); });
+      });
+      stage.addEventListener('pointerleave', function () {
+        el.classList.add('is-rest'); el.style.transform = '';
+        layer.forEach(function (c) { c.style.setProperty('--sx', '0px'); c.style.setProperty('--sy', '0px'); });
+      });
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -110,7 +110,11 @@
       </nav>
 
       <div class="nav-actions">
-        <button type="button" class="ib lang-btn" id="lang-btn" lang="en" aria-label="Switch to English" data-i18n-aria="lang.label">EN</button>
+        <div class="lang-switch" role="group" aria-label="Język" data-i18n-aria="lang.group">
+          <span class="lang-thumb" aria-hidden="true"></span>
+          <button type="button" lang="pl" data-lang="pl" aria-label="Polski" aria-pressed="true">PL</button>
+          <button type="button" lang="en" data-lang="en" aria-label="English" aria-pressed="false">EN</button>
+        </div>
         <button type="button" class="ib theme-btn" id="theme-btn" aria-pressed="false" aria-label="Tryb ciemny" data-i18n-aria="theme.label">
           <svg class="i-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"></path></svg>
           <svg class="i-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"></path></svg>

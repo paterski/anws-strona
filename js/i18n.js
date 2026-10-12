@@ -17,8 +17,7 @@ window.I18N = {
     'menu.close': 'Zamknij menu',
     'menu.call': 'Zadzwoń:',
     'theme.label': 'Tryb ciemny',
-    'lang.label': 'Switch to English',
-    'lang.short': 'EN',
+    'lang.group': 'Język',
 
     badge: 'Przewóz osób autobusami',
     title: 'Zlecenia przewozowe',
@@ -84,8 +83,7 @@ window.I18N = {
     'menu.close': 'Close menu',
     'menu.call': 'Call:',
     'theme.label': 'Dark mode',
-    'lang.label': 'Przełącz na polski',
-    'lang.short': 'PL',
+    'lang.group': 'Language',
 
     badge: 'Passenger bus transport',
     title: 'Transport orders',

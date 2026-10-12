@@ -83,7 +83,7 @@
     }
   }
 
-  const langBtn = $('#lang-btn');
+  const langBtns = $$('.lang-switch [data-lang]');
   const themeBtn = $('#theme-btn');
   const menuBtn = $('.menu-btn');
   const menu = $('#menu');
@@ -102,20 +102,18 @@
     document.title = t('meta.title');
     const md = $('meta[name="description"]');
     if (md) md.content = t('meta.desc');
-    if (langBtn) langBtn.textContent = t('lang.short');
+    langBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === next)));
     renderBand();
     renderCounts();
     syncMenuLabel();
     if (!animateTitle) $$('.title .ch').forEach((c) => { c.style.animation = 'none'; });
   }
 
-  if (langBtn) {
-    langBtn.addEventListener('click', () => {
-      const next = lang === 'pl' ? 'en' : 'pl';
-      store.set('anws-lang', next);
-      applyLang(next, true);
-    });
-  }
+  langBtns.forEach((b) => b.addEventListener('click', () => {
+    if (b.dataset.lang === lang) return;
+    store.set('anws-lang', b.dataset.lang);
+    applyLang(b.dataset.lang, true);
+  }));
 
   /* ------------------------------------------------------------------
      Tryb ciemny
