@@ -77,9 +77,9 @@
     const name = session.name || me;
     $('#uc-name').textContent = name;
     $('#uc-avatar').textContent = name.replace(/[^\p{L}\d ]/gu, '').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || me.slice(0, 2).toUpperCase();
-    const kind = plan.plan === 'subscription' ? 'sub' : plan.free ? 'free' : 'comm';
+    const kind = !plan.chosen ? 'need' : plan.plan === 'subscription' ? 'sub' : plan.free ? 'free' : 'comm';
     chip.dataset.plan = kind;
-    $('#uc-plan').textContent = t(kind === 'sub' ? 'g.plan.sub' : kind === 'free' ? 'g.plan.free' : 'g.plan.comm');
+    $('#uc-plan').textContent = t({ need: 'g.plan.need', sub: 'g.plan.sub', free: 'g.plan.free', comm: 'g.plan.comm' }[kind]);
     chip.title = name + ' · ' + $('#uc-plan').textContent;
   }
 
@@ -542,7 +542,13 @@
     box.textContent = '';
     const plan = auth.getPlan(me);
     const confirm = $('#rv-confirm');
-    if (plan.free) {
+    if (!plan.chosen) {
+      // bez wybranego modelu rozliczeń nie da się rezerwować — prowadzimy do panelu klienta
+      box.className = 'dlg-box is-fee';
+      box.appendChild(el('div', 'db-title', t('g.rv.needTitle')));
+      box.appendChild(el('p', 'db-note', t('g.rv.needNote')));
+      confirm.textContent = t('g.rv.needBtn');
+    } else if (plan.free) {
       box.className = 'dlg-box is-free';
       const title = el('div', 'db-title'); title.innerHTML = CHECK; title.appendChild(el('span', null, t('g.rv.freeTitle')));
       box.appendChild(title);
@@ -558,7 +564,7 @@
       r(t('g.rv.pct'), num(c.pct * 100, c.pct === 0.025 ? 1 : 0) + '%');
       r(t('g.rv.total'), zl(c.amount), 'db-total');
       const note = el('p', 'db-note', t('g.rv.payNote') + ' ');
-      const a = el('a', null, t('g.rv.subLink')); a.href = 'cennik.html';
+      const a = el('a', null, t('g.rv.subLink')); a.href = 'konto.html#model';
       note.appendChild(a);
       box.appendChild(note);
       confirm.textContent = t('g.rv.confirmPay');
@@ -570,6 +576,7 @@
     const o = store.get(rvId);
     if (!o) return;
     const plan = auth.getPlan(me);
+    if (!plan.chosen) { location.href = 'konto.html#model'; return; }
     const ok = store.reserve(rvId, me, plan.free ? null : store.commission(o.rate));
     closeDlg($('#rv-dialog'));
     if (!ok) return;

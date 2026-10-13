@@ -64,6 +64,9 @@ body.app { height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-
 .uc-text b { font-size: 13px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .uc-plan { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-muted); white-space: nowrap; }
 .user-chip[data-plan="sub"] .uc-plan, .user-chip[data-plan="free"] .uc-plan { color: var(--ok-ink); }
+.user-chip[data-plan="need"] .uc-plan { color: var(--err-ink); }
+a.user-chip { color: var(--ink); text-decoration: none; transition: background-color .2s; }
+a.user-chip:hover { background: var(--ib-hover); color: var(--ink); }
 
 /* ---------- układ: lista | uchwyt | mapa ---------- */
 
@@ -411,6 +414,7 @@ th[aria-sort="ascending"] .th-sort, th[aria-sort="descending"] .th-sort { color:
 @media (max-width: 640px) {
   .app-head .logo { --logo-w: 74px; }
   .app-head .user-chip, .app-head .nav-sep { display: none; }
+  .app-head .ib.call { display: none; } /* brak miejsca na pasku — telefon jest na stronie głównej i w stopce */
   .app-head .acct-panel { position: fixed; top: 64px; right: 12px; }
   .gl-top { padding: 14px 14px 10px; }
   .gl-scroll { padding: 0 8px 20px; }

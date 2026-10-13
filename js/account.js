@@ -1,4 +1,4 @@
-// ANWS — miejsce konta w menu: „Zaloguj się” albo dzwonek z licznikiem powiadomień i „Wyloguj się”
+// ANWS — miejsce konta w menu: „Zaloguj się” albo dzwonek z licznikiem powiadomień, panel klienta i „Wyloguj się”
 
 (function () {
   const root = document.documentElement;
@@ -32,6 +32,7 @@
     reserve: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>',
     expired: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5V12l3 2"></path></svg>',
     cancelled: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"></path></svg>',
+    gear: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>',
     logout: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"></path></svg>',
     offer: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12V5a2 2 0 0 1 2-2h7l9 9-9 9z"></path><circle cx="8" cy="8" r="1.6" fill="currentColor"></circle></svg>',
   };
@@ -78,13 +79,23 @@
     panel.id = pid;
     bell.setAttribute('aria-controls', pid);
     bell.addEventListener('click', (e) => { e.stopPropagation(); toggle(box, bell, panel); });
+    // panel klienta (koło zębate); kropka, dopóki klient nie wybierze modelu rozliczeń
+    const gear = el('a', 'ib acct-gear');
+    const admin = s.role === 'admin';
+    gear.href = admin ? 'admin.html' : 'konto.html';
+    const needPlan = !admin && !auth.getPlan(s.login).chosen;
+    gear.setAttribute('aria-label', admin ? t('adm.badge') : t(needPlan ? 'k.gearNeed' : 'k.gear'));
+    gear.title = gear.getAttribute('aria-label');
+    gear.innerHTML = ICON.gear;
+    if (needPlan) gear.appendChild(el('span', 'gear-dot'));
+    if (page === gear.getAttribute('href')) gear.setAttribute('aria-current', 'page');
     const out = el('button', 'acct-logout');
     out.type = 'button';
     out.setAttribute('aria-label', t('sub.logout'));
     out.innerHTML = ICON.logout;
     out.appendChild(el('span', null, t('sub.logout')));
     out.addEventListener('click', logout);
-    box.append(bell, out, panel);
+    box.append(bell, gear, out, panel);
   }
 
   function fillPanel(panel, s, newIds) {
@@ -100,16 +111,17 @@
       list.slice(0, 20).forEach((x) => {
         const li = el('li', 'ap-item' + (newIds.has(x.id) ? ' is-new' : ''));
         const a = el('a');
-        a.href = x.type === 'cancelled' ? 'lista-zlecen.html' : 'lista-zlecen.html?moje=1';
-        const ic = el('span', 'ap-ic ' + x.type); ic.innerHTML = ICON[x.type] || ICON.bell; ic.setAttribute('aria-hidden', 'true');
+        a.href = x.type === 'subEnded' ? 'konto.html' : x.type === 'cancelled' ? 'lista-zlecen.html' : 'lista-zlecen.html?moje=1';
+        const ic = el('span', 'ap-ic ' + x.type); ic.innerHTML = ICON[x.type === 'subEnded' ? 'expired' : x.type] || ICON.bell; ic.setAttribute('aria-hidden', 'true');
         const txt = el('span', 'ap-text');
         const who = x.byName || x.by;
         const msg = x.type === 'reserve' ? t('n.reserve', { x: who })
           : x.type === 'expired' ? t('n.expired', { x: zl(x.amount || 50) })
           : x.type === 'cancelled' ? t('n.cancelled', { x: who })
+          : x.type === 'subEnded' ? t('n.subEnded')
           : t('n.offer', { x: who, y: zl(x.rate) });
         txt.appendChild(el('span', null, msg));
-        txt.appendChild(el('small', null, x.route));
+        if (x.route) txt.appendChild(el('small', null, x.route));
         txt.appendChild(el('small', null, ago(x.at)));
         a.append(ic, txt);
         li.appendChild(a);
@@ -154,7 +166,27 @@
   document.addEventListener('click', (e) => { if (openBox && !openBox.box.contains(e.target)) close(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && openBox) { const b = openBox.bell; close(); b.focus(); } });
 
-  const renderAll = () => { close(); boxes.forEach(renderBox); };
+  // na telefonie panel klienta i wylogowanie są w rozwijanym menu (na pasku brakuje miejsca)
+  const menu = document.getElementById('menu');
+  const menuBtn = document.querySelector('.menu-btn');
+  function renderMenu() {
+    if (!menu) return;
+    menu.querySelectorAll('.menu-acct').forEach((x) => x.remove());
+    const s = auth.getSession();
+    const needPlan = !!s && s.role !== 'admin' && !auth.getPlan(s.login).chosen;
+    if (menuBtn) menuBtn.classList.toggle('has-dot', needPlan);
+    if (!s) return;
+    const go = el('a', 'menu-acct', t(s.role === 'admin' ? 'adm.badge' : 'k.gear'));
+    go.href = s.role === 'admin' ? 'admin.html' : 'konto.html';
+    if (needPlan) go.appendChild(el('span', 'gear-dot'));
+    const out = el('button', 'menu-acct', t('sub.logout'));
+    out.type = 'button';
+    out.addEventListener('click', logout);
+    const anchor = menu.querySelector('.menu-social');
+    menu.insertBefore(go, anchor); menu.insertBefore(out, anchor);
+  }
+
+  const renderAll = () => { close(); boxes.forEach(renderBox); renderMenu(); };
   document.addEventListener('anws:lang', renderAll);
   // nowe powiadomienia z innej karty przeglądarki
   addEventListener('storage', (e) => { if (e.key === 'anws-notifications' || e.key === 'anws-session') renderAll(); });

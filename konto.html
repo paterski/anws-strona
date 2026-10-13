@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel klienta — ANWS</title>
+<meta name="description" content="Panel klienta ANWS: model rozliczeń, dane firmy i kontaktowe.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#EDE6DC">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<script>
+/* motyw i język ustawiamy przed pierwszym malowaniem, żeby strona nie „mrugała” */
+(function () {
+  var d = document.documentElement, theme = 'light', lang = 'pl';
+  d.classList.add('js');
+  try {
+    var st = localStorage.getItem('anws-theme');
+    theme = st || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    lang = localStorage.getItem('anws-lang') || 'pl';
+  } catch (e) {}
+  d.dataset.theme = theme;
+  d.lang = lang;
+  var m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.content = theme === 'dark' ? '#0F1013' : '#EDE6DC';
+})();
+</script>
+<script>document.documentElement.classList.add('js-guard');</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="css/style.css?v=202610131813">
+</head>
+<body data-title-key="k.metaTitle">
+<a class="skip" href="#tresc" data-i18n="skip">Przejdź do treści</a>
+
+<div class="page">
+
+  <!-- tło -->
+  <div class="bg" aria-hidden="true">
+    <!-- tryb ciemny: zorza -->
+    <div class="aurora">
+      <div class="blob b1"></div>
+      <div class="blob b2"></div>
+      <div class="blob b3"></div>
+      <div class="grid-bg"></div>
+    </div>
+
+    <svg class="bg-desktop" viewBox="0 0 1440 1700" preserveAspectRatio="xMidYMin slice">
+      <path d="M-60 120 C 240 40, 420 200, 720 90 S 1180 20, 1520 130" class="route-dots" stroke-opacity=".14"></path>
+      <path d="M-60 760 C 200 640, 380 860, 650 720 S 1010 420, 1190 520 S 1420 360, 1520 300" class="route-dots" stroke-opacity=".16"></path>
+      <path class="flow" d="M-60 760 C 200 640, 380 860, 650 720 S 1010 420, 1190 520 S 1420 360, 1520 300" fill="none" stroke-width="3" stroke-linecap="round" stroke-dasharray="60 180"></path>
+      <path d="M-60 1520 C 300 1440, 520 1600, 860 1500 S 1260 1400, 1520 1480" class="route-dots" stroke-opacity=".12"></path>
+      <circle class="pulse p1" cx="650" cy="720" r="7" fill="none" stroke-width="2"></circle>
+      <circle class="pulse p2" cx="1190" cy="520" r="7" fill="none" stroke-width="2"></circle>
+      <circle class="stop-bg" cx="650" cy="720" r="6" stroke-width="3"></circle>
+      <circle class="stop-bg" cx="1190" cy="520" r="6" stroke-width="3"></circle>
+      <g class="bus">
+        <rect class="bus-body" x="-19" y="-11" width="38" height="19" rx="5"></rect>
+        <rect class="bus-win" x="-15" y="-8" width="25" height="6" rx="2"></rect>
+        <rect class="bus-win" x="12" y="-8" width="5" height="9" rx="1.5"></rect>
+        <circle class="bus-wheel" cx="-10" cy="8" r="3.6" stroke-width="2"></circle>
+        <circle class="bus-wheel" cx="10" cy="8" r="3.6" stroke-width="2"></circle>
+        <animateMotion dur="22s" repeatCount="indefinite" rotate="auto" path="M-60 760 C 200 640, 380 860, 650 720 S 1010 420, 1190 520 S 1420 360, 1520 300"></animateMotion>
+      </g>
+      <g class="bus">
+        <rect class="bus2-body" x="-15" y="-9" width="30" height="15" rx="4"></rect>
+        <rect class="bus-win" x="-12" y="-6" width="19" height="5" rx="1.5"></rect>
+        <circle class="bus2-wheel" cx="-8" cy="6.5" r="3" stroke-width="1.8"></circle>
+        <circle class="bus2-wheel" cx="8" cy="6.5" r="3" stroke-width="1.8"></circle>
+        <animateMotion dur="30s" begin="-8s" repeatCount="indefinite" rotate="auto" path="M-60 120 C 240 40, 420 200, 720 90 S 1180 20, 1520 130"></animateMotion>
+      </g>
+    </svg>
+    <svg class="bg-mobile" viewBox="0 0 390 844" preserveAspectRatio="xMidYMin slice">
+      <path d="M-20 70 C 80 20, 180 120, 260 60 S 360 10, 420 50" class="route-dots" stroke-opacity=".14" stroke-dasharray="1 10"></path>
+      <path d="M-20 300 C 90 250, 170 350, 260 280 S 360 220, 420 250" class="route-dots" stroke-opacity=".14" stroke-dasharray="1 10"></path>
+      <path class="flow" d="M-20 300 C 90 250, 170 350, 260 280 S 360 220, 420 250" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="40 140"></path>
+      <g class="bus">
+        <rect class="bus-body" x="-13" y="-8" width="26" height="13" rx="3.5"></rect>
+        <rect class="bus-win" x="-10" y="-5.5" width="16" height="4" rx="1.5"></rect>
+        <circle class="bus-wheel" cx="-7" cy="5.5" r="2.6" stroke-width="1.6"></circle>
+        <circle class="bus-wheel" cx="7" cy="5.5" r="2.6" stroke-width="1.6"></circle>
+        <animateMotion dur="14s" repeatCount="indefinite" rotate="auto" path="M-20 70 C 80 20, 180 120, 260 60 S 360 10, 420 50"></animateMotion>
+      </g>
+    </svg>
+  </div>
+
+  <div class="wrap">
+
+    <!-- nawigacja (zmniejsza się przy przewijaniu) -->
+    <div class="nav-slot">
+    <header class="nav drop" id="nav">
+      <a href="index.html" class="brand" aria-label="ANWS — strona główna" data-i18n-aria="brand">
+        <svg class="logo" viewBox="0 0 230 80" aria-hidden="true">
+          <g class="draw" fill="none" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+            <path class="d1" pathLength="100" d="M6 68 L28 12 L50 68"></path>
+            <path class="d2" pathLength="100" d="M66 68 V12 L104 68 V12"></path>
+            <path class="d3" pathLength="100" d="M120 12 L131 68 L145 30 L159 68 L170 12"></path>
+            <path class="d4" pathLength="100" d="M222 20 C216 12 208 11 203 11 C193 11 188 17 188 25 C188 35 197 38 205 40 C214 42 224 45 224 55 C224 64 216 69 205 69 C197 69 190 66 186 60"></path>
+            <path class="d5" pathLength="100" d="M14.6 46 H41.4"></path>
+          </g>
+          <circle class="stop s1" cx="6" cy="68" r="6.5"></circle>
+          <circle class="stop s2" cx="104" cy="12" r="6.5"></circle>
+          <circle class="stop s3" cx="145" cy="30" r="6.5"></circle>
+          <circle class="stop s4" cx="186" cy="60" r="6.5"></circle>
+        </svg>
+      </a>
+
+      <nav class="nav-links" aria-label="Główna" data-i18n-aria="nav.label">
+        <a href="index.html#jak-to-dziala" data-i18n="nav.how">Jak to działa</a>
+        <a href="cennik.html" data-i18n="nav.pricing">Cennik</a>
+        <a href="#kontakt" data-i18n="nav.contact">Kontakt</a>
+      </nav>
+
+      <div class="nav-actions">
+        <div class="lang-switch" role="group" aria-label="Język" data-i18n-aria="lang.group">
+          <span class="lang-thumb" aria-hidden="true"></span>
+          <button type="button" lang="pl" data-lang="pl" aria-label="Polski" aria-pressed="true">PL</button>
+          <button type="button" lang="en" data-lang="en" aria-label="English" aria-pressed="false">EN</button>
+        </div>
+        <button type="button" class="ib theme-btn" id="theme-btn" aria-pressed="false" aria-label="Tryb ciemny" data-i18n-aria="theme.label">
+          <svg class="i-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"></path></svg>
+          <svg class="i-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"></path></svg>
+        </button>
+        <a href="https://wa.me/48884106851" target="_blank" rel="noopener" class="ib social" aria-label="Napisz na WhatsAppie" data-i18n-aria="social.wa"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 20.5l1.3-4.2A8.5 8.5 0 1 1 8 19.3z"></path><path d="M9 8.6c.2 2.6 3.4 5.8 6 6 .7 0 1.4-.6 1.4-1.2l-1.8-1-.9.7c-.8-.3-1.9-1.4-2.3-2.3l.7-.9-1-1.8c-.7 0-1.4.7-1.4 1.4z" fill="currentColor" stroke="none"></path></svg></a>
+        <a href="mailto:" class="ib social" aria-label="Napisz e-mail" data-i18n-aria="social.mail"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="M3.8 7.5l8.2 6 8.2-6"></path></svg></a>
+        <a href="tel:+48884106851" class="ib call" aria-label="Zadzwoń do ANWS" data-i18n-aria="call.aria">
+          <svg class="ring" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></svg>
+          <span class="phone-num" data-i18n="call.btn">Zadzwoń</span>
+        </a>
+        <div class="acct" data-acct></div>
+        <button type="button" class="menu-btn ib" aria-label="Otwórz menu" aria-expanded="false" aria-controls="menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path class="m1" d="M4 8h16"></path><path class="m2" d="M4 16h16"></path></svg>
+        </button>
+      </div>
+
+      <div class="menu" id="menu" hidden>
+        <a href="index.html#jak-to-dziala" data-i18n="nav.how">Jak to działa</a>
+        <a href="cennik.html" data-i18n="nav.pricing">Cennik</a>
+        <a href="#kontakt" data-i18n="nav.contact">Kontakt</a>
+        <a href="tel:+48884106851"><span data-i18n="menu.call">Zadzwoń:</span>&nbsp;+48 884 106 851</a>
+        <div class="menu-social">
+          <a href="https://wa.me/48884106851" target="_blank" rel="noopener" aria-label="Napisz na WhatsAppie" data-i18n-aria="social.wa"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 20.5l1.3-4.2A8.5 8.5 0 1 1 8 19.3z"></path><path d="M9 8.6c.2 2.6 3.4 5.8 6 6 .7 0 1.4-.6 1.4-1.2l-1.8-1-.9.7c-.8-.3-1.9-1.4-2.3-2.3l.7-.9-1-1.8c-.7 0-1.4.7-1.4 1.4z" fill="currentColor" stroke="none"></path></svg></a>
+          <a href="mailto:" aria-label="Napisz e-mail" data-i18n-aria="social.mail"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="M3.8 7.5l8.2 6 8.2-6"></path></svg></a>
+        </div>
+      </div>
+    </header>
+    </div>
+
+    <main id="tresc" class="acc-main">
+      <section class="p-hero acc-hero">
+        <span class="badge"><span class="live" aria-hidden="true"></span><span data-i18n="k.badge">Panel klienta</span></span>
+        <h1 class="p-title acc-title" id="acc-company"></h1>
+        <p class="lead acc-lead"><span data-i18n="k.loggedAs">Login:</span> <b id="acc-login"></b> · <span id="acc-since"></span></p>
+      </section>
+
+      <p class="acc-need" id="acc-need" role="status" hidden>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5M12 16.5h.01"></path></svg>
+        <span><b data-i18n="k.needTitle">Wybierz model rozliczeń.</b> <span data-i18n="k.needText">Bez tego nie zarezerwujesz zlecenia na giełdzie. Model możesz później zmienić w każdej chwili.</span></span>
+      </p>
+
+      <!-- model rozliczeń: stan + dwie opcje -->
+      <section class="acc-plan" id="model" aria-labelledby="pl-title">
+        <div class="how-head">
+          <h2 id="pl-title" data-i18n="k.planTitle">Model rozliczeń</h2>
+          <span data-i18n="k.planSub">Zmieniasz go w obie strony, kiedy chcesz. Ceny netto.</span>
+        </div>
+        <div class="pl-grid">
+          <div class="pl-status" id="pl-status" aria-live="polite"></div>
+          <div class="pl-options">
+            <article class="pl-opt" data-opt="commission">
+              <span class="pl-eyebrow" data-i18n="p.a.eyebrow">Taryfa A · Prowizja</span>
+              <h3 data-i18n="k.optCommTitle">Płacisz od zlecenia</h3>
+              <p class="pl-price"><b>2,5% · 2% · 3%</b> <span data-i18n="k.optCommPer">netto od wartości pobranego zlecenia</span></p>
+              <div class="pl-act" id="pl-act-comm"></div>
+            </article>
+            <article class="pl-opt" data-opt="subscription">
+              <span class="pl-eyebrow" data-i18n="p.b.eyebrow">Taryfa B · Abonament</span>
+              <h3 data-i18n="p.b.title">Abonament miesięczny</h3>
+              <p class="pl-price"><b>500 zł</b> <span data-i18n="k.optSubPer">netto za 30 dni · rezerwacje bez prowizji</span></p>
+              <div class="pl-act" id="pl-act-sub"></div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <div class="acc-grid">
+        <!-- dane firmy: tylko do odczytu -->
+        <section class="admin-card acc-card" aria-labelledby="co-title">
+          <h2 id="co-title" data-i18n="k.coTitle">Dane firmy</h2>
+          <dl class="rc-grid acc-dl" id="co-list"></dl>
+          <p class="acc-lock">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"></rect><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"></path></svg>
+            <span><span data-i18n="k.lock">Nazwy firmy i NIP nie można zmienić samodzielnie — pochodzą z rejestrów.</span> <a href="#kontakt" data-i18n="k.lockLink">Napisz do nas</a></span>
+          </p>
+        </section>
+
+        <!-- dane kontaktowe: do zmiany -->
+        <section class="admin-card acc-card" aria-labelledby="cd-title">
+          <h2 id="cd-title" data-i18n="k.cdTitle">Dane kontaktowe</h2>
+          <form class="auth-form" id="cd-form" novalidate>
+            <div class="field">
+              <label for="cd-person" data-i18n="reg.person">Imię i nazwisko osoby do kontaktu</label>
+              <input id="cd-person" type="text" autocomplete="name" maxlength="80" required aria-describedby="cd-person-err">
+              <p class="field-err" id="cd-person-err" hidden></p>
+            </div>
+            <div class="field">
+              <label for="cd-email" data-i18n="reg.email">Adres e-mail</label>
+              <input id="cd-email" type="email" autocomplete="email" required aria-describedby="cd-email-err">
+              <p class="field-err" id="cd-email-err" hidden></p>
+            </div>
+            <div class="reg-cols">
+              <div class="field">
+                <label for="cd-phone" data-i18n="reg.phone">Telefon kontaktowy</label>
+                <input id="cd-phone" type="tel" inputmode="tel" autocomplete="tel" required aria-describedby="cd-phone-err">
+                <p class="field-err" id="cd-phone-err" hidden></p>
+              </div>
+              <div class="field">
+                <label for="cd-alarm" data-i18n="reg.alarm">Telefon alarmowy</label>
+                <input id="cd-alarm" type="tel" inputmode="tel" autocomplete="off" required aria-describedby="cd-alarm-err">
+                <p class="field-err" id="cd-alarm-err" hidden></p>
+              </div>
+            </div>
+            <p class="field-help" data-i18n="k.phoneHelp">Numery z numerem kierunkowym kraju, np. +48 500 600 700 (bez niego przyjmiemy +48).</p>
+            <p class="pw-ok" id="cd-ok" role="status" hidden data-i18n="k.saved">Zapisano zmiany.</p>
+            <button type="submit" class="call-btn call-btn-primary auth-submit" id="cd-save" disabled><span class="spinner" aria-hidden="true"></span><span class="auth-submit-label" data-i18n="k.save">Zapisz zmiany</span></button>
+          </form>
+        </section>
+
+        <!-- historia opłat -->
+        <section class="admin-card acc-card" aria-labelledby="hi-title">
+          <h2 id="hi-title" data-i18n="k.hiTitle">Historia opłat</h2>
+          <ul class="ob-list acc-hist" id="hi-list"></ul>
+        </section>
+
+        <!-- hasło -->
+        <section class="admin-card acc-card" aria-labelledby="pw-title">
+          <h2 id="pw-title" data-i18n="k.pwTitle">Zmiana hasła</h2>
+          <form id="pw-form" class="auth-form" novalidate>
+            <div class="field">
+              <label for="pw-current" data-i18n="adm.pwCurrent">Obecne hasło</label>
+              <input id="pw-current" type="password" autocomplete="current-password" required>
+            </div>
+            <div class="reg-cols">
+              <div class="field">
+                <label for="pw-new" data-i18n="adm.pwNew">Nowe hasło</label>
+                <input id="pw-new" type="password" autocomplete="new-password" required aria-describedby="pw-help">
+              </div>
+              <div class="field">
+                <label for="pw-repeat" data-i18n="adm.pwRepeat">Powtórz nowe hasło</label>
+                <input id="pw-repeat" type="password" autocomplete="new-password" required>
+              </div>
+            </div>
+            <p class="field-help" id="pw-help" data-i18n="reg.passHelp">Min. 8 znaków, w tym litera i cyfra.</p>
+            <p class="field-err" id="pw-err" role="alert" hidden></p>
+            <p class="pw-ok" id="pw-ok" role="status" hidden data-i18n="adm.pwOk">Hasło zostało zmienione.</p>
+            <button type="submit" class="call-btn call-btn-primary auth-submit"><span class="spinner" aria-hidden="true"></span><span class="auth-submit-label" data-i18n="adm.pwSubmit">Zmień hasło</span></button>
+          </form>
+        </section>
+      </div>
+    </main>
+
+    <!-- stopka -->
+    <footer class="footer" id="kontakt">
+      <a href="admin.html" class="footer-copy">© 2026 ANWS</a>
+      <div class="footer-links">
+        <a href="regulamin.html" data-i18n="footer.terms">Regulamin</a>
+        <a href="polityka-prywatnosci.html" data-i18n="footer.privacy">Polityka prywatności</a>
+        <a href="regulamin.html#zgloszenia" data-i18n="footer.report">Zgłoś treść</a>
+        <a href="https://wa.me/48884106851" target="_blank" rel="noopener" class="ib" aria-label="Napisz na WhatsAppie" data-i18n-aria="social.wa"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 20.5l1.3-4.2A8.5 8.5 0 1 1 8 19.3z"></path><path d="M9 8.6c.2 2.6 3.4 5.8 6 6 .7 0 1.4-.6 1.4-1.2l-1.8-1-.9.7c-.8-.3-1.9-1.4-2.3-2.3l.7-.9-1-1.8c-.7 0-1.4.7-1.4 1.4z" fill="currentColor" stroke="none"></path></svg></a>
+        <a href="mailto:" class="ib" aria-label="Napisz e-mail" data-i18n-aria="social.mail"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="M3.8 7.5l8.2 6 8.2-6"></path></svg></a>
+        <a href="tel:+48884106851" class="ib call" aria-label="Zadzwoń do ANWS" data-i18n-aria="call.aria"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></svg></a>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<!-- okienko „Zadzwoń” na komputerze: numer, kod QR, osoba do kontaktu -->
+<dialog class="call-dlg" id="call-dialog" aria-labelledby="call-name">
+  <div class="call-panel">
+    <button type="button" class="call-x" data-call-close aria-label="Zamknij" data-i18n-aria="call.close">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+    </button>
+    <div class="call-who">
+      <span class="call-avatar" aria-hidden="true">DS</span>
+      <div>
+        <p class="call-label" data-i18n="call.label">Osoba do kontaktu</p>
+        <h2 class="call-name" id="call-name">Daria Skowronek</h2>
+      </div>
+    </div>
+    <a class="call-num" href="tel:+48884106851">+48 884 106 851</a>
+    <div class="call-qr-wrap">
+      <div class="call-qr" id="call-qr" aria-hidden="true"></div>
+      <p class="call-hint" data-i18n="call.qr">Zeskanuj aparatem telefonu — od razu wybierze numer.</p>
+    </div>
+    <div class="call-row">
+      <a class="call-btn call-btn-primary" href="tel:+48884106851" data-direct>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></svg>
+        <span data-i18n="call.app">Zadzwoń przez aplikację</span>
+      </a>
+      <button type="button" class="call-btn call-btn-ghost" data-call-copy>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5"></rect><path d="M5 15V6.5A2.5 2.5 0 0 1 7.5 4H15"></path></svg>
+        <span data-i18n="call.copy">Kopiuj numer</span>
+      </button>
+    </div>
+  </div>
+</dialog>
+
+<script src="js/i18n.js?v=202610131813"></script>
+<script src="js/auth.js?v=202610131813"></script>
+<script src="js/orders.js?v=202610131813"></script>
+<script src="js/main.js?v=202610131813" defer></script>
+<script src="js/account.js?v=202610131813" defer></script>
+<script src="js/konto.js?v=202610131813" defer></script>
+</body>
+</html>
