@@ -89,6 +89,7 @@
   const state = {
     q: '', date: 'all', free: false,
     scope: params.get('pilne') === '1' ? 'urgent' : params.get('moje') === '1' ? 'mine' : 'all',
+    mineTab: params.get('tab') === 'wykonanie' ? 'taken' : 'posted',
     rateMin: null, kmMax: null, paxMin: null, paxMax: null,
     sort: { key: 'dep', dir: 'asc' }, mapMode: 'dep',
   };
@@ -97,10 +98,9 @@
     const now = new Date();
     const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const q = norm(state.q.trim());
-    const base = state.scope === 'mine' ? store.active().concat(store.unpaidExpired(me)) : store.active();
+    const base = state.scope !== 'mine' ? store.active() : state.mineTab === 'taken' ? store.taken(me) : store.posted(me);
     let list = base.filter((o) => {
       if (state.scope === 'urgent' && !o.urgent) return false;
-      if (state.scope === 'mine' && o.owner !== me) return false;
       if (state.free && o.status !== 'open') return false;
       if (state.date === 'today' && !(o.dep < startToday + 864e5)) return false;
       if (state.date === 'tomorrow' && !(o.dep >= startToday + 864e5 && o.dep < startToday + 2 * 864e5)) return false;
@@ -202,6 +202,8 @@
       neg.textContent = t('g.cx.btn');
       neg.className = 'g-btn g-btn-danger';
       neg.addEventListener('click', () => openCancel(o.id));
+    } else if (o.status === 'reserved' && o.reservedBy === me) {
+      neg.hidden = true;
     } else {
       neg.disabled = own || o.status !== 'open';
       neg.addEventListener('click', () => openNegotiate(o.id));
@@ -210,7 +212,7 @@
     res.type = 'button';
     if (own && expired) {
       neg.hidden = true;
-      res.textContent = t('g.fee.payBtn', { x: zl(store.FEE) });
+      res.textContent = t('g.fee.payBtn', { x: zl(store.EXPIRE_FEE) });
       res.addEventListener('click', () => openFee(false));
     } else if (own) { res.textContent = t('g.yours'); res.disabled = true; }
     else if (o.status !== 'open' && o.reservedBy === me) { res.textContent = t('g.reservedMine'); res.disabled = true; res.classList.add('is-mine'); }
@@ -220,7 +222,8 @@
     const cell = td(acts);
     const myOffer = (o.offers || []).find((x) => x.by === me);
     if (myOffer && o.status === 'open') cell.appendChild(el('span', 'offer-note', t('g.offerSent', { x: zl(myOffer.rate) })));
-    if (own && expired) cell.appendChild(el('span', 'offer-note is-warn', t('g.fee.rowNote', { x: zl(store.FEE) })));
+    if (!own && o.status === 'reserved' && o.reservedBy === me) cell.appendChild(clientContact(o.owner));
+    if (own && expired) cell.appendChild(el('span', 'offer-note is-warn', t('g.fee.rowNote', { x: zl(store.EXPIRE_FEE) })));
     // właściciel widzi propozycje stawek i to, kto zarezerwował
     if (own && o.status !== 'open' && o.reservedBy) cell.appendChild(el('span', 'offer-note', t('g.reservedBy', { x: auth.nameOf(o.reservedBy) })));
     if (own && o.status === 'open' && (o.offers || []).length) {
@@ -235,6 +238,18 @@
     return tr;
   }
 
+  function clientContact(login) {
+    const c = auth.contactOf(login);
+    const box = el('div', 'client-note');
+    box.appendChild(el('span', null, t('g.mine.client', { x: c.name })));
+    const line = el('span', 'cn-links');
+    if (c.person) line.appendChild(el('span', null, c.person));
+    if (c.phone) { const a = el('a', null, c.phone); a.href = 'tel:' + c.phone.replace(/\s/g, ''); line.appendChild(a); }
+    if (c.email) { const a = el('a', null, c.email); a.href = 'mailto:' + c.email; line.appendChild(a); }
+    if (line.childNodes.length) box.appendChild(line);
+    return box;
+  }
+
   function render() {
     const list = filtered();
     tbody.textContent = '';
@@ -245,7 +260,11 @@
     const cnt = store.counts(me);
     $('#urgent-count').textContent = cnt.urgent;
     $('#mine-count').textContent = cnt.mine;
-    $('#gl-empty p').textContent = t(state.scope === 'mine' && !hasFilters() ? 'g.emptyMine' : 'g.empty');
+    $('#mt-posted').textContent = cnt.posted;
+    $('#mt-taken').textContent = cnt.taken;
+    $('#mine-tabs').hidden = state.scope !== 'mine';
+    $$('[data-mine-tab]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mineTab === state.mineTab)));
+    $('#gl-empty p').textContent = t(state.scope === 'mine' && !hasFilters() ? (state.mineTab === 'taken' ? 'g.emptyTaken' : 'g.emptyMine') : 'g.empty');
     // nagłówki sortowania
     $$('.gl-table th[aria-sort]').forEach((th) => {
       const k = $('.th-sort', th).dataset.sort;
@@ -273,6 +292,7 @@
     $('.an-mine').setAttribute('aria-pressed', String(scope === 'mine'));
     render();
   }
+  $$('[data-mine-tab]').forEach((b) => b.addEventListener('click', () => { state.mineTab = b.dataset.mineTab; lastIds = ''; render(); }));
   const hasFilters = () => !!(state.q || state.date !== 'all' || state.free || state.rateMin != null || state.kmMax != null || state.paxMin != null || state.paxMax != null);
   $('#f-urgent').addEventListener('click', () => setScope(state.scope === 'urgent' ? 'all' : 'urgent'));
   $('#f-free').addEventListener('click', (e) => { state.free = !state.free; e.currentTarget.setAttribute('aria-pressed', String(state.free)); render(); });
@@ -419,7 +439,7 @@
     });
     if (refit && list.length) {
       const b = L.latLngBounds(list.map((o) => { const p = state.mapMode === 'dep' ? o.from : o.to; return [p.lat, p.lng]; }));
-      map.fitBounds(b, { padding: [50, 50], maxZoom: 11, animate: !reduce() });
+      map.fitBounds(b, { padding: [50, 50], maxZoom: list.length === 1 ? 8 : 11, animate: !reduce() });
     }
   }
 
@@ -584,11 +604,11 @@
     if (!o || o.owner !== me || (o.status !== 'open' && o.status !== 'reserved')) return;
     cxId = id;
     routeSummary($('#cx-route'), o);
-    $('#cx-amount').textContent = zl(store.FEE);
+    $('#cx-amount').textContent = zl(store.CANCEL_FEE);
     const rs = $('#cx-reserved');
     rs.hidden = o.status !== 'reserved';
     if (o.status === 'reserved') rs.textContent = t('g.cx.reservedNote', { x: auth.nameOf(o.reservedBy) });
-    $('#cx-confirm').textContent = t('g.cx.confirm', { x: zl(store.FEE) });
+    $('#cx-confirm').textContent = t('g.cx.confirm', { x: zl(store.CANCEL_FEE) });
     openDlg($('#cx-dialog'));
     setTimeout(() => $('#cx-dialog [data-close].call-btn').focus(), 40);
   }
@@ -596,7 +616,7 @@
     const ok = store.cancel(cxId, me);
     closeDlg($('#cx-dialog'));
     if (!ok) return;
-    toast(t('g.cx.done', { x: zl(store.FEE) }));
+    toast(t('g.cx.done', { x: zl(store.CANCEL_FEE) }));
     render();
   });
 
@@ -970,6 +990,7 @@
     resetCreate();
     // pokaż nowe zlecenie w „Twoich zleceniach”, bez filtrów, które mogłyby je ukryć
     resetFilters();
+    state.mineTab = 'posted';
     setScope('mine');
     toast(t('g.done'));
     setTimeout(() => { showRow(o.id); focusOnMap(o.id); }, 200);
@@ -992,7 +1013,7 @@
   setScope(state.scope);
   updateSteps();
   if (params.get('nowe') === '1') setTimeout(openCreate, 250);
-  if (params.has('nowe') || params.has('pilne') || params.has('moje')) history.replaceState(null, '', location.pathname);
+  if (params.has('nowe') || params.has('pilne') || params.has('moje') || params.has('tab')) history.replaceState(null, '', location.pathname);
   // terminy względne („za 3 godziny”) odświeżamy co minutę
   setInterval(() => { if (!document.hidden && !$$('dialog[open]').length) render(); }, 60000);
 })();

@@ -91,7 +91,7 @@
         const txt = el('span', 'ap-text');
         const who = x.byName || x.by;
         const msg = x.type === 'reserve' ? t('n.reserve', { x: who })
-          : x.type === 'expired' ? t('n.expired', { x: zl(x.amount || 100) })
+          : x.type === 'expired' ? t('n.expired', { x: zl(x.amount || 50) })
           : x.type === 'cancelled' ? t('n.cancelled', { x: who })
           : t('n.offer', { x: who, y: zl(x.rate) });
         txt.appendChild(el('span', null, msg));

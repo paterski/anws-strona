@@ -95,7 +95,7 @@
       return Object.assign({ builtIn: true }, u, changed ? { hash: changed } : {});
     }
     const r = loadRegs().find((x) => x.login === l);
-    return r ? { login: r.login, name: r.company, role: 'user', confirmed: r.status === 'approved', hash: r.hash, email: r.email, plan: r.plan || 'commission', activatedAt: r.approvedAt || null } : null;
+    return r ? { login: r.login, name: r.company, role: 'user', confirmed: r.status === 'approved', hash: r.hash, email: r.email, plan: r.plan || 'commission', activatedAt: r.approvedAt || null, contactName: r.contactName || '', phone: r.phone || '' } : null;
   }
 
   async function setHash(login, hash) {
@@ -239,6 +239,12 @@
     nameOf(login) {
       const acc = findAccount(login);
       return acc ? (acc.name || acc.login) : login;
+    },
+
+    // kontakt do zleceniodawcy — pokazujemy go dopiero przewoźnikowi, który zarezerwował zlecenie
+    contactOf(login) {
+      const acc = findAccount(login) || {};
+      return { name: acc.name || acc.login || login, person: acc.contactName || '', phone: acc.phone || '', email: acc.email || '' };
     },
 
     /* Powiadomienia dla właściciela zlecenia (rezerwacja, propozycja stawki).

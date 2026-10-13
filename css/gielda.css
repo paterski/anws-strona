@@ -417,3 +417,20 @@ th[aria-sort="ascending"] .th-sort, th[aria-sort="descending"] .th-sort { color:
 @media (prefers-reduced-motion: reduce) {
   .an-create .an-ic { animation: none; }
 }
+
+/* Twoje zlecenia: wystawione / do wykonania */
+.mine-tabs { justify-self: start; max-width: 100%; }
+.mine-tabs[hidden] { display: none; }
+.mine-tabs button { min-height: 40px; }
+.mt-count { min-width: 22px; padding: 1px 7px; border-radius: 999px; background: var(--ib-border); color: var(--ink); font-size: 12px; font-weight: 700; text-align: center; }
+.mine-tabs button[aria-pressed="true"] .mt-count { background: var(--accent); color: #fff; }
+.client-note { display: grid; gap: 2px; margin-top: 8px; font-size: 12.5px; line-height: 1.4; text-align: right; color: var(--ink-muted); }
+.client-note > span:first-child { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
+.cn-links { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 10px; }
+.cn-links a { color: var(--accent-text, var(--accent)); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+@media (max-width: 900px) {
+  .client-note { text-align: left; }
+  .cn-links { justify-content: flex-start; }
+  .mine-tabs { justify-self: stretch; }
+  .mine-tabs button { flex: 1; justify-content: center; padding: 0 10px; }
+}

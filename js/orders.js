@@ -7,14 +7,15 @@
  * Zlecenie może mieć kilka miejsc odbioru (pickups) i kilka miejsc docelowych (drops);
  * from = pierwsze miejsce odbioru, to = pierwsze miejsce docelowe (to pokazujemy na mapie).
  *
- * Opłaty dla zlecających (FEE zł): anulowanie zlecenia oraz zlecenie, którego nikt nie podjął
- * przed godziną odjazdu. Nieopłacona opłata blokuje wystawianie kolejnych zleceń.
+ * Opłaty dla zlecających: anulowanie zlecenia (CANCEL_FEE zł) oraz zlecenie, którego nikt nie podjął
+ * przed godziną odjazdu (EXPIRE_FEE zł). Nieopłacona opłata blokuje wystawianie kolejnych zleceń.
  */
 (function () {
   const KEY = 'anws-orders';
-  const SEED_FLAG = 'anws-orders-seeded-v2';
+  const SEED_FLAG = 'anws-orders-seeded-v3';
   const FEES_KEY = 'anws-fees';
-  const FEE = 100;
+  const CANCEL_FEE = 100;
+  const EXPIRE_FEE = 50;
 
   const safe = (fn, fallback) => { try { return fn(); } catch (e) { return fallback; } };
   const load = () => safe(() => JSON.parse(localStorage.getItem(KEY)) || [], []);
@@ -109,11 +110,13 @@
     });
     // przykładowa propozycja stawki do zlecenia konta demo — żeby dzwonek powiadomień nie był pusty
     const demoOrder = orders.find((o) => o.id === 'o4');
+    const taken = orders.find((o) => o.id === 'o5');
+    if (taken) { taken.status = 'reserved'; taken.reservedBy = 'demo'; taken.reservedAt = now - 2 * 36e5; taken.fee = null; }
     if (demoOrder) demoOrder.offers.push({ by: 'polbus', rate: demoOrder.rate + 100, message: 'Możemy podstawić autokar 49-osobowy.', at: now - 40 * 6e4 });
     save(orders);
     safe(() => localStorage.setItem(SEED_FLAG, '1'));
     const A = auth();
-    if (A && A.notify && demoOrder) {
+    if (A && A.notify && demoOrder && !A.notifications('demo').some((n) => n.seed && n.orderId === 'o4')) {
       A.notify('demo', { type: 'offer', orderId: 'o4', by: 'polbus', byName: A.nameOf('polbus'), rate: demoOrder.rate + 100, route: routeText(demoOrder), at: now - 40 * 6e4, seed: true });
     }
   }
@@ -127,14 +130,14 @@
     late.forEach((o) => {
       o.status = 'expired';
       o.expiredAt = now;
-      const fee = { id: 'f' + now.toString(36) + o.id, login: o.owner, orderId: o.id, type: 'expired', amount: FEE, route: routeText(o), dep: o.dep, at: now, paid: false };
+      const fee = { id: 'f' + now.toString(36) + o.id, login: o.owner, orderId: o.id, type: 'expired', amount: EXPIRE_FEE, route: routeText(o), dep: o.dep, at: now, paid: false };
       fees.push(fee);
       const A = auth();
       if (A && A.notify) {
         A.notify(o.owner, {
-          type: 'expired', orderId: o.id, route: routeText(o), amount: FEE,
-          subject: 'Nikt nie podjął Twojego zlecenia — opłata ' + FEE + ' zł',
-          body: `Dzień dobry! Twoje zlecenie ${routeText(o)} z wyjazdem ${when(o.dep)} nie zostało podjęte przez żadnego przewoźnika przed godziną odjazdu. Zgodnie z cennikiem naliczyliśmy opłatę ${FEE} zł. Do czasu jej opłacenia nie możesz wystawiać nowych zleceń — opłatę uregulujesz na giełdzie ANWS w zakładce „Twoje zlecenia”.`,
+          type: 'expired', orderId: o.id, route: routeText(o), amount: EXPIRE_FEE,
+          subject: 'Nikt nie podjął Twojego zlecenia — opłata ' + EXPIRE_FEE + ' zł',
+          body: `Dzień dobry! Twoje zlecenie ${routeText(o)} z wyjazdem ${when(o.dep)} nie zostało podjęte przez żadnego przewoźnika przed godziną odjazdu. Zgodnie z cennikiem naliczyliśmy opłatę ${EXPIRE_FEE} zł. Do czasu jej opłacenia nie możesz wystawiać nowych zleceń — opłatę uregulujesz na giełdzie ANWS w zakładce „Twoje zlecenia”.`,
         });
       }
     });
@@ -144,7 +147,8 @@
   }
 
   window.ANWSOrders = {
-    FEE,
+    CANCEL_FEE,
+    EXPIRE_FEE,
     list() { ensureSeed(); return sweep(load()); },
     get(id) { return this.list().find((o) => o.id === id) || null; },
 
@@ -157,11 +161,16 @@
       return this.list().filter((o) => o.owner === login && o.status === 'expired' && ids.has(o.id));
     },
 
+    // zlecenia zarezerwowane przez przewoźnika — do wykonania
+    taken(login) { return this.active().filter((o) => o.status === 'reserved' && o.reservedBy === login); },
+    posted(login) { return this.active().filter((o) => o.owner === login).concat(this.unpaidExpired(login)); },
+
     counts(login) {
       const a = this.active();
       const open = a.filter((o) => o.status === 'open');
-      const mine = login ? a.filter((o) => o.owner === login).length + this.unpaidExpired(login).length : 0;
-      return { all: open.length, urgent: open.filter((o) => o.urgent).length, mine };
+      const posted = login ? this.posted(login).length : 0;
+      const taken = login ? this.taken(login).length : 0;
+      return { all: open.length, urgent: open.filter((o) => o.urgent).length, mine: posted + taken, posted, taken };
     },
 
     fees(login) { this.list(); return loadFees().filter((f) => f.login === login); },
@@ -178,7 +187,7 @@
       return true;
     },
 
-    // Anulowanie własnego zlecenia — z opłatą FEE zł (płatną od razu)
+    // Anulowanie własnego zlecenia — z opłatą CANCEL_FEE zł (płatną od razu)
     cancel(id, login) {
       const orders = this.list();
       const o = orders.find((x) => x.id === id);
@@ -189,7 +198,7 @@
       o.cancelledAt = now;
       save(orders);
       const fees = loadFees();
-      fees.push({ id: 'f' + now.toString(36), login, orderId: o.id, type: 'cancel', amount: FEE, route: routeText(o), dep: o.dep, at: now, paid: true, paidAt: now });
+      fees.push({ id: 'f' + now.toString(36), login, orderId: o.id, type: 'cancel', amount: CANCEL_FEE, route: routeText(o), dep: o.dep, at: now, paid: true, paidAt: now });
       saveFees(fees);
       const A = auth();
       if (A && A.notify && wasReservedBy) {
