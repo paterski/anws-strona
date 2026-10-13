@@ -293,11 +293,8 @@ th[aria-sort="ascending"] .th-sort, th[aria-sort="descending"] .th-sort { color:
 .cr-stops .link-btn { padding: 2px 0; }
 .mk-a b, .mk-b b, .mk-c b { font-size: 10px; }
 
-/* koniec trasy (C): opcjonalny, jeden punkt */
-.cr-opt { font-weight: 500; color: var(--ink-muted); }
-.cr-end-help { clear: both; }
-.cr-end-acts { display: flex; flex-wrap: wrap; gap: 4px 18px; }
-.cr-end-acts .link-btn[disabled] { opacity: .45; cursor: default; text-decoration: none; }
+/* koniec trasy (C): jedno pole, domyślnie puste */
+#cr-return[disabled] { opacity: .45; cursor: default; text-decoration: none; }
 .tag-end { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: rgba(168, 121, 63, .16); color: var(--ink); font-size: 11.5px; font-weight: 700; }
 
 /* ---------- powiadomienie (toast) ---------- */

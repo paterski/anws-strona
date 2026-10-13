@@ -665,7 +665,7 @@
   });
 
   /* ---------- nowe zlecenie: kilka miejsc odbioru (A1, A2…), kilka docelowych (B1, B2…)
-     i opcjonalny koniec trasy (C) — np. powrót na pusto albo wycieczka objazdowa ---------- */
+     i jeden koniec trasy (C, pole domyślnie puste) — np. powrót na pusto albo wycieczka objazdowa ---------- */
   const cr = {
     dlg: $('#cr-dialog'), form: $('#cr-form'), dep: $('#cr-dep'), arr: $('#cr-arr'),
     pax: $('#cr-pax'), km: $('#cr-km'), rate: $('#cr-rate'), urgent: $('#cr-urgent'), notes: $('#cr-notes'),
@@ -677,7 +677,7 @@
   let crMap = null, crLine = null, mode = 'A';
   const pts = { A: [], B: [], C: [] }; // { lat, lng, label, marker, input, pin, li }; C — najwyżej jeden punkt
   const mkCls = (w) => (w === 'A' ? 'mk-a' : w === 'B' ? 'mk-b' : 'mk-c');
-  let kmTouched = false, arrAuto = false, durMin = null, crDirty = false;
+  let kmTouched = false, arrAuto = false, durMin = null;
 
   const pad = (n) => String(n).padStart(2, '0');
   const toLocalInput = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
@@ -806,7 +806,7 @@
     const ul = el('ul', 'cr-results'); ul.hidden = true;
     field.append(input, ul);
     input.addEventListener('focus', () => { activeRow = p; if (mode !== which) setMode(which); });
-    input.addEventListener('input', () => { p.label = input.value; crDirty = true; clearListErr(which); });
+    input.addEventListener('input', () => { p.label = input.value; clearListErr(which); });
     makeSearch(input, ul, (r) => { crMap.setView([r.lat, r.lng], Math.max(crMap.getZoom(), 12)); locate(p, L.latLng(r.lat, r.lng), r.label); });
     const rm = el('button', 'stop-rm');
     rm.type = 'button'; rm.innerHTML = XS; rm.setAttribute('aria-label', t('g.cr.remove'));
@@ -836,7 +836,7 @@
       });
     }
     p.li.classList.remove('is-empty');
-    crDirty = true;
+   
     clearListErr(p.which);
     if (label) { p.label = label; p.input.value = label; }
     else {
@@ -863,10 +863,19 @@
 
   function removePoint(which, p) {
     if (crMap && p.marker) crMap.removeLayer(p.marker);
+    // koniec trasy: pole zostaje (puste), znika tylko punkt
+    if (which === 'C') {
+      Object.assign(p, { lat: null, lng: null, label: '', marker: null });
+      p.input.value = '';
+      p.li.classList.add('is-empty');
+      clearListErr('C');
+      renumber(); updateSteps(); updateRoute();
+      return;
+    }
     p.li.remove();
     pts[which] = pts[which].filter((x) => x !== p);
     if (activeRow === p) activeRow = null;
-    crDirty = true;
+   
     renumber(); updateSteps(); updateRoute();
   }
   function clearPoints() {
@@ -874,7 +883,7 @@
     if (crLine && crMap) crMap.removeLayer(crLine);
     crLine = null; durMin = null; activeRow = null;
     if (!kmTouched) cr.km.value = '';
-    addRow('A'); addRow('B');
+    addRow('A'); addRow('B'); addRow('C');
     setMode('A');
     updateRateHelp();
   }
@@ -940,7 +949,7 @@
   cr.dep.addEventListener('input', () => { crClear(cr.dep); suggestArrival(); });
   cr.arr.addEventListener('input', () => { arrAuto = false; crClear(cr.arr); });
   cr.pax.addEventListener('input', () => crClear(cr.pax));
-  cr.form.addEventListener('input', () => { crDirty = true; });
+  cr.form.addEventListener('input', () => { });
 
   // wyszukiwarka adresu nad mapą — wynik trafia na listę wybraną przełącznikiem (odbiór / cel)
   makeSearch(cr.q, cr.results, (r) => {
@@ -951,7 +960,7 @@
 
   function resetCreate() {
     cr.form.reset(); clearPoints();
-    kmTouched = false; arrAuto = false; crDirty = false;
+    kmTouched = false; arrAuto = false;
     $$('.field-err', cr.form).forEach((e) => { e.hidden = true; e.dataset.key = ''; });
     $$('[aria-invalid]', cr.form).forEach((i) => i.removeAttribute('aria-invalid'));
     $('#cr-km-help').textContent = t('g.cr.kmHelp');
@@ -973,17 +982,16 @@
       cr.q.focus();
     }, 80);
   }
-  function closeCreate(force) {
-    if (!force && crDirty && !confirm(t('g.cr.discard'))) return;
+  function closeCreate() {
     closeDlg(cr.dlg);
   }
-  $$('[data-close]', cr.dlg).forEach((b) => b.addEventListener('click', () => closeCreate(false)));
-  cr.dlg.addEventListener('cancel', (e) => { e.preventDefault(); if ($$('.cr-results:not([hidden])', cr.dlg).length) return; closeCreate(false); });
+  $$('[data-close]', cr.dlg).forEach((b) => b.addEventListener('click', () => closeCreate()));
+  cr.dlg.addEventListener('cancel', (e) => { e.preventDefault(); if ($$('.cr-results:not([hidden])', cr.dlg).length) return; closeCreate(); });
   // kliknięcie w tło zamyka okno bez pytania — punkty i pola zostają do ponownego otwarcia.
   // Liczy się tylko kliknięcie zaczęte na tle (przeciągnięcie pinezki poza okno go nie zamyka).
   let crDownOnBackdrop = false;
   cr.dlg.addEventListener('pointerdown', (e) => { crDownOnBackdrop = e.target === cr.dlg; });
-  cr.dlg.addEventListener('click', (e) => { if (e.target === cr.dlg && crDownOnBackdrop) closeCreate(true); });
+  cr.dlg.addEventListener('click', (e) => { if (e.target === cr.dlg && crDownOnBackdrop) closeCreate(); });
 
   cr.form.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -1007,14 +1015,13 @@
     const km = +cr.km.value; if (!(km > 0)) fail(cr.km, 'g.e.km');
     const rate = +cr.rate.value; if (!(rate > 0)) fail(cr.rate, 'g.e.rate');
     if (errs.length) { errs[0].focus(); return; }
-    if (store.unpaidFees(me).length) { closeCreate(true); openFee(true); return; }
+    if (store.unpaidFees(me).length) { closeCreate(); openFee(true); return; }
     const plain = (p) => ({ label: p.input.value.trim(), lat: p.lat, lng: p.lng });
     const o = store.add({
       pickups: located('A').map(plain), drops: located('B').map(plain), end: located('C').length ? plain(located('C')[0]) : null,
       dep, arr, km: Math.round(km), rate: Math.round(rate), pax, urgent: cr.urgent.checked, notes: cr.notes.value.trim(),
     }, me);
-    crDirty = false;
-    closeCreate(true);
+    closeCreate();
     resetCreate();
     // pokaż nowe zlecenie w „Twoich zleceniach”, bez filtrów, które mogłyby je ukryć
     resetFilters();
