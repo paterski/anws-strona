@@ -97,7 +97,8 @@
     const now = new Date();
     const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const q = norm(state.q.trim());
-    let list = store.active().filter((o) => {
+    const base = state.scope === 'mine' ? store.active().concat(store.unpaidExpired(me)) : store.active();
+    let list = base.filter((o) => {
       if (state.scope === 'urgent' && !o.urgent) return false;
       if (state.scope === 'mine' && o.owner !== me) return false;
       if (state.free && o.status !== 'open') return false;
@@ -192,13 +193,26 @@
 
     const acts = el('div', 'acts');
     const own = o.owner === me;
+    const expired = o.status === 'expired';
+    if (expired) tr.classList.add('is-expired');
     const neg = el('button', 'g-btn g-btn-ghost', t('g.negotiate'));
     neg.type = 'button';
-    neg.disabled = own || o.status !== 'open';
-    neg.addEventListener('click', () => openNegotiate(o.id));
+    if (own && !expired) {
+      // własne zlecenie: zamiast negocjacji — anulowanie (płatne)
+      neg.textContent = t('g.cx.btn');
+      neg.className = 'g-btn g-btn-danger';
+      neg.addEventListener('click', () => openCancel(o.id));
+    } else {
+      neg.disabled = own || o.status !== 'open';
+      neg.addEventListener('click', () => openNegotiate(o.id));
+    }
     const res = el('button', 'g-btn g-btn-primary');
     res.type = 'button';
-    if (own) { res.textContent = t('g.yours'); res.disabled = true; }
+    if (own && expired) {
+      neg.hidden = true;
+      res.textContent = t('g.fee.payBtn', { x: zl(store.FEE) });
+      res.addEventListener('click', () => openFee(false));
+    } else if (own) { res.textContent = t('g.yours'); res.disabled = true; }
     else if (o.status !== 'open' && o.reservedBy === me) { res.textContent = t('g.reservedMine'); res.disabled = true; res.classList.add('is-mine'); }
     else if (o.status !== 'open') { res.textContent = t('g.reserved'); res.disabled = true; }
     else { res.textContent = t('g.reserve'); res.addEventListener('click', () => openReserve(o.id)); }
@@ -206,6 +220,7 @@
     const cell = td(acts);
     const myOffer = (o.offers || []).find((x) => x.by === me);
     if (myOffer && o.status === 'open') cell.appendChild(el('span', 'offer-note', t('g.offerSent', { x: zl(myOffer.rate) })));
+    if (own && expired) cell.appendChild(el('span', 'offer-note is-warn', t('g.fee.rowNote', { x: zl(store.FEE) })));
     // właściciel widzi propozycje stawek i to, kto zarezerwował
     if (own && o.status !== 'open' && o.reservedBy) cell.appendChild(el('span', 'offer-note', t('g.reservedBy', { x: auth.nameOf(o.reservedBy) })));
     if (own && o.status === 'open' && (o.offers || []).length) {
@@ -467,7 +482,7 @@
     d.classList.add('is-closing');
     setTimeout(() => { d.close(); d.classList.remove('is-closing'); }, reduce() ? 0 : 160);
   }
-  ['#rv-dialog', '#ng-dialog'].forEach((sel) => {
+  ['#rv-dialog', '#ng-dialog', '#cx-dialog', '#fee-dialog'].forEach((sel) => {
     const d = $(sel);
     $$('[data-close]', d).forEach((b) => b.addEventListener('click', () => closeDlg(d)));
     d.addEventListener('cancel', (e) => { e.preventDefault(); closeDlg(d); });
@@ -562,6 +577,65 @@
     render();
   });
 
+  /* ---------- anulowanie własnego zlecenia (opłata) ---------- */
+  let cxId = null;
+  function openCancel(id) {
+    const o = store.get(id);
+    if (!o || o.owner !== me || (o.status !== 'open' && o.status !== 'reserved')) return;
+    cxId = id;
+    routeSummary($('#cx-route'), o);
+    $('#cx-amount').textContent = zl(store.FEE);
+    const rs = $('#cx-reserved');
+    rs.hidden = o.status !== 'reserved';
+    if (o.status === 'reserved') rs.textContent = t('g.cx.reservedNote', { x: auth.nameOf(o.reservedBy) });
+    $('#cx-confirm').textContent = t('g.cx.confirm', { x: zl(store.FEE) });
+    openDlg($('#cx-dialog'));
+    setTimeout(() => $('#cx-dialog [data-close].call-btn').focus(), 40);
+  }
+  $('#cx-confirm').addEventListener('click', () => {
+    const ok = store.cancel(cxId, me);
+    closeDlg($('#cx-dialog'));
+    if (!ok) return;
+    toast(t('g.cx.done', { x: zl(store.FEE) }));
+    render();
+  });
+
+  /* ---------- nieopłacona opłata za niepodjęte zlecenie: blokada nowych zleceń ---------- */
+  let feeThenCreate = false;
+  function openFee(fromCreate) {
+    const unpaid = store.unpaidFees(me);
+    if (!unpaid.length) { if (fromCreate) openCreate(); return; }
+    feeThenCreate = fromCreate;
+    $('#fee-sub').textContent = t(fromCreate ? 'g.fee.subBlock' : 'g.fee.sub');
+    const box = $('#fee-box');
+    box.textContent = '';
+    unpaid.forEach((f) => {
+      const r = el('div', 'db-row fee-row');
+      const left = el('span');
+      left.appendChild(el('b', null, f.route));
+      left.appendChild(el('small', null, t('g.fee.depLabel', { x: dayLabel(f.dep).toLocaleLowerCase(locale()) + ' ' + timeLabel(f.dep) })));
+      r.append(left, el('b', null, zl(f.amount)));
+      box.appendChild(r);
+    });
+    const total = unpaid.reduce((sum, f) => sum + f.amount, 0);
+    if (unpaid.length > 1) {
+      const tr = el('div', 'db-row db-total');
+      tr.append(el('span', null, t('g.fee.total')), el('b', null, zl(total)));
+      box.appendChild(tr);
+    }
+    box.appendChild(el('p', 'db-note', t('g.fee.note')));
+    $('#fee-pay').textContent = t('g.fee.payBtn', { x: zl(total) });
+    openDlg($('#fee-dialog'));
+    setTimeout(() => $('#fee-pay').focus(), 40);
+  }
+  $('#fee-pay').addEventListener('click', () => {
+    store.unpaidFees(me).forEach((f) => store.payFee(f.id, me));
+    closeDlg($('#fee-dialog'));
+    toast(t('g.fee.done'));
+    render();
+    if (feeThenCreate) setTimeout(openCreate, 260);
+  });
+
   /* ---------- nowe zlecenie: kilka miejsc odbioru (A1, A2…) i kilka docelowych (B1, B2…) ---------- */
   const cr = {
     dlg: $('#cr-dialog'), form: $('#cr-form'), dep: $('#cr-dep'), arr: $('#cr-arr'),
@@ -596,18 +670,24 @@
     updateSteps();
   }
   $$('[data-cr-mode]').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.crMode)));
-  $$('[data-add]', cr.form).forEach((b) => b.addEventListener('click', () => { setMode(b.dataset.add); cr.q.focus(); }));
+  // „+ Dodaj miejsce…” dokłada kolejne puste pole (A2, A3…), które uzupełnia się wyszukiwarką albo kliknięciem na mapie
+  $$('[data-add]', cr.form).forEach((b) => b.addEventListener('click', () => { const p = addRow(b.dataset.add); if (p) p.input.focus(); }));
+
+  const located = (w) => pts[w].filter((p) => p.lat != null);
+  let activeRow = null;
 
   function updateSteps() {
-    cr.hint.textContent = t(!pts.A.length ? 'g.cr.hintA' : !pts.B.length ? 'g.cr.hintB' : mode === 'A' ? 'g.cr.hintMoreA' : 'g.cr.hintMoreB');
+    const a = located('A').length, b = located('B').length;
+    cr.hint.textContent = t(!a ? 'g.cr.hintA' : !b ? 'g.cr.hintB' : mode === 'A' ? 'g.cr.hintMoreA' : 'g.cr.hintMoreB');
     ['A', 'B'].forEach((w) => { cr.empty[w].hidden = pts[w].length > 0; });
   }
   function renumber() {
     ['A', 'B'].forEach((w) => pts[w].forEach((p, i) => {
       const code = w + (i + 1);
       p.pin.textContent = code;
-      p.marker.setIcon(icon(w === 'A' ? 'mk-a' : 'mk-b', code));
+      if (p.marker) p.marker.setIcon(icon(w === 'A' ? 'mk-a' : 'mk-b', code));
       p.input.setAttribute('aria-label', t(w === 'A' ? 'g.cr.pickN' : 'g.cr.dropN', { x: i + 1 }));
+      p.input.placeholder = t('g.cr.rowPh');
     }));
   }
 
@@ -628,56 +708,139 @@
     return out || (j.display_name || '').split(',').slice(0, 2).join(',').trim();
   }
 
-  function addPoint(which, latlng, label) {
-    if (pts[which].length >= MAX_STOPS) { toast(t('g.cr.max', { x: MAX_STOPS })); return; }
-    const p = { lat: latlng.lat, lng: latlng.lng, label: label || '' };
-    p.marker = L.marker(latlng, { icon: icon(which === 'A' ? 'mk-a' : 'mk-b', which), draggable: true, keyboard: true }).addTo(crMap);
-    p.marker.on('dragend', async () => {
-      const ll = p.marker.getLatLng();
-      p.lat = ll.lat; p.lng = ll.lng;
-      p.input.value = t('g.cr.locating');
-      const lb = await reverse(ll.lat, ll.lng);
-      p.label = lb; p.input.value = lb;
-      updateRoute();
+  // Podpowiedzi adresów (Nominatim) pod polem tekstowym; onPick({ lat, lng, label })
+  let searchSeq = 0;
+  function makeSearch(input, ul, onPick) {
+    const uid = 'cr-s' + (++searchSeq);
+    let timer, results = [], active = -1;
+    ul.id = ul.id || uid;
+    ul.setAttribute('role', 'listbox');
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-autocomplete', 'list');
+    input.setAttribute('aria-expanded', 'false');
+    input.setAttribute('aria-controls', ul.id);
+    function show(list, empty) {
+      ul.textContent = '';
+      results = list; active = -1;
+      input.removeAttribute('aria-activedescendant');
+      if (!list.length && !empty) { ul.hidden = true; input.setAttribute('aria-expanded', 'false'); return; }
+      if (!list.length) ul.appendChild(el('li', 'is-empty', t('g.cr.noResults')));
+      list.forEach((r, i) => {
+        const li = el('li', null, r.label);
+        li.id = uid + '-' + i; li.setAttribute('role', 'option'); li.setAttribute('aria-selected', 'false');
+        li.addEventListener('mousedown', (e) => { e.preventDefault(); pick(i); });
+        ul.appendChild(li);
+      });
+      ul.hidden = false; input.setAttribute('aria-expanded', 'true');
+    }
+    function pick(i) { const r = results[i]; if (!r) return; show([], false); onPick(r); }
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      const q = input.value.trim();
+      if (q.length < 3) { show([], false); return; }
+      timer = setTimeout(async () => {
+        try {
+          const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&countrycodes=pl,de,cz,sk,lt,ua,at,hu&accept-language=${root.lang === 'en' ? 'en' : 'pl'}&q=${encodeURIComponent(q)}`);
+          const j = await r.json();
+          if (input.value.trim() !== q || document.activeElement !== input) return;
+          show(j.map((x) => ({ lat: +x.lat, lng: +x.lon, label: shortLabel(x) || x.display_name })), true);
+        } catch (e) { show([], true); }
+      }, 450);
     });
-    const li = el('li', 'stop-row');
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); if (!ul.hidden && results.length) pick(active < 0 ? 0 : active); return; }
+      if (ul.hidden) return;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!results.length) return;
+        active = (active + (e.key === 'ArrowDown' ? 1 : -1) + results.length) % results.length;
+        $$('li[role="option"]', ul).forEach((li, i) => li.setAttribute('aria-selected', String(i === active)));
+        input.setAttribute('aria-activedescendant', uid + '-' + active);
+      } else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); show([], false); }
+    });
+    input.addEventListener('blur', () => setTimeout(() => show([], false), 150));
+  }
+
+  // Nowy (pusty) wiersz na liście A albo B
+  function addRow(which) {
+    if (pts[which].length >= MAX_STOPS) { toast(t('g.cr.max', { x: MAX_STOPS })); return null; }
+    const p = { which, lat: null, lng: null, label: '', marker: null };
+    const li = el('li', 'stop-row is-empty');
     const pin = el('span', 'cr-pin ' + (which === 'A' ? 'cr-pin-a' : 'cr-pin-b'));
     pin.setAttribute('aria-hidden', 'true');
+    const field = el('div', 'stop-field');
     const input = el('input');
     input.type = 'text'; input.autocomplete = 'off'; input.maxLength = 120;
+    const ul = el('ul', 'cr-results'); ul.hidden = true;
+    field.append(input, ul);
+    input.addEventListener('focus', () => { activeRow = p; if (mode !== which) setMode(which); });
     input.addEventListener('input', () => { p.label = input.value; crDirty = true; clearListErr(which); });
+    makeSearch(input, ul, (r) => { crMap.setView([r.lat, r.lng], Math.max(crMap.getZoom(), 12)); locate(p, L.latLng(r.lat, r.lng), r.label); });
     const rm = el('button', 'stop-rm');
     rm.type = 'button'; rm.innerHTML = XS; rm.setAttribute('aria-label', t('g.cr.remove'));
     rm.addEventListener('click', () => removePoint(which, p));
-    li.append(pin, input, rm);
+    li.append(pin, field, rm);
     cr.list[which].appendChild(li);
     Object.assign(p, { pin, input, li });
     pts[which].push(p);
-    crDirty = true;
-    clearListErr(which);
-    if (label) input.value = label;
+    renumber();
+    updateSteps();
+    return p;
+  }
+
+  // Ustawia współrzędne wiersza: pinezka na mapie (przeciągana) + nazwa miejsca
+  function locate(p, latlng, label) {
+    p.lat = latlng.lat; p.lng = latlng.lng;
+    if (p.marker) p.marker.setLatLng(latlng);
     else {
-      input.value = t('g.cr.locating');
-      reverse(latlng.lat, latlng.lng).then((lb) => { if (pts[which].includes(p)) { p.label = lb; input.value = lb; } });
+      p.marker = L.marker(latlng, { icon: icon(p.which === 'A' ? 'mk-a' : 'mk-b', p.which), draggable: true, keyboard: true }).addTo(crMap);
+      p.marker.on('dragend', async () => {
+        const ll = p.marker.getLatLng();
+        p.lat = ll.lat; p.lng = ll.lng;
+        p.input.value = t('g.cr.locating');
+        const lb = await reverse(ll.lat, ll.lng);
+        p.label = lb; p.input.value = lb;
+        updateRoute();
+      });
     }
-    // po pierwszym miejscu odbioru kolejne kliknięcie dodaje miejsce docelowe
-    if (which === 'A' && pts.A.length === 1 && !pts.B.length) setMode('B');
+    p.li.classList.remove('is-empty');
+    crDirty = true;
+    clearListErr(p.which);
+    if (label) { p.label = label; p.input.value = label; }
+    else {
+      p.input.value = t('g.cr.locating');
+      const at = latlng.lat;
+      reverse(latlng.lat, latlng.lng).then((lb) => { if (pts[p.which].includes(p) && p.lat === at) { p.label = lb; p.input.value = lb; } });
+    }
+    // po pierwszym miejscu odbioru kolejne kliknięcie na mapie trafia do miejsc docelowych
+    if (p.which === 'A' && located('A').length === 1 && !located('B').length && !pts.A.some((x) => x.lat == null)) setMode('B');
     renumber();
     updateSteps();
     updateRoute();
   }
+
+  // Kliknięcie na mapie / wynik wyszukiwarki nad mapą: wypełnia aktywny pusty wiersz, inaczej pierwszy pusty, inaczej dodaje nowy
+  function placeAt(which, latlng, label) {
+    let p = activeRow && activeRow.which === which && activeRow.lat == null && pts[which].includes(activeRow) ? activeRow : pts[which].find((x) => x.lat == null);
+    if (!p) p = addRow(which);
+    if (!p) return;
+    locate(p, latlng, label);
+  }
+
   function removePoint(which, p) {
-    if (crMap) crMap.removeLayer(p.marker);
+    if (crMap && p.marker) crMap.removeLayer(p.marker);
     p.li.remove();
     pts[which] = pts[which].filter((x) => x !== p);
+    if (activeRow === p) activeRow = null;
     crDirty = true;
     renumber(); updateSteps(); updateRoute();
   }
   function clearPoints() {
-    ['A', 'B'].forEach((w) => { pts[w].forEach((p) => { if (crMap) crMap.removeLayer(p.marker); p.li.remove(); }); pts[w] = []; });
+    ['A', 'B'].forEach((w) => { pts[w].forEach((p) => { if (crMap && p.marker) crMap.removeLayer(p.marker); p.li.remove(); }); pts[w] = []; });
     if (crLine && crMap) crMap.removeLayer(crLine);
-    crLine = null; durMin = null;
+    crLine = null; durMin = null; activeRow = null;
     if (!kmTouched) cr.km.value = '';
+    addRow('A'); addRow('B');
     setMode('A');
     updateRateHelp();
   }
@@ -687,12 +850,12 @@
   let routeReq = 0;
   async function updateRoute() {
     if (!crMap) return;
-    const all = pts.A.concat(pts.B);
+    const all = located('A').concat(located('B'));
     if (crLine) { crMap.removeLayer(crLine); crLine = null; }
     // jeden punkt: tylko przesuń mapę (bez przybliżania — łatwiej kliknąć kolejne miasto); kilka: pokaż wszystkie
     if (all.length === 1) crMap.panTo([all[0].lat, all[0].lng]);
     else if (all.length > 1) crMap.fitBounds(L.latLngBounds(all.map((p) => [p.lat, p.lng])), { padding: [50, 50], maxZoom: 12 });
-    if (!pts.A.length || !pts.B.length) { durMin = null; return; }
+    if (!located('A').length || !located('B').length) { durMin = null; return; }
     const id = ++routeReq;
     const color = getComputedStyle(root).getPropertyValue('--accent').trim() || '#6B7F42';
     crLine = L.polyline(all.map((p) => [p.lat, p.lng]), { color, weight: 3, dashArray: '6 8' }).addTo(crMap);
@@ -740,53 +903,11 @@
   cr.form.addEventListener('input', () => { crDirty = true; });
 
   // wyszukiwarka adresu nad mapą — wynik trafia na listę wybraną przełącznikiem (odbiór / cel)
-  let qT, results = [], active = -1;
-  function renderResults(list, empty) {
-    cr.results.textContent = '';
-    results = list; active = -1;
-    if (!list.length && !empty) { cr.results.hidden = true; cr.q.setAttribute('aria-expanded', 'false'); return; }
-    if (!list.length) cr.results.appendChild(el('li', 'is-empty', t('g.cr.noResults')));
-    list.forEach((r, i) => {
-      const li = el('li', null, r.label);
-      li.id = 'cr-opt-' + i; li.setAttribute('role', 'option'); li.setAttribute('aria-selected', 'false');
-      li.addEventListener('mousedown', (e) => { e.preventDefault(); pickResult(i); });
-      cr.results.appendChild(li);
-    });
-    cr.results.hidden = false; cr.q.setAttribute('aria-expanded', 'true');
-  }
-  function pickResult(i) {
-    const r = results[i];
-    if (!r) return;
-    renderResults([], false);
+  makeSearch(cr.q, cr.results, (r) => {
     cr.q.value = '';
     crMap.setView([r.lat, r.lng], 14);
-    addPoint(mode, L.latLng(r.lat, r.lng), r.label);
-  }
-  cr.q.addEventListener('input', () => {
-    clearTimeout(qT);
-    const q = cr.q.value.trim();
-    if (q.length < 3) { renderResults([], false); return; }
-    qT = setTimeout(async () => {
-      try {
-        const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&countrycodes=pl,de,cz,sk,lt,ua,at,hu&accept-language=${root.lang === 'en' ? 'en' : 'pl'}&q=${encodeURIComponent(q)}`);
-        const j = await r.json();
-        if (cr.q.value.trim() !== q) return;
-        renderResults(j.map((x) => ({ lat: +x.lat, lng: +x.lon, label: shortLabel(x) || x.display_name })), true);
-      } catch (e) { renderResults([], true); }
-    }, 450);
+    placeAt(mode, L.latLng(r.lat, r.lng), r.label);
   });
-  cr.q.addEventListener('keydown', (e) => {
-    if (cr.results.hidden) return;
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (!results.length) return;
-      active = (active + (e.key === 'ArrowDown' ? 1 : -1) + results.length) % results.length;
-      $$('li[role="option"]', cr.results).forEach((li, i) => li.setAttribute('aria-selected', String(i === active)));
-      cr.q.setAttribute('aria-activedescendant', 'cr-opt-' + active);
-    } else if (e.key === 'Enter') { e.preventDefault(); pickResult(active < 0 ? 0 : active); }
-    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); renderResults([], false); }
-  });
-  cr.q.addEventListener('blur', () => setTimeout(() => renderResults([], false), 150));
 
   function resetCreate() {
     cr.form.reset(); clearPoints();
@@ -796,6 +917,7 @@
     $('#cr-km-help').textContent = t('g.cr.kmHelp');
   }
   function openCreate() {
+    if (store.unpaidFees(me).length) { openFee(true); return; }
     if (!hasMap) { toast('Mapa jest chwilowo niedostępna.'); return; }
     cr.dep.min = toLocalInput(Date.now());
     cr.arr.min = toLocalInput(Date.now());
@@ -804,10 +926,10 @@
       if (!crMap) {
         crMap = L.map('cr-map', { zoomControl: true }).setView([52.1, 19.4], 6);
         L.tileLayer(TILE, { maxZoom: 19, attribution: ATTR }).addTo(crMap);
-        crMap.on('click', (e) => addPoint(mode, e.latlng));
+        crMap.on('click', (e) => placeAt(mode, e.latlng));
       }
       crMap.invalidateSize();
-      if (!pts.A.length) setMode('A'); else updateSteps();
+      if (!pts.A.length && !pts.B.length) clearPoints(); else updateSteps();
       cr.q.focus();
     }, 80);
   }
@@ -816,16 +938,19 @@
     closeDlg(cr.dlg);
   }
   $$('[data-close]', cr.dlg).forEach((b) => b.addEventListener('click', () => closeCreate(false)));
-  cr.dlg.addEventListener('cancel', (e) => { e.preventDefault(); if (!cr.results.hidden) return; closeCreate(false); });
+  cr.dlg.addEventListener('cancel', (e) => { e.preventDefault(); if ($$('.cr-results:not([hidden])', cr.dlg).length) return; closeCreate(false); });
 
   cr.form.addEventListener('submit', (e) => {
     e.preventDefault();
     const errs = [];
     const fail = (input, key) => { crErr(input, key); errs.push(input); };
     const badLabel = (p) => !p.input.value.trim() || p.input.value === t('g.cr.locating');
+    const unpicked = (p) => p.lat == null && p.input.value.trim();
     ['A', 'B'].forEach((w) => {
-      if (!pts[w].length) { listErr(w, w === 'A' ? 'g.e.from' : 'g.e.to'); errs.push(cr.list[w].parentNode.querySelector('[data-add]')); }
-      else if (pts[w].some(badLabel)) { listErr(w, 'g.e.label'); errs.push(pts[w].find(badLabel).input); }
+      const firstInput = () => (pts[w][0] ? pts[w][0].input : cr.list[w].parentNode.querySelector('[data-add]'));
+      if (pts[w].some(unpicked)) { listErr(w, 'g.e.pick'); errs.push(pts[w].find(unpicked).input); }
+      else if (!located(w).length) { listErr(w, w === 'A' ? 'g.e.from' : 'g.e.to'); errs.push(firstInput()); }
+      else if (located(w).some(badLabel)) { listErr(w, 'g.e.label'); errs.push(located(w).find(badLabel).input); }
     });
     const dep = fromInput(cr.dep.value), arr = fromInput(cr.arr.value);
     if (isNaN(dep) || dep < Date.now() - 6e4) fail(cr.dep, 'g.e.dep');
@@ -834,9 +959,10 @@
     const km = +cr.km.value; if (!(km > 0)) fail(cr.km, 'g.e.km');
     const rate = +cr.rate.value; if (!(rate > 0)) fail(cr.rate, 'g.e.rate');
     if (errs.length) { errs[0].focus(); return; }
+    if (store.unpaidFees(me).length) { closeCreate(true); openFee(true); return; }
     const plain = (p) => ({ label: p.input.value.trim(), lat: p.lat, lng: p.lng });
     const o = store.add({
-      pickups: pts.A.map(plain), drops: pts.B.map(plain),
+      pickups: located('A').map(plain), drops: located('B').map(plain),
       dep, arr, km: Math.round(km), rate: Math.round(rate), pax, urgent: cr.urgent.checked, notes: cr.notes.value.trim(),
     }, me);
     crDirty = false;

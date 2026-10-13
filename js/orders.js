@@ -6,15 +6,22 @@
  *
  * Zlecenie może mieć kilka miejsc odbioru (pickups) i kilka miejsc docelowych (drops);
  * from = pierwsze miejsce odbioru, to = pierwsze miejsce docelowe (to pokazujemy na mapie).
+ *
+ * Opłaty dla zlecających (FEE zł): anulowanie zlecenia oraz zlecenie, którego nikt nie podjął
+ * przed godziną odjazdu. Nieopłacona opłata blokuje wystawianie kolejnych zleceń.
  */
 (function () {
   const KEY = 'anws-orders';
   const SEED_FLAG = 'anws-orders-seeded-v2';
+  const FEES_KEY = 'anws-fees';
+  const FEE = 100;
 
   const safe = (fn, fallback) => { try { return fn(); } catch (e) { return fallback; } };
   const load = () => safe(() => JSON.parse(localStorage.getItem(KEY)) || [], []);
   const save = (v) => safe(() => localStorage.setItem(KEY, JSON.stringify(v)));
   const auth = () => window.ANWSAuth;
+  const loadFees = () => safe(() => JSON.parse(localStorage.getItem(FEES_KEY)) || [], []);
+  const saveFees = (v) => safe(() => localStorage.setItem(FEES_KEY, JSON.stringify(v)));
 
   // Prowizja wg cennika: do 2 500 zł — 2,5%, 2 500–10 000 zł — 2%, powyżej 10 000 zł — 3%
   function commission(rate) {
@@ -111,17 +118,89 @@
     }
   }
 
+  // Zlecenia otwarte, których nikt nie podjął przed odjazdem: status „expired” + nieopłacona opłata dla zlecającego
+  function sweep(orders) {
+    const now = Date.now();
+    const late = orders.filter((o) => o.status === 'open' && o.dep <= now);
+    if (!late.length) return orders;
+    const fees = loadFees();
+    late.forEach((o) => {
+      o.status = 'expired';
+      o.expiredAt = now;
+      const fee = { id: 'f' + now.toString(36) + o.id, login: o.owner, orderId: o.id, type: 'expired', amount: FEE, route: routeText(o), dep: o.dep, at: now, paid: false };
+      fees.push(fee);
+      const A = auth();
+      if (A && A.notify) {
+        A.notify(o.owner, {
+          type: 'expired', orderId: o.id, route: routeText(o), amount: FEE,
+          subject: 'Nikt nie podjął Twojego zlecenia — opłata ' + FEE + ' zł',
+          body: `Dzień dobry! Twoje zlecenie ${routeText(o)} z wyjazdem ${when(o.dep)} nie zostało podjęte przez żadnego przewoźnika przed godziną odjazdu. Zgodnie z cennikiem naliczyliśmy opłatę ${FEE} zł. Do czasu jej opłacenia nie możesz wystawiać nowych zleceń — opłatę uregulujesz na giełdzie ANWS w zakładce „Twoje zlecenia”.`,
+        });
+      }
+    });
+    save(orders);
+    saveFees(fees);
+    return orders;
+  }
+
   window.ANWSOrders = {
-    list() { ensureSeed(); return load(); },
+    FEE,
+    list() { ensureSeed(); return sweep(load()); },
     get(id) { return this.list().find((o) => o.id === id) || null; },
 
-    // zlecenia, które jeszcze się nie zakończyły
-    active() { const now = Date.now(); return this.list().filter((o) => o.arr > now); },
+    // zlecenia widoczne na giełdzie: nieanulowane, niewygasłe i jeszcze niezakończone
+    active() { const now = Date.now(); return this.list().filter((o) => o.arr > now && o.status !== 'cancelled' && o.status !== 'expired'); },
+
+    // wygasłe zlecenia użytkownika z nieopłaconą opłatą (pokazujemy je w „Twoich zleceniach”, żeby dało się zapłacić)
+    unpaidExpired(login) {
+      const ids = new Set(this.unpaidFees(login).map((f) => f.orderId));
+      return this.list().filter((o) => o.owner === login && o.status === 'expired' && ids.has(o.id));
+    },
 
     counts(login) {
       const a = this.active();
       const open = a.filter((o) => o.status === 'open');
-      return { all: open.length, urgent: open.filter((o) => o.urgent).length, mine: login ? a.filter((o) => o.owner === login).length : 0 };
+      const mine = login ? a.filter((o) => o.owner === login).length + this.unpaidExpired(login).length : 0;
+      return { all: open.length, urgent: open.filter((o) => o.urgent).length, mine };
+    },
+
+    fees(login) { this.list(); return loadFees().filter((f) => f.login === login); },
+    unpaidFees(login) { return this.fees(login).filter((f) => !f.paid); },
+    feeFor(orderId) { return loadFees().find((f) => f.orderId === orderId) || null; },
+
+    // Opłacenie kary (prototyp: bez bramki płatności — kliknięcie „Zapłać” oznacza opłatę jako zapłaconą)
+    payFee(feeId, login) {
+      const fees = loadFees();
+      const f = fees.find((x) => x.id === feeId && x.login === login);
+      if (!f || f.paid) return false;
+      f.paid = true; f.paidAt = Date.now();
+      saveFees(fees);
+      return true;
+    },
+
+    // Anulowanie własnego zlecenia — z opłatą FEE zł (płatną od razu)
+    cancel(id, login) {
+      const orders = this.list();
+      const o = orders.find((x) => x.id === id);
+      if (!o || o.owner !== login || (o.status !== 'open' && o.status !== 'reserved')) return false;
+      const now = Date.now();
+      const wasReservedBy = o.status === 'reserved' ? o.reservedBy : null;
+      o.status = 'cancelled';
+      o.cancelledAt = now;
+      save(orders);
+      const fees = loadFees();
+      fees.push({ id: 'f' + now.toString(36), login, orderId: o.id, type: 'cancel', amount: FEE, route: routeText(o), dep: o.dep, at: now, paid: true, paidAt: now });
+      saveFees(fees);
+      const A = auth();
+      if (A && A.notify && wasReservedBy) {
+        const name = A.nameOf(login);
+        A.notify(wasReservedBy, {
+          type: 'cancelled', orderId: o.id, by: login, byName: name, route: routeText(o),
+          subject: 'Zarezerwowane przez Ciebie zlecenie zostało anulowane',
+          body: `Dzień dobry! Zlecający ${name} anulował zlecenie ${routeText(o)} z wyjazdem ${when(o.dep)}, które było przez Ciebie zarezerwowane. Kurs nie dojdzie do skutku — znajdź kolejne zlecenie na giełdzie ANWS.`,
+        });
+      }
+      return true;
     },
 
     add(d, owner) {

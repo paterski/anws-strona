@@ -30,6 +30,8 @@
     user: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 20.5c.9-4 3.9-6 7.5-6s6.6 2 7.5 6"></path></svg>',
     bell: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg>',
     reserve: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>',
+    expired: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5V12l3 2"></path></svg>',
+    cancelled: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"></path></svg>',
     offer: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12V5a2 2 0 0 1 2-2h7l9 9-9 9z"></path><circle cx="8" cy="8" r="1.6" fill="currentColor"></circle></svg>',
   };
 
@@ -84,10 +86,15 @@
       list.slice(0, 20).forEach((x) => {
         const li = el('li', 'ap-item' + (newIds.has(x.id) ? ' is-new' : ''));
         const a = el('a');
-        a.href = 'lista-zlecen.html?moje=1';
+        a.href = x.type === 'cancelled' ? 'lista-zlecen.html' : 'lista-zlecen.html?moje=1';
         const ic = el('span', 'ap-ic ' + x.type); ic.innerHTML = ICON[x.type] || ICON.bell; ic.setAttribute('aria-hidden', 'true');
         const txt = el('span', 'ap-text');
-        txt.appendChild(el('span', null, x.type === 'reserve' ? t('n.reserve', { x: x.byName || x.by }) : t('n.offer', { x: x.byName || x.by, y: zl(x.rate) })));
+        const who = x.byName || x.by;
+        const msg = x.type === 'reserve' ? t('n.reserve', { x: who })
+          : x.type === 'expired' ? t('n.expired', { x: zl(x.amount || 100) })
+          : x.type === 'cancelled' ? t('n.cancelled', { x: who })
+          : t('n.offer', { x: who, y: zl(x.rate) });
+        txt.appendChild(el('span', null, msg));
         txt.appendChild(el('small', null, x.route));
         txt.appendChild(el('small', null, ago(x.at)));
         a.append(ic, txt);
