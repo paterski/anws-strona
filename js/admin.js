@@ -81,7 +81,6 @@
       row(dl, 'KRS', r.krs || t('adm.f.krsNone'), r.krs ? 'https://wyszukiwarka-krs.ms.gov.pl/' : null);
       row(dl, 'REGON', r.regon);
       row(dl, t('adm.f.pkd'), r.pkd && r.pkd.length ? r.pkd.join(', ') : t('adm.f.none'));
-      row(dl, t('adm.f.licence'), r.licence ? r.licence + ' ' + t('adm.f.licenceCheck') : t('adm.f.none'), r.licence ? 'https://www.gitd.gov.pl/' : null);
       row(dl, t('adm.f.person'), r.contactName);
       row(dl, t('auth.login'), r.login);
       row(dl, 'E-mail', r.email, 'mailto:' + r.email);

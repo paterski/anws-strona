@@ -560,44 +560,4 @@
     function kick() { if (!raf) raf = requestAnimationFrame(frame); }
     narrow.addEventListener('change', kick);
   }
-
-  /* ------------------------------------------------------------------
-     Kursor (tylko myszka): kropka + pierścień, jak w projekcie kominków
-     ------------------------------------------------------------------ */
-  const cursor = $('.cursor');
-  if (cursor && finePointer.matches) {
-    root.classList.add('has-cursor');
-    const dot = $('.cursor-dot');
-    const ring = $('.cursor-ring');
-    let tx = -100, ty = -100, rx = -100, ry = -100, raf = 0;
-    const tick = () => {
-      rx += (tx - rx) * 0.2;
-      ry += (ty - ry) * 0.2;
-      dot.style.transform = `translate(${tx}px, ${ty}px)`;
-      ring.style.transform = `translate(${rx}px, ${ry}px)`;
-      raf = Math.abs(tx - rx) + Math.abs(ty - ry) > 0.1 ? requestAnimationFrame(tick) : 0;
-    };
-    const kick = () => { if (!raf) raf = requestAnimationFrame(tick); };
-    const HOVERABLE = 'a:not(.footer-copy), button, label, input, textarea, summary, .tile'; // © w stopce ma nie zdradzać, że jest linkiem
-    addEventListener('pointermove', (e) => {
-      tx = e.clientX; ty = e.clientY;
-      cursor.classList.remove('is-hidden');
-      kick();
-    }, { passive: true });
-    document.addEventListener('pointerleave', () => cursor.classList.add('is-hidden'));
-    document.addEventListener('pointerover', (e) => {
-      cursor.classList.toggle('is-hover', !!(e.target.closest && e.target.closest(HOVERABLE)));
-    });
-    document.addEventListener('pointerdown', () => cursor.classList.add('is-down'));
-    document.addEventListener('pointerup', () => cursor.classList.remove('is-down'));
-    // <dialog> otwarty modalnie leży w warstwie wierzchniej przeglądarki, ponad
-    // całą stroną — kursor przenosimy do środka, żeby dalej był widoczny.
-    const home = cursor.parentNode;
-    const follow = (muts) => {
-      const d = muts[0].target;
-      const target = d.open ? d : ($$('dialog[open]').pop() || home);
-      if (cursor.parentNode !== target) target.appendChild(cursor);
-    };
-    $$('dialog').forEach((d) => new MutationObserver(follow).observe(d, { attributes: true, attributeFilter: ['open'] }));
-  }
 })();

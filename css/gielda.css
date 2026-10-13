@@ -241,10 +241,6 @@ th[aria-sort="ascending"] .th-sort, th[aria-sort="descending"] .th-sort { color:
 :root[data-theme="dark"] .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.88) contrast(.92) saturate(.55); }
 .leaflet-control-attribution { font-size: 10.5px; }
 .leaflet-bar a { color: #1B1D22; }
-/* Leaflet ustawia własny kursor (grab/crosshair) na swoich elementach, nad naszym
-   „cursor: none” z html — bez tego nadpisania systemowy kursor wracał nad mapą. */
-.has-cursor .leaflet-container, .has-cursor .leaflet-interactive, .has-cursor .leaflet-marker-icon,
-.has-cursor .leaflet-grab, .has-cursor .leaflet-dragging .leaflet-container { cursor: none; }
 
 /* pinezki w kształcie kropli */
 .mk { position: relative; display: block; width: 30px; height: 30px; }
@@ -256,6 +252,7 @@ th[aria-sort="ascending"] .th-sort, th[aria-sort="descending"] .th-sort { color:
 .leaflet-marker-icon.is-hl-wrap { z-index: 999 !important; }
 .mk-a i { background: var(--bubble-olive); }
 .mk-b i { background: var(--ln-a); }
+.mk-c i { background: var(--bubble-gold); }
 
 .leaflet-popup-content-wrapper { border-radius: 16px; background: var(--menu-bg); color: var(--ink); box-shadow: 0 16px 40px rgba(0, 0, 0, .25); }
 .leaflet-popup-tip { background: var(--menu-bg); }
@@ -294,7 +291,11 @@ th[aria-sort="ascending"] .th-sort, th[aria-sort="descending"] .th-sort { color:
 .stop-row.is-empty .cr-pin { opacity: .55; }
 .stop-row input::placeholder { color: var(--ink-muted); opacity: .8; }
 .cr-stops .link-btn { padding: 2px 0; }
-.mk-a b, .mk-b b { font-size: 10px; }
+.mk-a b, .mk-b b, .mk-c b { font-size: 10px; }
+
+/* koniec trasy (C): jedno pole, domyślnie puste */
+#cr-return[disabled] { opacity: .45; cursor: default; text-decoration: none; }
+.tag-end { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: rgba(168, 121, 63, .16); color: var(--ink); font-size: 11.5px; font-weight: 700; }
 
 /* ---------- powiadomienie (toast) ---------- */
 
@@ -321,6 +322,7 @@ th[aria-sort="ascending"] .th-sort, th[aria-sort="descending"] .th-sort { color:
 .cr-pin { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; color: #fff; font: 700 12px var(--font-display); vertical-align: middle; }
 .cr-pin-a { background: var(--bubble-olive); }
 .cr-pin-b { background: var(--ln-a); color: var(--ln-a-ink); }
+.cr-pin-c { background: var(--bubble-gold); }
 .cr-search { position: relative; display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 14px; border-radius: 14px; border: 1.5px solid var(--input-border); background: var(--input-bg); color: var(--ink-muted); }
 .cr-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px var(--input-ring); }
 .cr-search input { flex: 1; min-width: 0; height: 100%; border: 0; background: none; color: var(--ink); font: 500 15px var(--font-body); outline: none; }
@@ -371,6 +373,8 @@ th[aria-sort="ascending"] .th-sort, th[aria-sort="descending"] .th-sort { color:
 @media (max-width: 1360px) {
   .an-btn { padding: 0 14px 0 7px; font-size: 14px; }
   .app-head .social { display: none; }
+  .app-head .acct-logout { width: var(--btn, 44px); padding: 0; justify-content: center; }
+  .app-head .acct-logout span { display: none; }
 }
 @media (max-width: 1240px) {
   .uc-text { display: none; }
@@ -406,7 +410,7 @@ th[aria-sort="ascending"] .th-sort, th[aria-sort="descending"] .th-sort { color:
 }
 @media (max-width: 640px) {
   .app-head .logo { --logo-w: 74px; }
-  .app-head .user-chip, .app-head #logout, .app-head .nav-sep { display: none; }
+  .app-head .user-chip, .app-head .nav-sep { display: none; }
   .app-head .acct-panel { position: fixed; top: 64px; right: 12px; }
   .gl-top { padding: 14px 14px 10px; }
   .gl-scroll { padding: 0 8px 20px; }

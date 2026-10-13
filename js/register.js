@@ -32,7 +32,7 @@
   const strengthLabel = $('#reg-strength-label', dlg);
 
   const f = {
-    nip: $('#reg-nip', dlg), company: $('#reg-company', dlg), licence: $('#reg-licence', dlg),
+    nip: $('#reg-nip', dlg), company: $('#reg-company', dlg),
     person: $('#reg-person', dlg), email: $('#reg-email', dlg),
     phone: $('#reg-phone', dlg), alarm: $('#reg-alarm', dlg), login: $('#reg-login', dlg),
     pass: $('#reg-pass', dlg), consent: $('#reg-consent', dlg),
@@ -43,7 +43,6 @@
 
   let result = null;      // ostatni wynik weryfikacji
   let checking = null;    // trwające sprawdzanie (Promise)
-  let dirty = false;
   let busy = false;
 
   /* ---------- otwieranie / zamykanie ---------- */
@@ -53,15 +52,18 @@
     panel.scrollTop = 0;
     setTimeout(() => f.nip.focus(), 30);
   }
-  function close(force) {
+  function close() {
     if (!dlg.open || dlg.classList.contains('is-closing')) return;
-    if (!force && dirty && done.hidden && !confirm(t('reg.discard'))) return;
     dlg.classList.add('is-closing');
     setTimeout(() => { dlg.close(); dlg.classList.remove('is-closing'); if (!done.hidden) resetForm(); }, reduce() ? 0 : 160);
   }
-  $$('[data-reg-close]', dlg).forEach((b) => b.addEventListener('click', () => close(!done.hidden)));
-  dlg.addEventListener('cancel', (e) => { e.preventDefault(); close(!done.hidden); });
-  // kliknięcie w tło NIE zamyka długiego formularza (łatwo stracić dane) — tylko X lub Esc
+  $$('[data-reg-close]', dlg).forEach((b) => b.addEventListener('click', () => close()));
+  dlg.addEventListener('cancel', (e) => { e.preventDefault(); close(); });
+  // kliknięcie w tło zamyka okno; wpisane dane zostają w formularzu do ponownego otwarcia.
+  // Liczy się tylko kliknięcie zaczęte na tle (zaznaczanie tekstu poza okno go nie zamyka).
+  let downOnBackdrop = false;
+  dlg.addEventListener('pointerdown', (e) => { downOnBackdrop = e.target === dlg; });
+  dlg.addEventListener('click', (e) => { if (e.target === dlg && downOnBackdrop) close(); });
 
   document.addEventListener('click', (e) => {
     const a = e.target.closest && e.target.closest('[data-open-register]');
@@ -73,12 +75,12 @@
   });
   $('[data-open-login]', dlg).addEventListener('click', (e) => {
     e.preventDefault();
-    close(true);
+    close();
     if (window.ANWSOpenAuth) setTimeout(() => window.ANWSOpenAuth(), reduce() ? 0 : 180);
   });
 
   function resetForm() {
-    form.reset(); dirty = false; result = null;
+    form.reset(); result = null;
     $$('[aria-invalid]', form).forEach((i) => i.removeAttribute('aria-invalid'));
     $$('.field-err', form).forEach((e) => { e.hidden = true; });
     summary.hidden = true;
@@ -191,7 +193,6 @@
     if (!summaryList.children.length) summary.hidden = true;
   }
   form.addEventListener('input', (e) => {
-    dirty = true;
     const i = e.target;
     if (i.id && i.id !== 'reg-nip' && i.getAttribute('aria-invalid')) clearErr(i);
   });
@@ -227,7 +228,6 @@
   const validLogin = (v) => /^[a-zA-Z0-9._-]{3,30}$/.test(v.trim());
   const validPass = (v) => v.length >= 8 && /\p{L}/u.test(v) && /\d/.test(v);
   const validPerson = (v) => /^\p{L}[\p{L}'’.-]*(\s+\p{L}[\p{L}'’.-]*)+$/u.test(v.trim()) && v.trim().length <= 80;
-  const validLicence = (v) => /^[\p{L}\d][\p{L}\d\s/.-]{2,39}$/u.test(v.trim()) && /\d/.test(v);
 
   function validate() {
     const errors = [];
@@ -236,7 +236,6 @@
     if (!nip) add(f.nip, 'reg.e.nip');
     else if (!verify.nipValid(nip)) add(f.nip, 'v.checksum');
     else if (!result || !result.ok || result.nip !== nip || result.type !== type()) add(f.nip, 'reg.e.verify');
-    if (!validLicence(f.licence.value)) add(f.licence, 'reg.e.licence');
     if (!validPerson(f.person.value)) add(f.person, 'reg.e.person');
     if (!validEmail(f.email.value)) add(f.email, 'reg.e.email');
     splitIntl(f.phone, cc.phone); splitIntl(f.alarm, cc.alarm);
@@ -287,7 +286,7 @@
       type: type(), login: f.login.value.trim(), password: f.pass.value,
       company: result.company.name, nip, krs: result.company.krs, regon: result.company.regon,
       pkd: (result.matched || []).map((m) => m.code),
-      licence: f.licence.value.trim().toUpperCase(), contactName: f.person.value.trim().replace(/\s+/g, ' '),
+      contactName: f.person.value.trim().replace(/\s+/g, ' '),
       phone: e164(f.phone, cc.phone), alarmPhone: e164(f.alarm, cc.alarm), email: f.email.value.trim(),
     });
     busy = false;
