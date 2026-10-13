@@ -31,7 +31,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="css/style.css?v=202610131738">
+<link rel="stylesheet" href="css/style.css?v=202610131813">
 </head>
 <body>
 <!-- loader: logo, droga z paskiem postępu i autobusem; przejście wybierane w js/main.js (?loader=) -->
@@ -217,26 +217,29 @@
       <section class="tiles" aria-label="Wybierz, co chcesz zrobić" data-i18n-aria="tiles.label">
 
         <div class="in t4 tile-wrap">
-          <a href="lista-zlecen.html?nowe=1" class="tile tile-create" data-auth>
+          <a href="lista-zlecen.html?pilne=1" class="tile tile-urgent" data-auth>
             <span class="glow" aria-hidden="true"></span>
             <div class="tile-top">
-              <span class="bubble bubble-olive" aria-hidden="true">
-                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><g class="ic-plus"><path d="M12 5v14M5 12h14"></path></g></svg>
+              <span class="bubble bubble-gold" aria-hidden="true">
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><g class="ic-bolt"><path d="M13 2.5 5 13.5h6l-1 8 8-11h-6z"></path></g></svg>
               </span>
-              <h2 class="tile-title" data-i18n="t1.title">Utwórz zlecenie</h2>
-              <span class="tile-num" aria-hidden="true">01</span>
+              <h2 class="tile-title" data-i18n="t3.title">Pilne przewozy!</h2>
+              <span class="tile-num tile-tag" data-i18n="t3.tag">Premium</span>
             </div>
-            <div class="tile-text">
-              <span class="tile-desc desc-long" data-i18n="t1.long">Podaj trasę, termin i liczbę pasażerów. Przewoźnicy zobaczą Twoje zlecenie i odpowiedzą ofertą.</span>
-              <span class="tile-desc desc-short" data-i18n="t1.short">Podaj trasę, termin i liczbę pasażerów. Przewoźnicy odpowiedzą ofertą.</span>
+            <span class="count" data-count-wrap>
+              <b data-count="urgent">—</b>
+              <span data-i18n="t3.count">zleceń premium</span>
+            </span>
+            <div class="mboard mboard-urgent" data-board="urgent">
+              <div class="mb-head" aria-hidden="true"><span data-i18n="mb.urgent">Najbliższe</span><span data-i18n="mb.rate">Stawka netto</span></div>
+              <ol class="mb-list" aria-label="Najbliższe zlecenia" data-i18n-aria="mb.urgent"></ol>
             </div>
             <span class="cta">
-              <span data-i18n="t1.cta">Rozpocznij</span>
+              <span data-i18n="t3.cta">Zobacz zlecenia na już</span>
               <span class="cta-arrow" aria-hidden="true"><svg class="arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></span>
             </span>
           </a>
         </div>
-
         <div class="in t5 tile-wrap">
           <a href="lista-zlecen.html" class="tile tile-find" data-auth>
             <span class="glow" aria-hidden="true"></span>
@@ -251,9 +254,9 @@
               <b data-count="all">—</b>
               <span data-i18n="t2.count">zleceń w bazie</span>
             </span>
-            <div class="tile-text">
-              <span class="tile-desc desc-long" data-i18n="t2.long">Przeglądaj dostępne przewozy według trasy i daty. Wybierz te, które pasują do Twojej floty.</span>
-              <span class="tile-desc desc-short" data-i18n="t2.short">Przeglądaj przewozy według trasy i daty. Wybierz te dla swojej floty.</span>
+            <div class="mboard mboard-list" data-board="list">
+              <div class="mb-head" aria-hidden="true"><span data-i18n="mb.list">Najbliższe</span><span data-i18n="mb.rate">Stawka netto</span></div>
+              <ol class="mb-list" aria-label="Najbliższe zlecenia" data-i18n-aria="mb.list"></ol>
             </div>
             <span class="cta">
               <span data-i18n="t2.cta">Przeglądaj zlecenia</span>
@@ -263,25 +266,26 @@
         </div>
 
         <div class="in t6 tile-wrap">
-          <a href="lista-zlecen.html?pilne=1" class="tile tile-urgent" data-auth>
+          <a href="lista-zlecen.html?nowe=1" class="tile tile-create" data-auth>
             <span class="glow" aria-hidden="true"></span>
             <div class="tile-top">
-              <span class="bubble bubble-gold" aria-hidden="true">
-                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><g class="ic-bolt"><path d="M13 2.5 5 13.5h6l-1 8 8-11h-6z"></path></g></svg>
+              <span class="bubble bubble-olive" aria-hidden="true">
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><g class="ic-plus"><path d="M12 5v14M5 12h14"></path></g></svg>
               </span>
-              <h2 class="tile-title" data-i18n="t3.title">Pilne przewozy!</h2>
-              <span class="tile-num tile-tag" data-i18n="t3.tag">Premium</span>
+              <h2 class="tile-title" data-i18n="t1.title">Utwórz zlecenie</h2>
+              <span class="tile-num" aria-hidden="true">03</span>
             </div>
-            <span class="count" data-count-wrap>
-              <b data-count="urgent">—</b>
-              <span data-i18n="t3.count">zleceń premium</span>
-            </span>
+            <div class="tile-text">
+              <span class="tile-desc desc-long" data-i18n="t1.long">Podaj trasę, termin i liczbę pasażerów. Przewoźnicy zobaczą Twoje zlecenie i odpowiedzą ofertą.</span>
+              <span class="tile-desc desc-short" data-i18n="t1.short">Podaj trasę, termin i liczbę pasażerów. Przewoźnicy odpowiedzą ofertą.</span>
+            </div>
             <span class="cta">
-              <span data-i18n="t3.cta">Zobacz zlecenia na już</span>
+              <span data-i18n="t1.cta">Rozpocznij</span>
               <span class="cta-arrow" aria-hidden="true"><svg class="arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></span>
             </span>
           </a>
         </div>
+
       </section>
 
       <!-- pasek rodzajów przewozów (treść budowana w js/main.js z tłumaczeń) -->
@@ -590,7 +594,7 @@
       </fieldset>
 
       <fieldset class="reg-group">
-        <legend data-i18n="reg.loginLegend">Dane logowania</legend>
+        <legend data-i18n="reg.loginLegend">Utwórz login i hasło</legend>
         <div class="reg-cols">
           <div class="field">
             <label for="reg-login" data-i18n="auth.login">Login</label>
@@ -643,13 +647,13 @@
   </div>
 </dialog>
 
-<script src="js/i18n.js?v=202610131738"></script>
-<script src="js/auth.js?v=202610131738"></script>
-<script src="js/orders.js?v=202610131738"></script>
-<script src="js/verify.js?v=202610131738"></script>
-<script src="js/main.js?v=202610131738" defer></script>
-<script src="js/account.js?v=202610131738" defer></script>
-<script src="js/forgot.js?v=202610131738" defer></script>
-<script src="js/register.js?v=202610131738" defer></script>
+<script src="js/i18n.js?v=202610131813"></script>
+<script src="js/auth.js?v=202610131813"></script>
+<script src="js/orders.js?v=202610131813"></script>
+<script src="js/verify.js?v=202610131813"></script>
+<script src="js/main.js?v=202610131813" defer></script>
+<script src="js/account.js?v=202610131813" defer></script>
+<script src="js/forgot.js?v=202610131813" defer></script>
+<script src="js/register.js?v=202610131813" defer></script>
 </body>
 </html>
