@@ -6,6 +6,7 @@
  *
  * Zlecenie może mieć kilka miejsc odbioru (pickups) i kilka miejsc docelowych (drops);
  * from = pierwsze miejsce odbioru, to = pierwsze miejsce docelowe (to pokazujemy na mapie).
+ * end = opcjonalny koniec trasy (np. powrót na pusto do bazy albo wycieczka objazdowa), inaczej null.
  *
  * Opłaty dla zlecających: anulowanie zlecenia (CANCEL_FEE zł) oraz zlecenie, którego nikt nie podjął
  * przed godziną odjazdu (EXPIRE_FEE zł). Nieopłacona opłata blokuje wystawianie kolejnych zleceń.
@@ -40,7 +41,7 @@
   }
   const pathKm = (pts) => pts.slice(1).reduce((s, p, i) => s + haversine(pts[i], p), 0);
 
-  const stops = (o) => ({ pickups: o.pickups && o.pickups.length ? o.pickups : [o.from], drops: o.drops && o.drops.length ? o.drops : [o.to] });
+  const stops = (o) => ({ pickups: o.pickups && o.pickups.length ? o.pickups : [o.from], drops: o.drops && o.drops.length ? o.drops : [o.to], end: o.end || null });
   const routeText = (o) => o.from.label + ' → ' + o.to.label;
   const when = (ms) => new Date(ms).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' });
 
@@ -136,8 +137,8 @@
       if (A && A.notify) {
         A.notify(o.owner, {
           type: 'expired', orderId: o.id, route: routeText(o), amount: EXPIRE_FEE,
-          subject: 'Nikt nie podjął Twojego zlecenia — opłata ' + EXPIRE_FEE + ' zł',
-          body: `Dzień dobry! Twoje zlecenie ${routeText(o)} z wyjazdem ${when(o.dep)} nie zostało podjęte przez żadnego przewoźnika przed godziną odjazdu. Zgodnie z cennikiem naliczyliśmy opłatę ${EXPIRE_FEE} zł. Do czasu jej opłacenia nie możesz wystawiać nowych zleceń — opłatę uregulujesz na giełdzie ANWS w zakładce „Twoje zlecenia”.`,
+          subject: 'Nikt nie podjął Twojego zlecenia — opłata ' + EXPIRE_FEE + ' zł netto',
+          body: `Dzień dobry! Twoje zlecenie ${routeText(o)} z wyjazdem ${when(o.dep)} nie zostało podjęte przez żadnego przewoźnika przed godziną odjazdu. Zgodnie z cennikiem naliczyliśmy opłatę ${EXPIRE_FEE} zł netto. Do czasu jej opłacenia nie możesz wystawiać nowych zleceń — opłatę uregulujesz na giełdzie ANWS w zakładce „Twoje zlecenia”.`,
         });
       }
     });
@@ -216,7 +217,7 @@
       const orders = this.list();
       const pickups = d.pickups, drops = d.drops;
       const o = {
-        id: 'o' + Date.now().toString(36), from: pickups[0], to: drops[0], pickups, drops, dep: d.dep, arr: d.arr,
+        id: 'o' + Date.now().toString(36), from: pickups[0], to: drops[0], pickups, drops, end: d.end || null, dep: d.dep, arr: d.arr,
         km: d.km, rate: d.rate, pax: d.pax, urgent: !!d.urgent, notes: d.notes || '',
         owner, createdAt: Date.now(), status: 'open', offers: [],
       };
@@ -241,7 +242,7 @@
         A.notify(o.owner, {
           type: 'reserve', orderId: o.id, by: login, byName: name, route: routeText(o),
           subject: 'Twoje zlecenie zostało zarezerwowane',
-          body: `Dzień dobry! Przewoźnik ${name} zarezerwował Twoje zlecenie: ${routeText(o)}, wyjazd ${when(o.dep)}, stawka ${o.rate} zł. Szczegóły znajdziesz na giełdzie ANWS w zakładce „Twoje zlecenia”.`,
+          body: `Dzień dobry! Przewoźnik ${name} zarezerwował Twoje zlecenie: ${routeText(o)}, wyjazd ${when(o.dep)}, stawka ${o.rate} zł netto. Szczegóły znajdziesz na giełdzie ANWS w zakładce „Twoje zlecenia”.`,
         });
       }
       return true;
@@ -261,7 +262,7 @@
         A.notify(o.owner, {
           type: 'offer', orderId: o.id, by: login, byName: name, rate, route: routeText(o),
           subject: 'Nowa propozycja stawki do Twojego zlecenia',
-          body: `Dzień dobry! Przewoźnik ${name} proponuje ${rate} zł (zamiast ${o.rate} zł) za Twoje zlecenie: ${routeText(o)}, wyjazd ${when(o.dep)}.${message ? ' Wiadomość: „' + message + '”.' : ''} Odpowiedz na giełdzie ANWS w zakładce „Twoje zlecenia”.`,
+          body: `Dzień dobry! Przewoźnik ${name} proponuje ${rate} zł netto (zamiast ${o.rate} zł netto) za Twoje zlecenie: ${routeText(o)}, wyjazd ${when(o.dep)}.${message ? ' Wiadomość: „' + message + '”.' : ''} Odpowiedz na giełdzie ANWS w zakładce „Twoje zlecenia”.`,
         });
       }
       return true;

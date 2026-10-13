@@ -24,12 +24,12 @@
   const DEFAULT_ADMIN_HASH = '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918';
 
   // Trzy wnioski testowe — dane firm z publicznych rejestrów (Biała lista VAT, KRS), sprawdzone
-  // tym samym modułem weryfikacji co formularz. Osoby, e-maile, telefony i licencje są fikcyjne.
+  // tym samym modułem weryfikacji co formularz. Osoby, e-maile i telefony są fikcyjne.
   const SEED_HASH = '3e0afeb32bef3d9dca1931d9241ca68b24ca036792e4e49f8c8395d193350005';
   const SEED = [
-    { login: 'pks.mysliborz', company: 'PRZEDSIĘBIORSTWO KOMUNIKACJI SAMOCHODOWEJ W MYŚLIBORZU SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ', nip: '5971520791', krs: '0000116139', regon: '811925262', pkd: ['49.39.Z'], licence: 'TEST-0001', contactName: 'Jan Testowy', phone: '+48500000001', alarmPhone: '+48500000011', email: 'test1@example.com', hoursAgo: 26 },
-    { login: 'polbus', company: '"POLBUS-PKS" SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ', nip: '5221017639', krs: '0000008042', regon: '010930300', pkd: ['49.39.Z', '49.31.Z'], licence: 'TEST-0002', contactName: 'Anna Przykładowa', phone: '+48500000002', alarmPhone: '+48500000022', email: 'test2@example.com', hoursAgo: 5 },
-    { login: 'intertrans', company: '"INTERTRANS" PKS SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ', nip: '6931856002', krs: '0000936367', regon: '390688876', pkd: ['49.39.Z', '49.31.Z'], licence: 'TEST-0003', contactName: 'Piotr Próbny', phone: '+420600000003', alarmPhone: '+48500000033', email: 'test3@example.com', hoursAgo: 1 },
+    { login: 'pks.mysliborz', company: 'PRZEDSIĘBIORSTWO KOMUNIKACJI SAMOCHODOWEJ W MYŚLIBORZU SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ', nip: '5971520791', krs: '0000116139', regon: '811925262', pkd: ['49.39.Z'], contactName: 'Jan Testowy', phone: '+48500000001', alarmPhone: '+48500000011', email: 'test1@example.com', hoursAgo: 26 },
+    { login: 'polbus', company: '"POLBUS-PKS" SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ', nip: '5221017639', krs: '0000008042', regon: '010930300', pkd: ['49.39.Z', '49.31.Z'], contactName: 'Anna Przykładowa', phone: '+48500000002', alarmPhone: '+48500000022', email: 'test2@example.com', hoursAgo: 5 },
+    { login: 'intertrans', company: '"INTERTRANS" PKS SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ', nip: '6931856002', krs: '0000936367', regon: '390688876', pkd: ['49.39.Z', '49.31.Z'], contactName: 'Piotr Próbny', phone: '+420600000003', alarmPhone: '+48500000033', email: 'test3@example.com', hoursAgo: 1 },
   ];
 
   const KEY = 'anws-session';
@@ -70,7 +70,7 @@
       const r = Object.assign({ id: 'seed' + (i + 1), hash: SEED_HASH, type: 'carrier', status: 'pending', createdAt: at, consentAt: at, seed: true }, s);
       delete r.hoursAgo;
       regs.push(r);
-      out.push({ to: ADMIN_EMAIL, subject: `Nowy wniosek o rejestrację: ${s.company}`, body: `Firma ${s.company} (NIP ${s.nip}, licencja ${s.licence}) prosi o założenie konta „${s.login}”. Osoba do kontaktu: ${s.contactName}. Sprawdź i zaakceptuj wniosek w panelu administratora.`, at });
+      out.push({ to: ADMIN_EMAIL, subject: `Nowy wniosek o rejestrację: ${s.company}`, body: `Firma ${s.company} (NIP ${s.nip}) prosi o założenie konta „${s.login}”. Osoba do kontaktu: ${s.contactName}. Sprawdź i zaakceptuj wniosek w panelu administratora.`, at });
     });
     save(REG_KEY, regs.sort((a, b) => b.createdAt - a.createdAt));
     save(OUT_KEY, out.sort((a, b) => b.at - a.at).slice(0, 50));
@@ -153,14 +153,14 @@
         id: 'r' + Date.now().toString(36),
         login, hash: await sha256(d.password),
         type: 'carrier', company: d.company, nip: d.nip, krs: d.krs || '', regon: d.regon || '',
-        licence: d.licence || '', contactName: d.contactName || '',
+        contactName: d.contactName || '',
         pkd: d.pkd || [], phone: d.phone, alarmPhone: d.alarmPhone, email: d.email.trim(),
         consentAt: Date.now(), status: 'pending', createdAt: Date.now(),
       };
       regs.unshift(reg);
       save(REG_KEY, regs);
       mail(ADMIN_EMAIL, `Nowy wniosek o rejestrację: ${reg.company}`,
-        `Firma ${reg.company} (NIP ${reg.nip}, licencja ${reg.licence}) prosi o założenie konta „${reg.login}”. Osoba do kontaktu: ${reg.contactName}. Sprawdź i zaakceptuj wniosek w panelu administratora.`);
+        `Firma ${reg.company} (NIP ${reg.nip}) prosi o założenie konta „${reg.login}”. Osoba do kontaktu: ${reg.contactName}. Sprawdź i zaakceptuj wniosek w panelu administratora.`);
       return { ok: true };
     },
 

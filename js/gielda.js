@@ -82,7 +82,6 @@
     $('#uc-plan').textContent = t(kind === 'sub' ? 'g.plan.sub' : kind === 'free' ? 'g.plan.free' : 'g.plan.comm');
     chip.title = name + ' · ' + $('#uc-plan').textContent;
   }
-  $('#logout').addEventListener('click', () => { auth.logout(); location.href = 'index.html'; });
 
   /* ---------- stan filtrów i sortowania ---------- */
   const params = new URLSearchParams(location.search);
@@ -111,7 +110,7 @@
       if (state.paxMax != null && o.pax > state.paxMax) return false;
       if (q) {
         const st = store.stops(o);
-        if (!st.pickups.concat(st.drops).some((x) => norm(x.label).includes(q))) return false;
+        if (!st.pickups.concat(st.drops, st.end ? [st.end] : []).some((x) => norm(x.label).includes(q))) return false;
       }
       return true;
     });
@@ -178,6 +177,12 @@
     meta.push(el('span', null, t('g.pax', { x: o.pax })));
     const toMeta = [];
     if (st.drops.length > 1) toMeta.push(moreChip(st.drops, 'g.moreDropT'));
+    if (st.end) {
+      const back = st.end.lat === o.from.lat && st.end.lng === o.from.lng;
+      const c = el('span', 'tag-end', back ? t('g.endReturn') : t('g.endTag', { x: st.end.label }));
+      c.title = t('g.endTag', { x: st.end.label });
+      toMeta.push(c);
+    }
     if (o.notes) toMeta.push(el('span', null, o.notes.length > 60 ? o.notes.slice(0, 57) + '…' : o.notes));
 
     const td = (child, cls) => { const c = el('td', cls); if (child) c.appendChild(child); tr.appendChild(c); return c; };
@@ -463,13 +468,15 @@
     if (map && o) {
       const css = getComputedStyle(root);
       const st = store.stops(o);
-      const all = st.pickups.concat(st.drops);
+      const all = st.pickups.concat(st.drops, st.end ? [st.end] : []);
       const shown = state.mapMode === 'dep' ? o.from : o.to;
       const layers = [L.polyline(all.map((x) => [x.lat, x.lng]), { color: css.getPropertyValue('--accent').trim() || '#6B7F42', weight: 3, dashArray: '6 8', opacity: .9 })];
       all.forEach((x, i) => {
         if (x === shown || (x.lat === shown.lat && x.lng === shown.lng)) return;
         const pick = i < st.pickups.length;
-        layers.push(L.circleMarker([x.lat, x.lng], { radius: 6, color: pick ? (css.getPropertyValue('--bubble-olive').trim() || '#6B7F42') : (css.getPropertyValue('--ln-a').trim() || '#3A1F3D'), weight: 3, fillColor: '#fff', fillOpacity: 1 }));
+        const end = st.end && i === all.length - 1;
+        const color = end ? (css.getPropertyValue('--bubble-gold').trim() || '#A8793F') : pick ? (css.getPropertyValue('--bubble-olive').trim() || '#6B7F42') : (css.getPropertyValue('--ln-a').trim() || '#3A1F3D');
+        layers.push(L.circleMarker([x.lat, x.lng], { radius: 6, color, weight: 3, fillColor: '#fff', fillOpacity: 1 }));
       });
       routeLayer = L.layerGroup(layers).addTo(map);
     }
@@ -515,6 +522,7 @@
     const st = store.stops(o);
     st.pickups.forEach((p, i) => box.appendChild(line(p, 'cr-pin-a', st.pickups.length > 1 ? 'A' + (i + 1) : 'A')));
     st.drops.forEach((p, i) => box.appendChild(line(p, 'cr-pin-b', st.drops.length > 1 ? 'B' + (i + 1) : 'B')));
+    if (st.end) box.appendChild(line(st.end, 'cr-pin-c', 'C'));
     const meta = el('div', 'dr-meta');
     meta.appendChild(el('span', null, `${dayLabel(o.dep)} ${timeLabel(o.dep)} → ${timeLabel(o.arr)}`));
     meta.appendChild(el('span', null, t('g.km', { x: num(o.km) })));
@@ -656,17 +664,19 @@
     if (feeThenCreate) setTimeout(openCreate, 260);
   });
 
-  /* ---------- nowe zlecenie: kilka miejsc odbioru (A1, A2…) i kilka docelowych (B1, B2…) ---------- */
+  /* ---------- nowe zlecenie: kilka miejsc odbioru (A1, A2…), kilka docelowych (B1, B2…)
+     i opcjonalny koniec trasy (C) — np. powrót na pusto albo wycieczka objazdowa ---------- */
   const cr = {
     dlg: $('#cr-dialog'), form: $('#cr-form'), dep: $('#cr-dep'), arr: $('#cr-arr'),
     pax: $('#cr-pax'), km: $('#cr-km'), rate: $('#cr-rate'), urgent: $('#cr-urgent'), notes: $('#cr-notes'),
     hint: $('#cr-hint'), q: $('#cr-q'), results: $('#cr-results'),
-    list: { A: $('#cr-list-a'), B: $('#cr-list-b') }, empty: { A: $('#cr-empty-a'), B: $('#cr-empty-b') }, err: { A: $('#cr-a-err'), B: $('#cr-b-err') },
+    list: { A: $('#cr-list-a'), B: $('#cr-list-b'), C: $('#cr-list-c') }, empty: { A: $('#cr-empty-a'), B: $('#cr-empty-b') }, err: { A: $('#cr-a-err'), B: $('#cr-b-err'), C: $('#cr-c-err') },
   };
   const MAX_STOPS = 8;
   const XS = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>';
   let crMap = null, crLine = null, mode = 'A';
-  const pts = { A: [], B: [] }; // { lat, lng, label, marker, input, pin, li }
+  const pts = { A: [], B: [], C: [] }; // { lat, lng, label, marker, input, pin, li }; C — najwyżej jeden punkt
+  const mkCls = (w) => (w === 'A' ? 'mk-a' : w === 'B' ? 'mk-b' : 'mk-c');
   let kmTouched = false, arrAuto = false, durMin = null, crDirty = false;
 
   const pad = (n) => String(n).padStart(2, '0');
@@ -698,15 +708,16 @@
 
   function updateSteps() {
     const a = located('A').length, b = located('B').length;
-    cr.hint.textContent = t(!a ? 'g.cr.hintA' : !b ? 'g.cr.hintB' : mode === 'A' ? 'g.cr.hintMoreA' : 'g.cr.hintMoreB');
+    cr.hint.textContent = t(!a ? 'g.cr.hintA' : !b ? 'g.cr.hintB' : mode === 'C' ? 'g.cr.hintC' : mode === 'A' ? 'g.cr.hintMoreA' : 'g.cr.hintMoreB');
     ['A', 'B'].forEach((w) => { cr.empty[w].hidden = pts[w].length > 0; });
+    $('#cr-return').disabled = !a;
   }
   function renumber() {
-    ['A', 'B'].forEach((w) => pts[w].forEach((p, i) => {
-      const code = w + (i + 1);
+    ['A', 'B', 'C'].forEach((w) => pts[w].forEach((p, i) => {
+      const code = w === 'C' ? 'C' : w + (i + 1);
       p.pin.textContent = code;
-      if (p.marker) p.marker.setIcon(icon(w === 'A' ? 'mk-a' : 'mk-b', code));
-      p.input.setAttribute('aria-label', t(w === 'A' ? 'g.cr.pickN' : 'g.cr.dropN', { x: i + 1 }));
+      if (p.marker) p.marker.setIcon(icon(mkCls(w), code));
+      p.input.setAttribute('aria-label', w === 'C' ? t('g.cr.endN') : t(w === 'A' ? 'g.cr.pickN' : 'g.cr.dropN', { x: i + 1 }));
       p.input.placeholder = t('g.cr.rowPh');
     }));
   }
@@ -783,10 +794,11 @@
 
   // Nowy (pusty) wiersz na liście A albo B
   function addRow(which) {
+    if (which === 'C' && pts.C.length) return pts.C[0]; // koniec trasy jest jeden
     if (pts[which].length >= MAX_STOPS) { toast(t('g.cr.max', { x: MAX_STOPS })); return null; }
     const p = { which, lat: null, lng: null, label: '', marker: null };
     const li = el('li', 'stop-row is-empty');
-    const pin = el('span', 'cr-pin ' + (which === 'A' ? 'cr-pin-a' : 'cr-pin-b'));
+    const pin = el('span', 'cr-pin cr-pin-' + which.toLowerCase());
     pin.setAttribute('aria-hidden', 'true');
     const field = el('div', 'stop-field');
     const input = el('input');
@@ -813,7 +825,7 @@
     p.lat = latlng.lat; p.lng = latlng.lng;
     if (p.marker) p.marker.setLatLng(latlng);
     else {
-      p.marker = L.marker(latlng, { icon: icon(p.which === 'A' ? 'mk-a' : 'mk-b', p.which), draggable: true, keyboard: true }).addTo(crMap);
+      p.marker = L.marker(latlng, { icon: icon(mkCls(p.which), p.which), draggable: true, keyboard: true }).addTo(crMap);
       p.marker.on('dragend', async () => {
         const ll = p.marker.getLatLng();
         p.lat = ll.lat; p.lng = ll.lng;
@@ -841,7 +853,9 @@
 
   // Kliknięcie na mapie / wynik wyszukiwarki nad mapą: wypełnia aktywny pusty wiersz, inaczej pierwszy pusty, inaczej dodaje nowy
   function placeAt(which, latlng, label) {
-    let p = activeRow && activeRow.which === which && activeRow.lat == null && pts[which].includes(activeRow) ? activeRow : pts[which].find((x) => x.lat == null);
+    // koniec trasy (C) jest jeden — kolejne kliknięcie przenosi go w nowe miejsce
+    let p = which === 'C' ? pts.C[0]
+      : activeRow && activeRow.which === which && activeRow.lat == null && pts[which].includes(activeRow) ? activeRow : pts[which].find((x) => x.lat == null);
     if (!p) p = addRow(which);
     if (!p) return;
     locate(p, latlng, label);
@@ -856,7 +870,7 @@
     renumber(); updateSteps(); updateRoute();
   }
   function clearPoints() {
-    ['A', 'B'].forEach((w) => { pts[w].forEach((p) => { if (crMap && p.marker) crMap.removeLayer(p.marker); p.li.remove(); }); pts[w] = []; });
+    ['A', 'B', 'C'].forEach((w) => { pts[w].forEach((p) => { if (crMap && p.marker) crMap.removeLayer(p.marker); p.li.remove(); }); pts[w] = []; });
     if (crLine && crMap) crMap.removeLayer(crLine);
     crLine = null; durMin = null; activeRow = null;
     if (!kmTouched) cr.km.value = '';
@@ -865,12 +879,18 @@
     updateRateHelp();
   }
   $('#cr-clear').addEventListener('click', clearPoints);
+  // „Powrót do miejsca odbioru A1” — koniec trasy w tym samym miejscu co start
+  $('#cr-return').addEventListener('click', () => {
+    const a1 = located('A')[0];
+    if (!a1) return;
+    placeAt('C', L.latLng(a1.lat, a1.lng), a1.input.value.trim() || a1.label);
+  });
 
-  // Trasa drogowa (OSRM, OpenStreetMap) przez wszystkie punkty: odbiory, potem cele
+  // Trasa drogowa (OSRM, OpenStreetMap) przez wszystkie punkty: odbiory, cele, potem koniec trasy
   let routeReq = 0;
   async function updateRoute() {
     if (!crMap) return;
-    const all = located('A').concat(located('B'));
+    const all = located('A').concat(located('B'), located('C'));
     if (crLine) { crMap.removeLayer(crLine); crLine = null; }
     // jeden punkt: tylko przesuń mapę (bez przybliżania — łatwiej kliknąć kolejne miasto); kilka: pokaż wszystkie
     if (all.length === 1) crMap.panTo([all[0].lat, all[0].lng]);
@@ -959,6 +979,11 @@
   }
   $$('[data-close]', cr.dlg).forEach((b) => b.addEventListener('click', () => closeCreate(false)));
   cr.dlg.addEventListener('cancel', (e) => { e.preventDefault(); if ($$('.cr-results:not([hidden])', cr.dlg).length) return; closeCreate(false); });
+  // kliknięcie w tło zamyka okno bez pytania — punkty i pola zostają do ponownego otwarcia.
+  // Liczy się tylko kliknięcie zaczęte na tle (przeciągnięcie pinezki poza okno go nie zamyka).
+  let crDownOnBackdrop = false;
+  cr.dlg.addEventListener('pointerdown', (e) => { crDownOnBackdrop = e.target === cr.dlg; });
+  cr.dlg.addEventListener('click', (e) => { if (e.target === cr.dlg && crDownOnBackdrop) closeCreate(true); });
 
   cr.form.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -972,6 +997,9 @@
       else if (!located(w).length) { listErr(w, w === 'A' ? 'g.e.from' : 'g.e.to'); errs.push(firstInput()); }
       else if (located(w).some(badLabel)) { listErr(w, 'g.e.label'); errs.push(located(w).find(badLabel).input); }
     });
+    // koniec trasy jest opcjonalny, ale wpisany adres musi być wybrany z podpowiedzi albo z mapy
+    if (pts.C.some(unpicked)) { listErr('C', 'g.e.pick'); errs.push(pts.C[0].input); }
+    else if (located('C').some(badLabel)) { listErr('C', 'g.e.label'); errs.push(pts.C[0].input); }
     const dep = fromInput(cr.dep.value), arr = fromInput(cr.arr.value);
     if (isNaN(dep) || dep < Date.now() - 6e4) fail(cr.dep, 'g.e.dep');
     if (isNaN(arr) || !(arr > dep)) fail(cr.arr, 'g.e.arr');
@@ -982,7 +1010,7 @@
     if (store.unpaidFees(me).length) { closeCreate(true); openFee(true); return; }
     const plain = (p) => ({ label: p.input.value.trim(), lat: p.lat, lng: p.lng });
     const o = store.add({
-      pickups: located('A').map(plain), drops: located('B').map(plain),
+      pickups: located('A').map(plain), drops: located('B').map(plain), end: located('C').length ? plain(located('C')[0]) : null,
       dep, arr, km: Math.round(km), rate: Math.round(rate), pax, urgent: cr.urgent.checked, notes: cr.notes.value.trim(),
     }, me);
     crDirty = false;

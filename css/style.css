@@ -762,6 +762,8 @@ main { display: flex; flex-direction: column; gap: 72px; }
 .pricing { gap: 64px; }
 .p-hero { display: flex; flex-direction: column; align-items: center; gap: 20px; padding-top: 24px; text-align: center; }
 .p-title { font-family: var(--font-display); font-weight: 600; font-size: clamp(38px, 5.6vw, 76px); line-height: 1.06; letter-spacing: -0.03em; }
+.p-free { display: block; margin-top: 8px; color: var(--accent-text); font-weight: 700; }
+.p-net { margin-top: -8px; font-size: 13.5px; font-weight: 600; color: var(--ink-muted); }
 
 .tickets { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; padding-top: 72px; margin-top: 12px; }
 .ticket-shadow { display: flex; filter: drop-shadow(0 26px 40px var(--tk-shadow)); transition: transform .35s var(--ease-out); }
@@ -936,7 +938,6 @@ main { display: flex; flex-direction: column; gap: 72px; }
 }
 /* ukryte wejście do panelu administratora — wygląda jak zwykły tekst */
 .footer-copy, .footer-copy:hover { color: inherit; text-decoration: none; cursor: default; }
-.has-cursor .footer-copy { cursor: none; }
 .footer-links { display: flex; flex-wrap: wrap; gap: 22px; align-items: center; }
 .footer-links a:not(.ib) { text-decoration: none; }
 .footer-links a:not(.ib):hover { text-decoration: underline; }
@@ -1295,7 +1296,7 @@ body[data-title-key^="legal."] .bg-desktop, body[data-title-key^="legal."] .bg-m
 
 /* ---------- konto w menu: „Zaloguj się” / dzwonek powiadomień ---------- */
 
-.acct { position: relative; display: flex; }
+.acct { position: relative; display: flex; gap: 8px; }
 .acct-login {
   display: inline-flex; align-items: center; gap: 8px;
   min-height: var(--btn, 44px); padding: 0 18px; border-radius: 999px; border: 0;
@@ -1305,6 +1306,14 @@ body[data-title-key^="legal."] .bg-desktop, body[data-title-key^="legal."] .bg-m
 }
 .acct-login:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(58, 31, 61, .28); }
 .acct-login svg { display: none; }
+.acct-logout {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: var(--btn, 44px); padding: 0 16px 0 13px; border-radius: 999px;
+  border: 1px solid var(--ib-border); background: var(--ib-bg); color: var(--ink);
+  font: 600 14px var(--font-body); white-space: nowrap; cursor: pointer;
+  transition: transform .25s, background-color .25s, min-height .4s var(--ease-out);
+}
+.acct-logout:hover { transform: translateY(-1px); background: var(--ib-hover); }
 .bell { position: relative; }
 .bell.has-new svg { animation: bell-ring 3.2s ease-in-out infinite; transform-origin: 50% 12%; }
 @keyframes bell-ring { 0%, 78%, 100% { transform: rotate(0); } 82% { transform: rotate(16deg); } 86% { transform: rotate(-13deg); } 90% { transform: rotate(8deg); } 94% { transform: rotate(-4deg); } }
@@ -1344,28 +1353,11 @@ body[data-title-key^="legal."] .bg-desktop, body[data-title-key^="legal."] .bg-m
 @media (max-width: 640px) {
   .nav-actions .ib.call { display: none; } /* „Zadzwoń” jest w menu mobilnym — miejsce dla konta */
   .acct-login { width: var(--btn, 44px); padding: 0; justify-content: center; }
-  .acct-login span { display: none; }
+  .acct-login span, .acct-logout span { display: none; }
   .acct-login svg { display: block; }
+  .acct-logout { width: var(--btn, 44px); padding: 0; justify-content: center; }
 }
 @media (prefers-reduced-motion: reduce) { .bell.has-new svg { animation: none; } }
-
-/* ---------- kursor ---------- */
-
-.cursor { display: none; }
-.has-cursor .cursor { display: block; }
-.has-cursor, .has-cursor a, .has-cursor button, .has-cursor label, .has-cursor summary { cursor: none; }
-.has-cursor dialog, .has-cursor dialog * { cursor: none; }
-.cursor-dot, .cursor-ring { position: fixed; left: 0; top: 0; z-index: 2000; pointer-events: none; border-radius: 50%; will-change: transform; }
-.cursor-dot { width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; background: var(--cursor); box-shadow: 0 0 12px 2px var(--cursor-glow); }
-.cursor-ring {
-  width: 38px; height: 38px; margin: -19px 0 0 -19px;
-  border: 1.5px solid var(--cursor-ring);
-  transition: width .35s var(--ease-out), height .35s var(--ease-out), margin .35s var(--ease-out), background-color .35s, border-color .35s, opacity .3s;
-}
-.cursor.is-hover .cursor-ring { width: 60px; height: 60px; margin: -30px 0 0 -30px; background: var(--cursor-ring-bg); }
-.cursor.is-down .cursor-ring { width: 28px; height: 28px; margin: -14px 0 0 -14px; }
-.cursor.is-hidden { opacity: 0; }
-
 
 /* ---------- loader ---------- */
 

@@ -1,4 +1,4 @@
-// ANWS — miejsce konta w menu: „Zaloguj się” albo dzwonek z licznikiem powiadomień
+// ANWS — miejsce konta w menu: „Zaloguj się” albo dzwonek z licznikiem powiadomień i „Wyloguj się”
 
 (function () {
   const root = document.documentElement;
@@ -32,6 +32,7 @@
     reserve: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>',
     expired: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5V12l3 2"></path></svg>',
     cancelled: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"></path></svg>',
+    logout: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"></path></svg>',
     offer: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12V5a2 2 0 0 1 2-2h7l9 9-9 9z"></path><circle cx="8" cy="8" r="1.6" fill="currentColor"></circle></svg>',
   };
 
@@ -39,6 +40,13 @@
     // na stronie głównej otwieramy okno logowania, z innych stron — przez stronę główną i z powrotem
     if (window.ANWSOpenAuth) window.ANWSOpenAuth(page);
     else location.href = 'index.html?next=' + encodeURIComponent(page);
+  }
+
+  // wylogowanie: z giełdy (tylko dla zalogowanych) wracamy na stronę główną, na pozostałych stronach zostajemy
+  function logout() {
+    auth.logout();
+    if (document.body.classList.contains('app')) location.href = 'index.html';
+    else renderAll();
   }
 
   function renderBox(box) {
@@ -70,7 +78,13 @@
     panel.id = pid;
     bell.setAttribute('aria-controls', pid);
     bell.addEventListener('click', (e) => { e.stopPropagation(); toggle(box, bell, panel); });
-    box.append(bell, panel);
+    const out = el('button', 'acct-logout');
+    out.type = 'button';
+    out.setAttribute('aria-label', t('sub.logout'));
+    out.innerHTML = ICON.logout;
+    out.appendChild(el('span', null, t('sub.logout')));
+    out.addEventListener('click', logout);
+    box.append(bell, out, panel);
   }
 
   function fillPanel(panel, s, newIds) {
@@ -107,7 +121,7 @@
     const foot = el('div', 'ap-foot');
     const go = el('a', null, t('n.open')); go.href = 'lista-zlecen.html?moje=1';
     const out = el('button', null, t('sub.logout')); out.type = 'button';
-    out.addEventListener('click', () => { auth.logout(); location.href = 'index.html'; });
+    out.addEventListener('click', logout);
     foot.append(go, out);
     panel.appendChild(foot);
   }
