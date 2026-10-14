@@ -161,14 +161,16 @@
     wrap.append(a, txt);
     return wrap;
   }
-  function timeCell(ms, withRel) {
+  function timeCell(ms, withRel, endMs) {
     const w = el('div', 'tm');
     w.appendChild(el('span', 'tm-day', dayLabel(ms)));
     const time = el('time', 'tm-time', timeLabel(ms));
     time.dateTime = new Date(ms).toISOString();
     w.appendChild(time);
     if (withRel) {
-      const r = el('span', 'tm-rel' + (ms - Date.now() < 6 * 36e5 ? ' is-soon' : ''), relLabel(ms));
+      // kurs już się skończył (przyjazd minął) — „zakończony”, w trakcie — „w trasie”
+      const over = endMs != null && endMs <= Date.now();
+      const r = el('span', 'tm-rel' + (over ? ' is-over' : ms - Date.now() < 6 * 36e5 ? ' is-soon' : ''), over ? t('g.finished') : relLabel(ms));
       w.appendChild(r);
     }
     return w;
@@ -206,7 +208,7 @@
 
     const td = (child, cls) => { const c = el('td', cls); if (child) c.appendChild(child); tr.appendChild(c); return c; };
     td(placeCell(o.from, false, meta));
-    td(timeCell(o.dep, true));
+    td(timeCell(o.dep, true, o.arr));
     td(placeCell(o.to, true, toMeta));
     td(timeCell(o.arr, false));
     td(el('span', 'km', t('g.km', { x: num(o.km) })), 'num');
@@ -952,8 +954,6 @@
     if (!store.canArchive(o, me)) return;
     arId = id;
     routeSummary($('#ar-route'), o);
-    const up = $('#ar-upcoming');
-    up.hidden = !(o.arr > Date.now() && o.status === 'reserved');
     openDlg($('#ar-dialog'));
     setTimeout(() => $('#ar-confirm').focus(), 40);
   }

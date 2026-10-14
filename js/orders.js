@@ -264,6 +264,7 @@
     // archiwizacja — tylko z listy „Twoje zlecenia” tego konta; zlecenie zostaje w historii w panelu klienta
     canArchive(o, login) {
       if (!o || isArchived(o, login)) return false;
+      if (o.arr > Date.now()) return false;                                    // tylko po zakończeniu kursu (minął czas przyjazdu)
       if (o.owner === login && o.status === 'open') return false;              // otwarte zlecenie trzeba anulować
       if (o.status === 'expired' && this.unpaidFees(login).some((f) => f.orderId === o.id)) return false; // najpierw opłata
       return o.owner === login || o.reservedBy === login;
