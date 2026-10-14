@@ -317,7 +317,7 @@
     },
     // Opłata za kolejne 30 dni abonamentu (prototyp: bez bramki płatności). Okres doklejamy do opłaconego
     // albo zaczynamy od dziś / od końca darmowego miesiąca.
-    async buySubscription(login) {
+    async buySubscription(login, payment) {
       await wait(500);
       const acc = findAccount(login);
       if (!acc) return { ok: false };
@@ -331,7 +331,7 @@
       b.chosen = true; b.switchToCommission = false;
       b.history = [{ type: 'sub', amount: SUB_PRICE, from, to: b.paidUntil, at: now }].concat(b.history || []).slice(0, 60);
       saveBilling(acc.login, b);
-      if (window.ANWSInt) window.ANWSInt.invoice('subscription', { login: acc.login, net: SUB_PRICE, from, to: b.paidUntil, paid: true });
+      if (window.ANWSInt) window.ANWSInt.invoice('subscription', { login: acc.login, net: SUB_PRICE, from, to: b.paidUntil, paid: true, payment: payment || null });
       if (acc.email) mail(acc.email, 'Abonament ANWS opłacony',
         `Dzień dobry! Opłaciliśmy abonament konta „${acc.login}” (${SUB_PRICE} zł netto) na okres ${new Date(from).toLocaleDateString('pl-PL')} – ${new Date(b.paidUntil).toLocaleDateString('pl-PL')}. W tym czasie rezerwujesz zlecenia bez prowizji.`);
       return { ok: true };

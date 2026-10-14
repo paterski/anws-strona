@@ -110,7 +110,10 @@
       const row = el('div', 'pl-confirm-row');
       const pay = btn('call-btn-primary auth-submit', '', async () => {
         pay.disabled = true; pay.classList.add('is-loading');
-        await auth.buySubscription(me);
+        // płatność przez PayU (gdy włączone w panelu administratora); faktura — Fakturownia
+        const r = window.ANWSPay ? await window.ANWSPay.pay({ login: me, items: [{ kind: 'subscription', net: p.price, title: t('pay.iSub', { x: day(from), y: day(from + p.days * 864e5) }) }] }) : { ok: true, id: null };
+        if (!r.ok) { pay.disabled = false; pay.classList.remove('is-loading'); return; }
+        await auth.buySubscription(me, r.id);
         confirmBuy = false;
         done(subOn ? 'k.doneExtend' : 'k.doneSub');
       });
@@ -200,8 +203,8 @@
     const items = [];
     auth.getPlan(me).history.forEach((h) => items.push({ at: h.at, title: t(h.type === 'grant' ? 'k.hGrant' : 'k.hSub', { x: day(h.from), y: day(h.to) }), amount: h.amount, state: h.type === 'grant' ? 'free' : 'paid' }));
     if (orders) {
-      orders.list().filter((o) => o.reservedBy === me && o.fee).forEach((o) => items.push({ at: o.reservedAt, title: t('k.hComm', { x: o.from.label + ' → ' + o.to.label }), amount: o.fee.amount, state: o.fee.paid ? 'paid' : 'invoice' }));
-      orders.fees(me).forEach((f) => items.push({ at: f.at, title: t(f.type === 'cancel' ? 'k.hCancel' : 'k.hExpired', { x: f.route }), amount: f.amount, state: f.paid ? 'paid' : 'due' }));
+      orders.list().filter((o) => o.reservedBy === me && o.fee).forEach((o) => items.push({ at: o.reservedAt, title: t('k.hComm', { x: o.from.label + ' → ' + o.to.label }), amount: o.fee.amount, state: o.fee.paid ? 'paid' : 'invoice', payComm: o.fee.paid ? null : o }));
+      orders.fees(me).forEach((f) => items.push({ at: f.at, title: t(f.type === 'cancel' ? 'k.hCancel' : 'k.hExpired', { x: f.route }), amount: f.amount, state: f.paid ? 'paid' : 'due', payFee: f.paid ? null : f }));
     }
     items.sort((a, b) => b.at - a.at);
     const ul = $('#hi-list');
@@ -213,6 +216,20 @@
       left.append(el('b', null, x.title), el('span', 'ob-meta', new Date(x.at).toLocaleString(locale(), { dateStyle: 'short', timeStyle: 'short' })));
       const right = el('span', 'hi-amt');
       right.append(el('b', null, zl(x.amount)), el('span', 'hi-state is-' + x.state, t('k.st.' + x.state)));
+      // nieopłacona prowizja / opłata — zapłata przez PayU
+      if (x.payComm || x.payFee) {
+        const b = btn('call-btn-primary hi-pay', t('pay.payShort'), async () => {
+          b.disabled = true;
+          const item = x.payComm ? { kind: 'commission', net: x.amount, title: t('pay.iComm', { x: x.payComm.from.label.split(',')[0] + ' → ' + x.payComm.to.label.split(',')[0] }) }
+            : { kind: x.payFee.type, net: x.amount, title: t(x.payFee.type === 'cancel' ? 'pay.iCancel' : 'pay.iExpired', { x: x.payFee.route }) };
+          const r = window.ANWSPay ? await window.ANWSPay.pay({ login: me, items: [item] }) : { ok: true, id: null };
+          b.disabled = false;
+          if (!r.ok) return;
+          if (x.payComm) orders.payCommission(x.payComm.id, me, r.id); else orders.payFee(x.payFee.id, me, r.id);
+          renderHistory();
+        });
+        right.appendChild(b);
+      }
       li.append(left, right);
       ul.appendChild(li);
     });

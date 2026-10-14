@@ -1,4 +1,8 @@
-/* ANWS — integracje: SMSAPI.pl (SMS-y o pilnych zleceniach) i Fakturownia (faktury).
+/* ANWS — integracje: SMSAPI.pl (SMS-y o pilnych zleceniach), Fakturownia (faktury) i PayU (płatności).
+ *
+ * Płatność → faktura: klient płaci przez PayU (kwota brutto), serwer dostaje od PayU powiadomienie
+ * (notifyUrl, status COMPLETED) i wystawia w Fakturowni fakturę opłaconą (abonament, opłaty) albo
+ * oznacza jako opłaconą fakturę wystawioną wcześniej (prowizja — faktura powstaje przy rezerwacji).
  *
  * Ustawienia zmienia administrator w panelu (admin.html → „Integracje”).
  * Klucze API (token SMSAPI, token Fakturowni) NIE są zapisywane w przeglądarce: każdy użytkownik
@@ -22,6 +26,13 @@
       test: true,              // tryb testowy SMSAPI (test=1): bramka przyjmuje SMS, ale go nie wysyła
       normalize: true,         // bez polskich znaków — 160 zamiast 70 znaków w jednym SMS-ie
       template: 'ANWS PILNE: {trasa} {data} {od}-{do}, {osoby} os., {km} km, {stawka} netto {link}', // mieści się w 1 SMS-ie (160 znaków)
+    },
+    payu: {
+      enabled: true,           // prototyp: okno płatności w trybie testowym (sandbox)
+      env: 'sandbox',          // sandbox (secure.snd.payu.com) | production (secure.payu.com)
+      posId: '',               // id punktu płatności (POS ID)
+      clientId: '',            // OAuth client_id (zwykle = POS ID)
+      kinds: { subscription: true, cancel: true, expired: true, commission: true },
     },
     fv: {
       enabled: false,
@@ -103,7 +114,7 @@
       id: 'fv' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), at: Date.now(), kind, login: d.login,
       buyer: { name: p.company || (A ? A.nameOf(d.login) : d.login), nip: p.nip || '', email: p.email || '', address: p.address || '' },
       position: { name: fill(cfg.names[kind], vars), net, vat, gross },
-      payDays: cfg.payDays, paid: !!d.paid, orderId: o ? o.id : null,
+      payDays: cfg.payDays, paid: !!d.paid, payment: d.payment || null, orderId: o ? o.id : null,
       status: 'pending', // pending — czeka na serwer; sent — wystawiona w Fakturowni
     };
     const q = queue();
@@ -111,6 +122,16 @@
     store(QUEUE_KEY, q.slice(0, 300));
     return item;
   }
+  // płatność PayU zakończona — faktura (wystawiona wcześniej, np. za prowizję) staje się opłacona
+  function markPaid(kind, ref, payment) {
+    const q = queue();
+    let hit = false;
+    q.forEach((it) => { if (it.kind === kind && !it.paid && (it.orderId === ref || it.login === ref)) { it.paid = true; it.payment = payment || it.payment; it.paidAt = Date.now(); hit = true; } });
+    if (hit) store(QUEUE_KEY, q);
+    return hit;
+  }
+  const gross = (net) => round2(net * (1 + settings().fv.vat / 100));
+
   // treść zapytania do API Fakturowni (podgląd w panelu; wyśle je serwer z tokenem)
   function fakturowniaPayload(item, cfg) {
     const c = cfg || settings().fv;
@@ -118,8 +139,10 @@
     return {
       invoice: Object.assign({
         kind: 'vat', sell_date: today, issue_date: today,
-        payment_to_kind: item.paid ? 'other_date' : String(c.payDays), payment_type: 'transfer',
+        payment_to_kind: item.paid ? 'other_date' : String(c.payDays), payment_type: item.payment ? 'payu' : 'transfer',
         status: item.paid ? 'paid' : 'issued',
+        ...(item.paid ? { paid: item.position.gross, paid_date: new Date(item.paidAt || item.at).toISOString().slice(0, 10) } : {}),
+        ...(item.payment ? { oid: item.payment, description: 'Płatność PayU nr ' + item.payment } : {}),
         buyer_name: item.buyer.name, buyer_tax_no: item.buyer.nip, buyer_email: item.buyer.email,
         buyer_street: item.buyer.address,
         positions: [{ name: item.position.name, tax: item.position.vat, total_price_gross: item.position.gross, quantity: 1 }],
@@ -128,5 +151,5 @@
     };
   }
 
-  window.ANWSInt = { settings, saveSettings, DEFAULTS, smsText, smsVars, smsParts, plain, fill, invoice, queue, fakturowniaPayload };
+  window.ANWSInt = { settings, saveSettings, DEFAULTS, smsText, smsVars, smsParts, plain, fill, invoice, queue, markPaid, gross, fakturowniaPayload };
 })();

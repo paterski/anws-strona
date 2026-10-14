@@ -935,9 +935,14 @@
     openDlg($('#cx-dialog'));
     setTimeout(() => $('#cx-dialog [data-close].call-btn').focus(), 40);
   }
-  $('#cx-confirm').addEventListener('click', () => {
-    const ok = store.cancel(cxId, me);
+  $('#cx-confirm').addEventListener('click', async () => {
+    const o = store.get(cxId);
+    if (!o) return;
     closeDlg($('#cx-dialog'));
+    // opłata za anulowanie przez PayU (gdy włączone); bez zapłaty zlecenie zostaje
+    const p = window.ANWSPay ? await window.ANWSPay.pay({ login: me, items: [{ kind: 'cancel', net: store.CANCEL_FEE, title: t('pay.iCancel', { x: o.from.label.split(',')[0] + ' → ' + o.to.label.split(',')[0] }) }] }) : { ok: true, id: null };
+    if (!p.ok) { toast(t('pay.cancelled')); return; }
+    const ok = store.cancel(cxId, me, p.id);
     if (!ok) return;
     toast(t('g.cx.done', { x: zl(store.CANCEL_FEE) }));
     render();
@@ -1084,9 +1089,12 @@
     openDlg($('#fee-dialog'));
     setTimeout(() => $('#fee-pay').focus(), 40);
   }
-  $('#fee-pay').addEventListener('click', () => {
-    store.unpaidFees(me).forEach((f) => store.payFee(f.id, me));
+  $('#fee-pay').addEventListener('click', async () => {
+    const unpaid = store.unpaidFees(me);
     closeDlg($('#fee-dialog'));
+    const p = window.ANWSPay ? await window.ANWSPay.pay({ login: me, items: unpaid.map((f) => ({ kind: f.type, net: f.amount, title: t(f.type === 'cancel' ? 'pay.iCancel' : 'pay.iExpired', { x: f.route }) })) }) : { ok: true, id: null };
+    if (!p.ok) { toast(t('pay.cancelled')); return; }
+    unpaid.forEach((f) => store.payFee(f.id, me, p.id));
     toast(t('g.fee.done'));
     render();
     if (feeThenCreate) setTimeout(openCreate, 260);
