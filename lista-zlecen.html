@@ -28,8 +28,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-<link rel="stylesheet" href="css/style.css?v=202610141753">
-<link rel="stylesheet" href="css/gielda.css?v=202610141753">
+<link rel="stylesheet" href="css/style.css?v=202610141907">
+<link rel="stylesheet" href="css/gielda.css?v=202610141907">
 </head>
 <body class="app" data-title-key="g.metaTitle">
 <a class="skip" href="#gl-body" data-i18n="skip">Przejdź do treści</a>
@@ -339,6 +339,18 @@
   </div>
 </dialog>
 
+<!-- propozycje stawek do własnego zlecenia: akceptacja / odrzucenie -->
+<dialog class="call-dlg auth-dlg" id="of-dialog" aria-labelledby="of-title">
+  <div class="call-panel auth-panel g-dlg of-dlg">
+    <button type="button" class="call-x" data-close aria-label="Zamknij" data-i18n-aria="call.close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+    <h2 class="auth-title" id="of-title" data-i18n="g.of.title">Propozycje stawek</h2>
+    <p class="auth-sub" id="of-sub"></p>
+    <div class="dlg-route" id="of-route"></div>
+    <div class="of-list" id="of-list" aria-live="polite"></div>
+    <p class="db-note" data-i18n="g.of.note">Nazwę przewoźnika zobaczysz po akceptacji — razem z kontaktem i potwierdzeniem zlecenia. Akceptacja od razu rezerwuje kurs dla tego przewoźnika po nowej stawce.</p>
+  </div>
+</dialog>
+
 <!-- archiwizacja zlecenia z „Twoich zleceń” -->
 <dialog class="call-dlg auth-dlg" id="ar-dialog" aria-labelledby="ar-title">
   <div class="call-panel auth-panel g-dlg">
@@ -419,12 +431,12 @@
 </dialog>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script src="js/i18n.js?v=202610141753"></script>
-<script src="js/auth.js?v=202610141753"></script>
-<script src="js/orders.js?v=202610141753"></script>
-<script src="js/confirm.js?v=202610141753" defer></script>
-<script src="js/main.js?v=202610141753" defer></script>
-<script src="js/account.js?v=202610141753" defer></script>
-<script src="js/gielda.js?v=202610141753" defer></script>
+<script src="js/i18n.js?v=202610141907"></script>
+<script src="js/auth.js?v=202610141907"></script>
+<script src="js/orders.js?v=202610141907"></script>
+<script src="js/confirm.js?v=202610141907" defer></script>
+<script src="js/main.js?v=202610141907" defer></script>
+<script src="js/account.js?v=202610141907" defer></script>
+<script src="js/gielda.js?v=202610141907" defer></script>
 </body>
 </html>

@@ -177,6 +177,29 @@
     safe(() => localStorage.setItem(HIST_FLAG, '1'));
   }
 
+  /* Przykładowe zlecenie konta demo z dwiema propozycjami stawek — do wypróbowania akceptacji.
+   * Dodawane raz; gdy wcześniejsze zlecenia testowe już minęły, tworzymy nowe na najbliższe dni. */
+  const OFFER_FLAG = 'anws-offers-demo-v1';
+  function ensureOfferDemo() {
+    if (safe(() => localStorage.getItem(OFFER_FLAG), '1')) return;
+    const now = Date.now();
+    const orders = load();
+    const km = Math.round(haversine(P.waw, P.lodz) * 1.25);
+    const d = new Date(now + 2 * 864e5); d.setHours(8, 0, 0, 0); // pojutrze o 8:00
+    const dep = d.getTime(), arr = roundTo(dep + km / 70 * 36e5, 15);
+    const o = { id: 'od1', from: P.waw, to: P.lodz, pickups: [P.waw], drops: [P.lodz], dep, arr, km, rate: 1700, pax: 46, urgent: false,
+      notes: 'Wycieczka szkolna, powrót tego samego dnia.', owner: 'demo', createdAt: now - 5 * 36e5, status: 'open',
+      offers: [
+        { by: 'intertrans', rate: 1950, message: 'Autokar 49-osobowy z klimatyzacją, kierowca z doświadczeniem w wycieczkach szkolnych.', at: now - 3 * 36e5 },
+        { by: 'pks.mysliborz', rate: 1850, message: 'Podstawimy autokar 50-osobowy, możliwy postój na miejscu do wieczora.', at: now - 50 * 6e4 },
+      ] };
+    orders.push(o);
+    save(orders);
+    safe(() => localStorage.setItem(OFFER_FLAG, '1'));
+    const A = auth();
+    if (A && A.notify) o.offers.forEach((x) => A.notify('demo', { type: 'offer', orderId: o.id, rate: x.rate, route: routeText(o), at: x.at, seed: true }));
+  }
+
   function roundTo(t, minutes) { const m = minutes * 6e4; return Math.ceil(t / m) * m; }
 
   function ensureSeed() {
@@ -232,7 +255,7 @@
   window.ANWSOrders = {
     CANCEL_FEE,
     EXPIRE_FEE,
-    list() { ensureSeed(); ensureHistory(); return sweep(load()); },
+    list() { ensureSeed(); ensureHistory(); ensureOfferDemo(); return sweep(load()); },
     allFees() { this.list(); return loadFees(); },
     get(id) { return this.list().find((o) => o.id === id) || null; },
 
@@ -403,13 +426,66 @@
       save(orders);
       const A = auth();
       if (A && A.notify) {
-        const name = A.nameOf(login);
+        // nazwa przewoźnika ukryta do czasu akceptacji propozycji
         A.notify(o.owner, {
-          type: 'offer', orderId: o.id, by: login, byName: name, rate, route: routeText(o),
+          type: 'offer', orderId: o.id, rate, route: routeText(o),
           subject: 'Nowa propozycja stawki do Twojego zlecenia',
-          body: `Dzień dobry! Przewoźnik ${name} proponuje ${rate} zł netto (zamiast ${o.rate} zł netto) za Twoje zlecenie: ${routeText(o)}, wyjazd ${when(o.dep)}.${message ? ' Wiadomość: „' + message + '”.' : ''} Odpowiedz na giełdzie ANWS w zakładce „Twoje zlecenia”.`,
+          body: `Dzień dobry! Jeden z przewoźników proponuje ${rate} zł netto (zamiast ${o.rate} zł netto) za Twoje zlecenie: ${routeText(o)}, wyjazd ${when(o.dep)}.${message ? ' Wiadomość: „' + message + '”.' : ''} Odpowiedz na giełdzie ANWS w zakładce „Twoje zlecenia”.`,
         });
       }
+      return true;
+    },
+
+    /* Akceptacja propozycji stawki przez zlecającego: nowa stawka + rezerwacja dla tego przewoźnika.
+     * Prowizję liczymy jak przy zwykłej rezerwacji — od zaakceptowanej stawki, wg modelu rozliczeń przewoźnika. */
+    acceptOffer(id, login, by) {
+      const orders = this.list();
+      const o = orders.find((x) => x.id === id);
+      const offer = o && (o.offers || []).find((x) => x.by === by);
+      if (!o || o.owner !== login || o.status !== 'open' || !offer || o.dep <= Date.now()) return false;
+      const A = auth();
+      const plan = A ? A.getPlan(by) : { free: false };
+      const before = o.rate;
+      o.rateBefore = before;
+      o.rate = offer.rate;
+      o.acceptedOffer = Object.assign({}, offer, { acceptedAt: Date.now() });
+      const others = o.offers.filter((x) => x.by !== by).map((x) => x.by);
+      o.offers = [];
+      o.status = 'reserved';
+      o.reservedBy = by;
+      o.reservedAt = Date.now();
+      const c = commission(o.rate);
+      o.fee = plan.free ? null : { pct: c.pct, amount: c.amount, paid: false };
+      o.snap = { owner: snapParty(o.owner), carrier: snapParty(by) };
+      save(orders);
+      if (A && A.notify) {
+        A.notify(by, {
+          type: 'offerAccepted', orderId: o.id, byName: A.nameOf(login), rate: o.rate, route: routeText(o),
+          subject: 'Twoja propozycja stawki została przyjęta',
+          body: `Dzień dobry! Zlecający ${A.nameOf(login)} przyjął Twoją propozycję ${o.rate} zł netto za zlecenie ${routeText(o)}, wyjazd ${when(o.dep)}. Zlecenie jest zarezerwowane dla Ciebie — szczegóły, kontakt i potwierdzenie zlecenia znajdziesz na giełdzie ANWS w zakładce „Twoje zlecenia” → „Do wykonania”.`,
+        });
+        others.forEach((x) => A.notify(x, {
+          type: 'offerTaken', orderId: o.id, rate: o.rate, route: routeText(o),
+          subject: 'Zlecenie, do którego wysłałeś propozycję, jest już zajęte',
+          body: `Dzień dobry! Zlecający przyjął inną propozycję do zlecenia ${routeText(o)} z wyjazdem ${when(o.dep)}. Znajdź kolejne zlecenia na giełdzie ANWS.`,
+        }));
+      }
+      return true;
+    },
+    // Odrzucenie propozycji — przewoźnik dostaje powiadomienie i może zaproponować inną stawkę
+    rejectOffer(id, login, by) {
+      const orders = this.list();
+      const o = orders.find((x) => x.id === id);
+      const offer = o && (o.offers || []).find((x) => x.by === by);
+      if (!o || o.owner !== login || o.status !== 'open' || !offer) return false;
+      o.offers = o.offers.filter((x) => x.by !== by);
+      save(orders);
+      const A = auth();
+      if (A && A.notify) A.notify(by, {
+        type: 'offerRejected', orderId: o.id, rate: offer.rate, route: routeText(o),
+        subject: 'Propozycja stawki odrzucona',
+        body: `Dzień dobry! Zlecający nie przyjął Twojej propozycji ${offer.rate} zł netto do zlecenia ${routeText(o)} z wyjazdem ${when(o.dep)}. Możesz zaproponować inną stawkę albo zarezerwować zlecenie po stawce zlecającego (${o.rate} zł netto).`,
+      });
       return true;
     },
 

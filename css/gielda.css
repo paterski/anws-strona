@@ -519,3 +519,24 @@ th[aria-sort="ascending"] .th-sort, th[aria-sort="descending"] .th-sort { color:
 .party-btn.is-doc { color: var(--ink); }
 .arch-btn { --btn: 34px; flex-shrink: 0; color: var(--ink-muted); }
 .arch-btn:hover { color: var(--ink); }
+
+/* ---------- propozycje stawek (zlecający) ---------- */
+.offer-open { display: block; margin-left: auto; padding: 0; border: 0; background: none; font: 600 12px var(--font-body); color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.offer-open:hover { color: var(--ink); }
+.of-dlg { width: min(560px, calc(100vw - 32px)); }
+.of-list { display: grid; gap: 10px; max-height: min(46vh, 460px); overflow: auto; }
+.of-card { display: grid; gap: 10px; padding: 14px 16px; border-radius: 18px; border: 1px solid var(--ib-border); background: var(--ib-bg); }
+.of-card.is-confirm { border-color: var(--accent); box-shadow: 0 0 0 3px var(--input-ring); }
+.of-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.of-who { display: grid; gap: 2px; min-width: 0; }
+.of-who b { display: inline-flex; align-items: center; gap: 5px; font-size: 15px; }
+.of-who small { font-size: 12.5px; color: var(--ink-muted); }
+.of-price { display: grid; justify-items: end; gap: 2px; }
+.of-price b { font-family: var(--font-display); font-size: 22px; white-space: nowrap; }
+.of-diff { font-size: 12.5px; font-weight: 700; color: var(--ink-muted); }
+.of-diff.is-up { color: var(--err-ink); }
+.of-diff.is-down { color: var(--ok-ink); }
+.of-msg { font-size: 14px; line-height: 1.5; color: var(--ink); font-style: italic; }
+.of-acts { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
+.of-acts .call-btn { min-height: 44px; }
+.of-confirm-note { color: var(--ink); }
