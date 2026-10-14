@@ -269,9 +269,9 @@
   const confirmDoc = () => window.ANWSConfirm;
   const ICON_DOC = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5M9 13h6M9 17h4"></path></svg>';
   const ICON_DL = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"></path></svg>';
-  const PAGE = 50;
+  const PAGE = Infinity; // wszystkie pozycje; okienko pokazuje 10 i przewija resztę
   const hs = { tab: 'posted', q: '', status: '', from: '', to: '', arch: false, shown: PAGE };
-  const cf = { shown: 10 };
+  const cf = { shown: Infinity };
   const norm = (v) => String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ł/g, 'l');
   const dtShort = (ms) => new Date(ms).toLocaleString(locale(), { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   // kontrahent widoczny dopiero po rezerwacji (tak jak w „Twoich zleceniach”)
@@ -341,6 +341,18 @@
     return li;
   }
 
+  // okienko listy: wysokość dokładnie na 10 pozycji, dalsze — po przewinięciu w środku
+  const VISIBLE = 10;
+  function capList(ul) {
+    const items = ul.children;
+    ul.classList.toggle('is-capped', items.length > VISIBLE);
+    if (items.length <= VISIBLE) { ul.style.maxHeight = ''; return; }
+    ul.style.maxHeight = '';
+    const last = items[VISIBLE - 1];
+    ul.style.maxHeight = (last.offsetTop + last.offsetHeight + 2) + 'px';
+  }
+  addEventListener('resize', () => { capList($('#hs-list')); capList($('#cf-list')); });
+
   function renderTrips() {
     if (!orders) return;
     const h = orders.history(me);
@@ -360,9 +372,11 @@
       : t('k.hsTotal', { x: all.length }) + (sum ? ' · ' + t('k.hsSum', { x: zl(sum) }) : '');
     if (!list.length) ul.appendChild(el('li', 'acc-empty', t(all.length ? 'k.hsNone' : hs.tab === 'posted' ? 'k.hsEmptyPosted' : 'k.hsEmptyTaken')));
     list.slice(0, hs.shown).forEach((o) => ul.appendChild(tripItem(o, true)));
+    ul.scrollTop = 0;
+    capList(ul);
     const more = $('#hs-more');
     more.hidden = list.length <= hs.shown;
-    more.textContent = t('k.hsShowMore', { x: Math.min(PAGE, list.length - hs.shown) });
+    more.textContent = '';
   }
 
   function renderConfirms() {
@@ -389,9 +403,10 @@
       li.append(ic, main, acts);
       ul.appendChild(li);
     });
+    capList(ul);
     const more = $('#cf-more');
     more.hidden = list.length <= cf.shown;
-    more.textContent = t('k.hsShowMore', { x: Math.min(10, list.length - cf.shown) });
+    more.textContent = '';
   }
 
   document.querySelectorAll('[data-hs]').forEach((b) => b.addEventListener('click', () => { hs.tab = b.dataset.hs; hs.shown = PAGE; renderTrips(); }));
