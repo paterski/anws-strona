@@ -223,14 +223,14 @@
     const finished = store.state(o) === 'done';
     if (finished) tr.classList.add('is-finished');
     if (expired) tr.classList.add('is-expired');
-    const neg = el('button', 'g-btn g-btn-ghost', t('g.negotiate'));
+    const neg = el('button', 'g-btn g-btn-ghost is-neg', t('g.negotiate'));
     neg.type = 'button';
     if (finished) {
       neg.hidden = true;
     } else if (own && !expired) {
       // własne zlecenie: zamiast negocjacji — anulowanie (płatne)
       neg.textContent = t('g.cx.btn');
-      neg.className = 'g-btn g-btn-danger';
+      neg.className = 'g-btn g-btn-danger is-neg';
       neg.addEventListener('click', () => openCancel(o.id));
     } else if (o.status === 'reserved' && o.reservedBy === me) {
       neg.hidden = true;
@@ -238,13 +238,13 @@
       neg.disabled = own || o.status !== 'open';
       neg.addEventListener('click', () => openNegotiate(o.id));
     }
-    const res = el('button', 'g-btn g-btn-primary');
+    const res = el('button', 'g-btn g-btn-primary is-res');
     res.type = 'button';
     if (isAdmin && !own) {
       // administrator: bez rezerwacji i negocjacji — tylko usunięcie zlecenia (bez opłat dla zlecającego)
       neg.hidden = true;
       res.textContent = t('g.rm.btn');
-      res.className = 'g-btn g-btn-danger';
+      res.className = 'g-btn g-btn-danger is-res';
       res.addEventListener('click', () => openRemove(o.id));
     } else if (own && expired) {
       neg.hidden = true;
@@ -432,10 +432,26 @@
   $('#gl-scroll').addEventListener('scroll', closePhone, { passive: true });
   addEventListener('resize', closePhone);
 
+  /* Tabela czy karty: karty, gdy tabela nie mieści się w szerokości listy (zależy od kolumn przycisków,
+   * więc zamiast stałego progu mierzymy — także po zmianie szerokości listy i okna) */
+  const paneList = $('#pane-list');
+  function fitTable() {
+    const scroll = $('#gl-scroll'), tbl = $('.gl-table');
+    paneList.classList.remove('is-cards');
+    if (tbl.scrollWidth > scroll.clientWidth + 1) paneList.classList.add('is-cards');
+  }
+  let fitW = 0;
+  new ResizeObserver(() => { const w = paneList.clientWidth; if (w !== fitW) { fitW = w; fitTable(); } }).observe(paneList);
+
   function render() {
     const list = filtered();
     tbody.textContent = '';
     list.forEach((o) => tbody.appendChild(row(o)));
+    // stałe kolumny przycisków: miejsce na kontrahenta i archiwum, jeśli występują w którymkolwiek wierszu
+    const tbl = $('.gl-table');
+    tbl.dataset.party = $('.acts .party', tbody) ? '1' : '';
+    tbl.dataset.arch = $('.acts .arch-btn', tbody) ? '1' : '';
+    fitTable();
     $('#gl-count').textContent = list.length + ' ' + plural(list.length);
     $('#gl-empty').hidden = list.length > 0;
     $('#g-title span').textContent = t(state.scope === 'urgent' ? 'g.urgentTitle' : state.scope === 'mine' ? 'g.mineTitle' : 'g.title');
