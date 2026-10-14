@@ -27,7 +27,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="css/style.css?v=202610142103">
+<link rel="stylesheet" href="css/style.css?v=202610142138">
 </head>
 <body data-title-key="legal.adminTitle">
 <a class="skip" href="#tresc" data-i18n="skip">Przejdź do treści</a>
@@ -148,7 +148,7 @@
       <section class="p-hero admin-hero">
         <span class="badge"><span class="live" aria-hidden="true"></span><span data-i18n="adm.badge">Panel administratora</span></span>
         <h1 class="p-title" data-i18n="adm.title">Zarządzanie giełdą</h1>
-        <p class="lead p-lead" data-i18n="adm.lead">Statystyki giełdy, dokumenty przewoźników i wnioski o rejestrację w jednym miejscu.</p>
+        <p class="lead p-lead" data-i18n="adm.lead">Statystyki giełdy, wnioski o rejestrację i integracje (SMS, faktury) w jednym miejscu.</p>
       </section>
 
       <div class="admin-card admin-login" id="admin-login" hidden>
@@ -172,6 +172,7 @@
           <div class="admin-tabs admin-views" role="tablist" aria-label="Widok panelu" data-i18n-aria="adm.views">
             <button type="button" role="tab" id="tab-stats" aria-controls="view-stats" aria-selected="true" data-view="stats"><span data-i18n="adm.vStats">Statystyki</span></button>
             <button type="button" role="tab" id="tab-regs" aria-controls="view-regs" aria-selected="false" data-view="regs"><span data-i18n="adm.vRegs">Wnioski o rejestrację</span> <b id="cnt-pending-top">0</b></button>
+            <button type="button" role="tab" id="tab-int" aria-controls="view-int" aria-selected="false" data-view="int"><span data-i18n="int.tab">Integracje</span></button>
           </div>
           <div class="admin-who"><span id="adm-who"></span> <button type="button" class="sub-logout" id="adm-logout" data-i18n="sub.logout">Wyloguj się</button></div>
         </div>
@@ -182,6 +183,9 @@
 
         <!-- statystyki giełdy -->
         <section class="st-view" id="view-stats" role="tabpanel" aria-labelledby="tab-stats"></section>
+
+        <!-- integracje: SMSAPI i Fakturownia -->
+        <section class="int-view" id="view-int" role="tabpanel" aria-labelledby="tab-int" hidden></section>
 
         <!-- wnioski o rejestrację -->
         <section id="view-regs" role="tabpanel" aria-labelledby="tab-regs" hidden>
@@ -269,10 +273,11 @@
   </div>
 </dialog>
 
-<script src="js/i18n.js?v=202610142103"></script>
-<script src="js/auth.js?v=202610142103"></script>
-<script src="js/orders.js?v=202610142103"></script>
-<script src="js/main.js?v=202610142103" defer></script>
-<script src="js/admin.js?v=202610142103" defer></script>
+<script src="js/i18n.js?v=202610142138"></script>
+<script src="js/auth.js?v=202610142138"></script>
+<script src="js/integrations.js?v=202610142138"></script>
+<script src="js/orders.js?v=202610142138"></script>
+<script src="js/main.js?v=202610142138" defer></script>
+<script src="js/admin.js?v=202610142138" defer></script>
 </body>
 </html>

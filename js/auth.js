@@ -109,7 +109,7 @@
     return r ? {
       login: r.login, name: r.company, role: 'user', confirmed: r.status === 'approved', hash: r.hash, email: r.email,
       activatedAt: r.approvedAt || null, createdAt: r.createdAt || null, contactName: r.contactName || '', phone: r.phone || '', alarmPhone: r.alarmPhone || '',
-      company: r.company, nip: r.nip, krs: r.krs || '', regon: r.regon || '', pkd: r.pkd || [],
+      company: r.company, nip: r.nip, krs: r.krs || '', regon: r.regon || '', pkd: r.pkd || [], address: r.address || '',
     } : null;
   }
 
@@ -188,7 +188,7 @@
       const reg = {
         id: 'r' + Date.now().toString(36),
         login, hash: await sha256(d.password),
-        type: 'carrier', company: d.company, nip: d.nip, krs: d.krs || '', regon: d.regon || '',
+        type: 'carrier', company: d.company, nip: d.nip, krs: d.krs || '', regon: d.regon || '', address: d.address || '',
         contactName: d.contactName || '',
         pkd: d.pkd || [], phone: d.phone, alarmPhone: d.alarmPhone, email: d.email.trim(),
         consentAt: Date.now(), status: 'pending', createdAt: Date.now(),
@@ -319,6 +319,7 @@
       b.chosen = true; b.switchToCommission = false;
       b.history = [{ type: 'sub', amount: SUB_PRICE, from, to: b.paidUntil, at: now }].concat(b.history || []).slice(0, 60);
       saveBilling(acc.login, b);
+      if (window.ANWSInt) window.ANWSInt.invoice('subscription', { login: acc.login, net: SUB_PRICE, from, to: b.paidUntil, paid: true });
       if (acc.email) mail(acc.email, 'Abonament ANWS opłacony',
         `Dzień dobry! Opłaciliśmy abonament konta „${acc.login}” (${SUB_PRICE} zł netto) na okres ${new Date(from).toLocaleDateString('pl-PL')} – ${new Date(b.paidUntil).toLocaleDateString('pl-PL')}. W tym czasie rezerwujesz zlecenia bez prowizji.`);
       return { ok: true };
@@ -330,7 +331,7 @@
       if (!acc) return null;
       return {
         login: acc.login, builtIn: !!acc.builtIn, company: acc.company || acc.name || acc.login, nip: acc.nip || '', krs: acc.krs || '', regon: acc.regon || '',
-        pkd: acc.pkd || [], contactName: acc.contactName || '', email: acc.email || '', phone: acc.phone || '', alarmPhone: acc.alarmPhone || '',
+        pkd: acc.pkd || [], address: acc.address || '', contactName: acc.contactName || '', email: acc.email || '', phone: acc.phone || '', alarmPhone: acc.alarmPhone || '',
         createdAt: acc.createdAt || null, activatedAt: acc.activatedAt || null,
       };
     },

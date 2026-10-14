@@ -181,7 +181,7 @@
   /* Pilne zlecenie: powiadomienie (dzwonek + alarm na otwartej stronie), e-mail i SMS do wszystkich
    * zarejestrowanych przewoźników poza zlecającym — z kompletem danych do wykonania przewozu i linkiem. */
   const SITE = (() => { try { return location.href.replace(/[^/]*([?#].*)?$/, ''); } catch (e) { return 'https://paterski.github.io/anws-strona/'; } })();
-  const orderLink = (o) => SITE + 'lista-zlecen.html?zlecenie=' + encodeURIComponent(o.id || o);
+  const orderLink = (o) => SITE + 'lista-zlecen.html?z=' + encodeURIComponent(o.id || o); // krótki parametr — SMS ma limit znaków
   const fullWhen = (ms) => new Date(ms).toLocaleString('pl-PL', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   const plzl = (n) => new Intl.NumberFormat('pl-PL', { useGrouping: 'always' }).format(n) + ' zł';
   function urgentText(o) {
@@ -193,12 +193,10 @@
     const crewTxt = { one: '1 kierowca', ext: '1 kierowca (10 h jazdy)', two: '2 kierowców', rest: 'nocleg kierowców / zmiana załogi' }[c.level];
     return `PILNE ZLECENIE na giełdzie ANWS — wyjazd ${fullWhen(o.dep)}.\n\nTrasa:\n${lines.join('\n')}\n\nWyjazd: ${fullWhen(o.dep)}\nPrzyjazd: ${fullWhen(o.arr)}\nLiczba osób: ${o.pax}\nOdległość: ${o.km} km\nStawka: ${plzl(o.rate)} netto (${(o.rate / o.km).toFixed(1).replace('.', ',')} zł/km)\nObsada (szacunek): ${crewTxt}${o.notes ? '\nUwagi: ' + o.notes : ''}\n\nZlecenie na giełdzie: ${orderLink(o)}\nKto pierwszy zarezerwuje, ten jedzie.`;
   }
+  // SMS według szablonu z panelu administratora (Integracje → SMSAPI)
   function urgentSms(o) {
-    const st = stops(o);
-    const route = st.pickups.concat(st.drops).map((p) => p.label.split(',')[0]).join(' > ');
-    const d = new Date(o.dep), a = new Date(o.arr);
-    const hm = (x) => x.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
-    return `ANWS PILNE: ${route}${st.end ? ' (koniec: ' + st.end.label.split(',')[0] + ')' : ''} | ${d.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit' })} ${hm(d)}-${hm(a)} | ${o.pax} os. | ${o.km} km | ${plzl(o.rate)} netto | ${orderLink(o)}`;
+    if (window.ANWSInt) return window.ANWSInt.smsText(o, orderLink(o));
+    return `ANWS PILNE: ${routeText(o)} | ${o.pax} os. | ${o.km} km | ${plzl(o.rate)} netto | ${orderLink(o)}`;
   }
   function broadcastUrgent(o) {
     const A = auth();
@@ -277,6 +275,7 @@
       o.expiredAt = now;
       const fee = { id: 'f' + now.toString(36) + o.id, login: o.owner, orderId: o.id, type: 'expired', amount: EXPIRE_FEE, route: routeText(o), dep: o.dep, at: now, paid: false };
       fees.push(fee);
+      if (window.ANWSInt) window.ANWSInt.invoice('expired', { login: o.owner, net: EXPIRE_FEE, order: o });
       const A = auth();
       if (A && A.notify) {
         A.notify(o.owner, {
@@ -388,6 +387,7 @@
       save(orders);
       const fees = loadFees();
       fees.push({ id: 'f' + now.toString(36), login, orderId: o.id, type: 'cancel', amount: CANCEL_FEE, route: routeText(o), dep: o.dep, at: now, paid: true, paidAt: now });
+      if (window.ANWSInt) window.ANWSInt.invoice('cancel', { login, net: CANCEL_FEE, order: o, paid: true });
       saveFees(fees);
       const A = auth();
       if (A && A.notify && wasReservedBy) {
@@ -444,6 +444,7 @@
       o.fee = fee ? { pct: fee.pct, amount: fee.amount, paid: false } : null;
       o.snap = { owner: snapParty(o.owner), carrier: snapParty(login) }; // dane obu firm na potwierdzenie zlecenia
       save(orders);
+      if (o.fee && window.ANWSInt) window.ANWSInt.invoice('commission', { login, net: o.fee.amount, order: o });
       const A = auth();
       if (A && A.notify) {
         const name = A.nameOf(login);
@@ -498,6 +499,7 @@
       o.fee = plan.free ? null : { pct: c.pct, amount: c.amount, paid: false };
       o.snap = { owner: snapParty(o.owner), carrier: snapParty(by) };
       save(orders);
+      if (o.fee && window.ANWSInt) window.ANWSInt.invoice('commission', { login: by, net: o.fee.amount, order: o });
       if (A && A.notify) {
         A.notify(by, {
           type: 'offerAccepted', orderId: o.id, byName: A.nameOf(login), rate: o.rate, route: routeText(o),

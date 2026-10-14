@@ -284,7 +284,7 @@
     submit.disabled = true; submit.classList.add('is-loading'); submitLabel.textContent = t('reg.sending');
     const res = await auth.register({
       type: type(), login: f.login.value.trim(), password: f.pass.value,
-      company: result.company.name, nip, krs: result.company.krs, regon: result.company.regon,
+      company: result.company.name, nip, krs: result.company.krs, regon: result.company.regon, address: result.company.address || '',
       pkd: (result.matched || []).map((m) => m.code),
       contactName: f.person.value.trim().replace(/\s+/g, ' '),
       phone: e164(f.phone, cc.phone), alarmPhone: e164(f.alarm, cc.alarm), email: f.email.value.trim(),

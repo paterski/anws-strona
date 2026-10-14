@@ -17,6 +17,7 @@
   const locale = () => (root.lang === 'en' ? 'en-GB' : 'pl-PL');
   const nf = (n, d = 0) => new Intl.NumberFormat(locale(), { maximumFractionDigits: d, minimumFractionDigits: d, useGrouping: 'always' }).format(n);
   const zl = (n) => nf(Math.round(n)) + ' zł';
+  const zl2 = (n) => nf(n, 2) + ' zł';
   const DAY = 864e5;
 
   const loginBox = $('#admin-login');
@@ -132,6 +133,8 @@
     document.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.view === v)));
     $('#view-stats').hidden = v !== 'stats';
     $('#view-regs').hidden = v !== 'regs';
+    $('#view-int').hidden = v !== 'int';
+    if (v === 'int') renderInt();
   }
   document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
 
@@ -314,6 +317,177 @@
     box.appendChild(grid);
   }
 
+  /* ---------- integracje: SMSAPI.pl i Fakturownia ----------
+   * Klucze API nie są zapisywane w przeglądarce (każdy mógłby je odczytać) — po podłączeniu serwera
+   * panel wyśle je tam jako sekrety. Ustawienia jawne zapisujemy od razu (js/integrations.js). */
+  const INT = window.ANWSInt;
+  const SAMPLE = { id: 'o123', pickups: [{ label: 'Kraków, Rondo Mogilskie' }], drops: [{ label: 'Zakopane, Krupówki' }], from: { label: 'Kraków, Rondo Mogilskie' }, to: { label: 'Zakopane, Krupówki' }, dep: Date.now() + 5 * 36e5, arr: Date.now() + 7 * 36e5, pax: 48, km: 107, rate: 1250 };
+  const field = (id, label, input, help) => {
+    const f = el('div', 'field');
+    const l = el('label', null, label); l.htmlFor = id;
+    f.appendChild(l);
+    f.appendChild(input);
+    if (help) f.appendChild(el('p', 'field-help', help));
+    return f;
+  };
+  const inp = (id, type, value, attrs) => { const i = el('input'); i.id = id; i.type = type; if (value != null) i.value = value; Object.assign(i, attrs || {}); return i; };
+  const check = (id, label, on, help) => {
+    const l = el('label', 'check int-check');
+    const i = inp(id, 'checkbox'); i.checked = !!on;
+    const box = el('span', 'check-box'); box.setAttribute('aria-hidden', 'true');
+    box.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>';
+    const txt = el('span'); txt.appendChild(el('b', null, label)); if (help) txt.appendChild(el('small', null, help));
+    l.append(i, box, txt);
+    return l;
+  };
+  const secret = (id, label, help) => {
+    const wrap = field(id, label, inp(id, 'password', '', { autocomplete: 'off', spellcheck: false, placeholder: t('int.keyPh') }), help);
+    wrap.appendChild(el('p', 'int-key-state', t('int.keyNone')));
+    return wrap;
+  };
+  function cardHead(title, sub, on) {
+    const h = el('div', 'int-head');
+    const tt = el('div'); tt.append(el('h2', null, title), el('p', 'st-note', sub));
+    h.append(tt, el('span', 'int-pill' + (on ? ' is-on' : ''), t(on ? 'int.onWait' : 'int.off')));
+    return h;
+  }
+  function msgBox() { const m = el('p', 'int-msg'); m.hidden = true; m.setAttribute('role', 'status'); return m; }
+  const say = (m, key, warn) => { m.textContent = t(key); m.classList.toggle('is-warn', !!warn); m.hidden = false; };
+
+  function renderInt() {
+    const box = $('#view-int');
+    if (!box || !INT) return;
+    const cfg = INT.settings();
+    box.textContent = '';
+    const note = el('div', 'int-note');
+    note.append(el('b', null, t('int.protoTitle')), el('span', null, t('int.protoText')));
+    box.appendChild(note);
+    const grid = el('div', 'st-grid2 int-grid');
+
+    /* --- SMSAPI --- */
+    const sms = el('section', 'admin-card st-card int-card');
+    sms.appendChild(cardHead('SMSAPI.pl', t('int.smsSub'), cfg.sms.enabled));
+    sms.appendChild(check('sms-on', t('int.smsOn'), cfg.sms.enabled, t('int.smsOnHelp')));
+    sms.appendChild(secret('sms-token', t('int.smsToken'), t('int.smsTokenHelp')));
+    sms.appendChild(field('sms-sender', t('int.smsSender'), inp('sms-sender', 'text', cfg.sms.sender, { maxLength: 11 }), t('int.smsSenderHelp')));
+    sms.appendChild(check('sms-test', t('int.smsTest'), cfg.sms.test, t('int.smsTestHelp')));
+    sms.appendChild(check('sms-plain', t('int.smsPlain'), cfg.sms.normalize, t('int.smsPlainHelp')));
+    const ta = el('textarea'); ta.id = 'sms-tpl'; ta.rows = 3; ta.value = cfg.sms.template;
+    const tplF = field('sms-tpl', t('int.smsTpl'), ta);
+    const chips = el('div', 'int-chips');
+    ['trasa', 'data', 'od', 'do', 'osoby', 'km', 'stawka', 'link', 'koniec'].forEach((v) => {
+      const c = el('button', 'int-chip', '{' + v + '}'); c.type = 'button';
+      c.title = t('int.var.' + v);
+      c.addEventListener('click', () => { const p = ta.selectionStart || ta.value.length; ta.value = ta.value.slice(0, p) + '{' + v + '}' + ta.value.slice(ta.selectionEnd || p); ta.focus(); preview(); });
+      chips.appendChild(c);
+    });
+    tplF.appendChild(chips);
+    sms.appendChild(tplF);
+    const pv = el('div', 'int-preview');
+    sms.appendChild(pv);
+    function preview() {
+      const tmp = { sms: { template: ta.value, normalize: $('#sms-plain').checked } };
+      const text = INT.smsText(SAMPLE, store ? store.link(SAMPLE) : 'https://…', tmp);
+      const pr = INT.smsParts(text);
+      pv.textContent = '';
+      pv.append(el('span', 'int-pv-label', t('int.smsPreview')), el('p', 'int-pv-text', text),
+        el('span', 'int-pv-meta' + (pr.parts > 2 ? ' is-warn' : ''), tv('int.smsCount', { x: pr.len, y: pr.parts, z: pr.gsm ? 'GSM' : 'Unicode' })));
+    }
+    ta.addEventListener('input', preview);
+    sms.addEventListener('change', (e) => { if (e.target.id === 'sms-plain') preview(); });
+    const testRow = el('div', 'int-row');
+    testRow.append(field('sms-num', t('int.smsTestNum'), inp('sms-num', 'tel', '', { placeholder: '+48 500 600 700' })));
+    const tbtn = el('button', 'call-btn call-btn-ghost', t('int.smsTestBtn')); tbtn.type = 'button';
+    testRow.appendChild(tbtn);
+    sms.appendChild(testRow);
+    const smsSave = el('button', 'call-btn call-btn-primary', t('int.save')); smsSave.type = 'button';
+    const smsMsg = msgBox();
+    sms.append(smsSave, smsMsg);
+    tbtn.addEventListener('click', () => say(smsMsg, 'int.needServer', true));
+    smsSave.addEventListener('click', () => {
+      const c = INT.settings();
+      c.sms.enabled = $('#sms-on').checked; c.sms.sender = $('#sms-sender').value.trim().slice(0, 11) || 'ANWS';
+      c.sms.test = $('#sms-test').checked; c.sms.normalize = $('#sms-plain').checked; c.sms.template = ta.value.trim() || INT.DEFAULTS.sms.template;
+      INT.saveSettings(c);
+      const hadKey = !!$('#sms-token').value; $('#sms-token').value = '';
+      renderInt();
+      say($('#view-int .int-card .int-msg'), hadKey ? 'int.savedKey' : 'int.saved', hadKey);
+    });
+    grid.appendChild(sms);
+
+    /* --- Fakturownia --- */
+    const fv = el('section', 'admin-card st-card int-card');
+    fv.appendChild(cardHead('Fakturownia', t('int.fvSub'), cfg.fv.enabled));
+    fv.appendChild(check('fv-on', t('int.fvOn'), cfg.fv.enabled, t('int.fvOnHelp')));
+    const dom = el('div', 'suffix-wrap int-domain');
+    dom.append(inp('fv-domain', 'text', cfg.fv.domain, { placeholder: 'anws', spellcheck: false }), el('span', null, '.fakturownia.pl'));
+    fv.appendChild(field('fv-domain', t('int.fvDomain'), dom, t('int.fvDomainHelp')));
+    fv.appendChild(secret('fv-token', t('int.fvToken'), t('int.fvTokenHelp')));
+    fv.appendChild(field('fv-dept', t('int.fvDept'), inp('fv-dept', 'text', cfg.fv.department, { inputMode: 'numeric' }), t('int.fvDeptHelp')));
+    const row = el('div', 'int-row3');
+    const vat = el('select'); vat.id = 'fv-vat';
+    [23, 8, 5, 0].forEach((v) => { const o = el('option', null, v + '%'); o.value = v; if (+cfg.fv.vat === v) o.selected = true; vat.appendChild(o); });
+    row.append(field('fv-vat', t('int.fvVat'), vat), field('fv-days', t('int.fvDays'), inp('fv-days', 'number', cfg.fv.payDays, { min: 0, max: 90 })));
+    fv.appendChild(row);
+    fv.appendChild(check('fv-mail', t('int.fvMail'), cfg.fv.sendEmail, t('int.fvMailHelp')));
+    const kinds = el('fieldset', 'int-kinds');
+    kinds.appendChild(el('legend', null, t('int.fvKinds')));
+    ['commission', 'subscription', 'cancel', 'expired'].forEach((k) => {
+      kinds.appendChild(check('fv-k-' + k, t('int.k.' + k), cfg.fv.kinds[k], t('int.kh.' + k)));
+      kinds.appendChild(field('fv-n-' + k, t('int.fvName'), inp('fv-n-' + k, 'text', cfg.fv.names[k])));
+    });
+    kinds.appendChild(el('p', 'field-help', t('int.fvVars')));
+    fv.appendChild(kinds);
+    const fvTest = el('button', 'call-btn call-btn-ghost', t('int.fvTestBtn')); fvTest.type = 'button';
+    const fvSave = el('button', 'call-btn call-btn-primary', t('int.save')); fvSave.type = 'button';
+    const fvMsg = msgBox();
+    const fvBtns = el('div', 'int-row'); fvBtns.append(fvTest, fvSave);
+    fv.append(fvBtns, fvMsg);
+    fvTest.addEventListener('click', () => say(fvMsg, 'int.needServer', true));
+    fvSave.addEventListener('click', () => {
+      const c = INT.settings();
+      c.fv.enabled = $('#fv-on').checked;
+      c.fv.domain = $('#fv-domain').value.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\.fakturownia\.pl.*$/, '');
+      c.fv.department = $('#fv-dept').value.trim();
+      c.fv.vat = +$('#fv-vat').value; c.fv.payDays = Math.max(0, Math.min(90, +$('#fv-days').value || 7)); c.fv.sendEmail = $('#fv-mail').checked;
+      ['commission', 'subscription', 'cancel', 'expired'].forEach((k) => { c.fv.kinds[k] = $('#fv-k-' + k).checked; c.fv.names[k] = $('#fv-n-' + k).value.trim() || INT.DEFAULTS.fv.names[k]; });
+      INT.saveSettings(c);
+      const hadKey = !!$('#fv-token').value; $('#fv-token').value = '';
+      renderInt();
+      const m = $('#view-int .int-card:nth-child(2) .int-msg');
+      say(m, hadKey ? 'int.savedKey' : 'int.saved', hadKey);
+    });
+    grid.appendChild(fv);
+    box.appendChild(grid);
+    preview();
+
+    /* --- faktury do wystawienia --- */
+    const qc = el('section', 'admin-card st-card');
+    const q = INT.queue();
+    qc.appendChild(el('h2', null, t('int.qTitle')));
+    qc.appendChild(el('p', 'st-note', q.length ? tv('int.qNote', { x: q.length }) : t('int.qEmpty')));
+    if (q.length) {
+      const tbl = el('table', 'st-table int-q');
+      const hr = el('tr'); [t('int.qDate'), t('int.qBuyer'), t('int.qItem'), t('int.qNet'), 'VAT', t('int.qGross'), t('int.qStatus')].forEach((h) => hr.appendChild(el('th', null, h)));
+      tbl.appendChild(hr);
+      q.slice(0, 50).forEach((it) => {
+        const tr = el('tr');
+        const buyer = el('td'); buyer.append(el('b', null, it.buyer.name), el('small', null, (it.buyer.nip ? 'NIP ' + it.buyer.nip : t('int.qNoNip')) + (it.buyer.address ? ' · ' + it.buyer.address : ' · ' + t('int.qNoAddr'))));
+        const pos = el('td');
+        pos.appendChild(el('span', null, it.position.name));
+        const det = el('details', 'int-json');
+        det.append(el('summary', null, t('int.qPayload')), el('pre', null, JSON.stringify(INT.fakturowniaPayload(it), null, 2)));
+        pos.appendChild(det);
+        tr.append(el('td', null, fmtDate(it.at)), buyer, pos, el('td', 'num', zl2(it.position.net)), el('td', 'num', it.position.vat + '%'), el('td', 'num', zl2(it.position.gross)),
+          el('td', null, t(it.paid ? 'int.qPaid' : 'int.qPending')));
+        tbl.appendChild(tr);
+      });
+      const sc = el('div', 'st-scroll'); sc.appendChild(tbl);
+      qc.appendChild(sc);
+    }
+    box.appendChild(qc);
+  }
+
   function decide(r, approve) {
     if (!auth.decide(r.id, approve)) return;
     live.textContent = tx(approve ? 'adm.approved' : 'adm.rejected', r.company);
@@ -370,7 +544,7 @@
   document.addEventListener('anws:lang', () => {
     [errBox, pwErr].forEach((b) => { if (b.dataset.key) b.textContent = t(b.dataset.key); });
     const s = isAdmin();
-    if (s) { $('#adm-who').textContent = t('adm.who') + ' ' + s.login; render(); renderStats(); }
+    if (s) { $('#adm-who').textContent = t('adm.who') + ' ' + s.login; render(); renderStats(); if (view === 'int') renderInt(); }
   });
 
   show();
