@@ -263,7 +263,8 @@
     tr.addEventListener('mouseenter', () => setHl(o.id, false));
     tr.addEventListener('mouseleave', () => setHl(null, false));
     tr.addEventListener('focusin', () => setHl(o.id, false));
-    tr.addEventListener('click', (e) => { if (!e.target.closest('a, button')) focusOnMap(o.id); });
+    tr.addEventListener('click', (e) => { if (!e.target.closest('a, button')) selectOrder(o.id); });
+    if (o.id === selId) tr.classList.add('is-selected');
     return tr;
   }
 
@@ -526,8 +527,6 @@
     map = L.map('map', { zoomControl: true, worldCopyJump: true }).setView([52.1, 19.4], 6);
     L.tileLayer(TILE, { maxZoom: 18, attribution: ATTR }).addTo(map);
     layerGroup = L.layerGroup().addTo(map);
-    map.on('dragstart', () => { prevView = null; });
-    map.getContainer().addEventListener('wheel', () => { prevView = null; }, { passive: true });
   } else {
     $('#map').appendChild(el('p', 'map-note', 'Mapa jest chwilowo niedostępna.'));
   }
@@ -559,9 +558,9 @@
       const cls = (state.mapMode === 'dep' ? 'mk-dep' : 'mk-arr') + (o.urgent ? ' mk-urgent' : '');
       const m = L.marker([p.lat, p.lng], { icon: icon(cls, o.urgent ? '!' : ''), title: p.label, alt: p.label, riseOnHover: true });
       m.bindPopup(() => popupFor(o), { closeButton: true, autoPanPadding: [30, 30] });
-      m.on('mouseover', () => setHl(o.id, true));
-      m.on('mouseout', () => setHl(null, true));
-      m.on('click', () => showRow(o.id, true));
+      m.on('mouseover', () => setHl(o.id));
+      m.on('mouseout', () => setHl(null));
+      m.on('click', () => { const was = selId === o.id; selectOrder(o.id); if (!was) showRow(o.id, true); });
       m.addTo(layerGroup);
       markers.set(o.id, m);
     });
@@ -569,14 +568,15 @@
       const b = L.latLngBounds(list.map((o) => { const p = state.mapMode === 'dep' ? o.from : o.to; return [p.lat, p.lng]; }));
       map.fitBounds(b, { padding: [50, 50], maxZoom: list.length === 1 ? 8 : 11, animate: !reduce() });
     }
-    if (hlId) setTimeout(() => mapFocus(hlId), 0); // kursor nadal nad zleceniem — po odświeżeniu listy wracamy do skupienia
+    // po odświeżeniu listy wracamy do zaznaczonego / najechanego zlecenia (bez ruchu mapy)
+    if (selId && !list.some((o) => o.id === selId)) selId = null;
+    if (selId || hlId) setTimeout(() => mapFocus(selId || hlId), 0);
   }
 
   function clearRoute() { if (routeLayer && map) { map.removeLayer(routeLayer); routeLayer = null; } }
   let hlId = null;
-  function setHl(id, fromMap) {
+  function setHl(id) {
     if (hlId === id) return;
-    focusFromMap = !!fromMap;
     if (hlId) {
       const r = $(`.order[data-id="${hlId}"]`); if (r) r.classList.remove('is-hl');
       const m = markers.get(hlId); const e = m && m.getElement();
@@ -588,14 +588,44 @@
       const m = markers.get(id); const e = m && m.getElement();
       if (e) { e.classList.add('is-hl-wrap'); const mk = $('.mk', e); if (mk) mk.classList.add('is-hl'); }
     }
-    // mapa reaguje z krótkim opóźnieniem — przy szybkim przesuwaniu kursora po liście nic nie miga
+    // mapa reaguje z krótkim opóźnieniem — przy szybkim przesuwaniu kursora po liście nic nie miga;
+    // zaznaczone (kliknięte) zlecenie ma pierwszeństwo przed najechanym
+    if (selId) return;
+    if (skipHoverId && id !== skipHoverId) skipHoverId = null;
     clearTimeout(focusTimer);
-    focusTimer = setTimeout(() => mapFocus(hlId), id ? 90 : 160);
+    focusTimer = setTimeout(() => mapFocus(hlId && hlId !== skipHoverId ? hlId : null), id ? 90 : 160);
   }
 
+  /* ---------- zaznaczenie (kliknięcie): przybliżenie do trasy; ponowne kliknięcie / Esc — wszystkie zlecenia ---------- */
+  let selId = null, skipHoverId = null;
+  function markSelected() { $$('.order.is-selected').forEach((r) => r.classList.remove('is-selected')); if (selId) { const r = $(`.order[data-id="${selId}"]`); if (r) r.classList.add('is-selected'); } }
+  function selectOrder(id) {
+    clearTimeout(focusTimer);
+    if (selId === id) { deselect(); return; }
+    selId = id; skipHoverId = null;
+    markSelected();
+    focusedId = null; // rysujemy trasę od nowa, już po przybliżeniu
+    mapFocus(id, true);
+  }
+  function deselect() {
+    const was = selId;
+    if (!was) return;
+    selId = null;
+    skipHoverId = hlId === was ? was : null; // kursor nadal nad tym wierszem — nie wracaj do skupienia, dopóki z niego nie zjedzie
+    markSelected();
+    mapFocus(null);
+    showAll();
+  }
+  // wszystkie widoczne zlecenia w kadrze
+  function showAll() {
+    if (!map || main.dataset.view === 'list' || !markers.size) return;
+    const b = L.latLngBounds([...markers.values()].map((m) => m.getLatLng()));
+    map.flyToBounds(b, { padding: [50, 50], maxZoom: markers.size === 1 ? 8 : 11, duration: reduce() ? 0 : .6 });
+  }
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && selId && !$$('dialog[open]').length && $('#phone-bub').hidden) deselect(); });
+
   /* ---------- tryb skupienia na mapie: jedno zlecenie, jego punkty i rysowana trasa ---------- */
-  let focusTimer = 0, focusedId = null, routeSeq = 0, focusFromMap = false;
-  let prevView = null; // widok mapy sprzed skupienia — wracamy do niego po zjechaniu kursorem
+  let focusTimer = 0, focusedId = null, routeSeq = 0;
   const roads = new Map(); // trasy drogowe (OSRM) zapamiętane per zlecenie
   const routePoints = (o) => { const st = store.stops(o); return { st, all: st.pickups.concat(st.drops, st.end ? [st.end] : []) }; };
   function roadFor(o, all) {
@@ -633,9 +663,9 @@
     });
     return lines;
   }
-  function mapFocus(id) {
+  // fly = przybliż mapę do trasy (tylko po kliknięciu); najechanie kursorem rysuje trasę bez ruchu mapy
+  function mapFocus(id, fly) {
     if (!map || focusedId === id) return;
-    const wasFocused = !!focusedId;
     focusedId = id;
     const seq = ++routeSeq;
     clearRoute();
@@ -643,13 +673,7 @@
     box.classList.toggle('is-focus', !!id);
     markers.forEach((m, oid) => { const e = m.getElement(); if (e) e.classList.toggle('is-dim', !!id && oid !== id); });
     const o = id && store.get(id);
-    if (!o) {
-      // koniec skupienia: wracamy do widoku sprzed najechania (jeśli użytkownik sam nie przesunął mapy)
-      if (prevView && main.dataset.view !== 'list') map.flyTo(prevView.c, prevView.z, { duration: reduce() ? 0 : .55 });
-      prevView = null;
-      return;
-    }
-    if (!wasFocused) prevView = { c: map.getCenter(), z: map.getZoom() };
+    if (!o) return;
     const { st, all } = routePoints(o);
     routeLayer = L.layerGroup().addTo(map);
     const shown = state.mapMode === 'dep' ? o.from : o.to;
@@ -683,13 +707,9 @@
         lines.forEach((l) => { const e = l.getElement(); if (e) e.classList.add('rt-fade'); });
       });
     });
-    // przybliżamy do trasy, gdy wystaje z kadru albo jest w nim drobna; linię rysujemy po zakończeniu lotu
-    // (z pinezki na mapie — bez przesuwania, żeby mapa nie uciekała spod kursora)
+    // po kliknięciu: przybliżenie do całej trasy, linię rysujemy po zakończeniu lotu
     const b = L.latLngBounds(all.map((x) => [x.lat, x.lng]));
-    const size = map.getSize();
-    const a1 = map.latLngToContainerPoint(b.getSouthWest()), a2 = map.latLngToContainerPoint(b.getNorthEast());
-    const small = Math.max(Math.abs(a2.x - a1.x) / size.x, Math.abs(a2.y - a1.y) / size.y) < 0.3;
-    const fly = !focusFromMap && main.dataset.view !== 'list' && (small || !map.getBounds().pad(-0.08).contains(b));
+    fly = fly && main.dataset.view !== 'list';
     if (fly && !reduce()) {
       map.once('moveend', () => { if (seq === routeSeq) draw(); });
       map.flyToBounds(b, { padding: [70, 70], maxZoom: 11, duration: .6 });
@@ -705,12 +725,6 @@
     r.scrollIntoView({ block: 'center', behavior: reduce() ? 'auto' : 'smooth' });
     r.classList.remove('is-flash'); void r.offsetWidth; r.classList.add('is-flash');
     if (!fromMap) setHl(id);
-  }
-  function focusOnMap(id) {
-    const m = markers.get(id);
-    if (!m || !map || main.dataset.view === 'list') return;
-    map.flyTo(m.getLatLng(), Math.max(map.getZoom(), 9), { duration: reduce() ? 0 : .6 });
-    setTimeout(() => m.openPopup(), reduce() ? 0 : 650);
   }
 
   $$('[data-map-mode]').forEach((b) => b.addEventListener('click', () => {
@@ -1274,7 +1288,7 @@
     state.mineTab = 'posted';
     setScope('mine');
     toast(t('g.done'));
-    setTimeout(() => { showRow(o.id); focusOnMap(o.id); }, 200);
+    setTimeout(() => { showRow(o.id); selectOrder(o.id); }, 200);
   });
 
   /* ---------- zmiana języka ---------- */
