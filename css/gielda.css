@@ -202,8 +202,8 @@ th[aria-sort="ascending"] .th-sort, th[aria-sort="descending"] .th-sort { color:
 .gl-empty { display: grid; justify-items: center; gap: 12px; padding: 48px 20px; text-align: center; color: var(--ink-muted); }
 .gl-empty[hidden] { display: none; }
 
-/* wąska lista (np. po poszerzeniu mapy) — wiersze zamieniają się w karty */
-@container list (max-width: 1060px) {
+/* wąska lista (np. po poszerzeniu mapy) — wiersze zamieniają się w karty; próg z zapasem na kolumnę kontrahenta i przyciski */
+@container list (max-width: 1250px) {
   .gl-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .gl-table, .gl-table tbody { display: block; }
   .gl-table tbody { display: grid; gap: 10px; padding-top: 10px; }
@@ -479,7 +479,7 @@ th[aria-sort="ascending"] .th-sort, th[aria-sort="descending"] .th-sort { color:
 .phone-bub .call-btn { min-height: 44px; padding: 0 12px; font-size: 14px; }
 .bub-other { justify-self: stretch; text-align: center; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--ink-muted); }
 .bub-other a { color: var(--accent-text); font-weight: 700; text-decoration: none; font-variant-numeric: tabular-nums; }
-@container list (max-width: 1060px) { .acts .party { flex: 1 1 auto; max-width: none; } .acts .party ~ .g-btn { flex: 0 0 auto; } .gl-table .acts .party-text { width: auto; } }
+@container list (max-width: 1250px) { .acts .party { flex: 1 1 auto; max-width: none; } .acts .party ~ .g-btn { flex: 0 0 auto; } .gl-table .acts .party-text { width: auto; } }
 @media (max-width: 640px) {
   .phone-bub { left: 12px !important; right: 12px; top: auto !important; bottom: calc(90px + env(safe-area-inset-bottom)); width: auto; }
 }
