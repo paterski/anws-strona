@@ -1931,3 +1931,58 @@ html.is-loading .page *, html.is-loading .page *::before, html.is-loading .page 
 @media (max-width: 520px) { .int-row3 { grid-template-columns: 1fr; } .int-kinds .field { margin-left: 0; } }
 .int-domain { position: relative; }
 .int-domain span { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-weight: 600; color: var(--ink-muted); pointer-events: none; }
+.hi-state.is-free { background: var(--ok-bg); color: var(--ok-ink); }
+
+/* ---------- panel administratora: konta użytkowników ---------- */
+#view-acc { display: grid; gap: 16px; }
+#view-acc[hidden] { display: none; }
+.acc-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.acc-bar input, .acc-bar select, .acc-input { min-height: 46px; padding: 0 14px; border-radius: 14px; border: 1.5px solid var(--input-border); background: var(--input-bg); color: var(--ink); font: 500 15px var(--font-body); }
+.acc-bar input { flex: 2 1 260px; }
+.acc-bar select { flex: 1 1 180px; }
+.acc-bar .acc-csv { min-height: 46px; flex: 0 0 auto; }
+textarea.acc-input { width: 100%; min-height: 0; padding: 10px 14px; line-height: 1.45; resize: vertical; }
+.acc-count { margin: 0; }
+.acc-list { display: grid; gap: 14px; }
+.acc-acard { gap: 14px; padding: 22px 24px; }
+.acc-acard.is-blocked { border-color: var(--err-border); }
+.acc-ahead { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 8px 16px; }
+.acc-who { display: grid; gap: 2px; min-width: 0; }
+.acc-who h3 { font-size: 19px; overflow-wrap: anywhere; }
+.acc-sub { font-size: 13px; color: var(--ink-muted); }
+.acc-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.acc-pill { padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--ib-border); color: var(--ink-muted); white-space: nowrap; }
+.acc-pill.st-active, .acc-pill.pl-sub { background: var(--ok-bg); color: var(--ok-ink); }
+.acc-pill.st-blocked { background: var(--err-bg); color: var(--err-ink); }
+.acc-pill.pl-trial { background: rgba(168, 121, 63, .18); color: var(--ink); }
+.acc-blocked { font-size: 13.5px; color: var(--err-ink); font-weight: 600; }
+.acc-dl2 { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.acc-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.acc-stats div { display: grid; gap: 2px; padding: 10px 12px; border-radius: 14px; background: var(--ib-bg); }
+.acc-stats span { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-muted); }
+.acc-stats b { font-size: 17px; font-variant-numeric: tabular-nums; }
+.acc-stats .is-warn b { color: var(--err-ink); }
+.acc-manage summary { cursor: pointer; font-weight: 700; color: var(--accent-text); padding: 4px 0; }
+.acc-mbody { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 10px; }
+.acc-sec { display: grid; gap: 8px; align-content: start; padding: 14px 16px; border-radius: 16px; border: 1px solid var(--ib-border); }
+.acc-sec h4 { font-size: 15px; }
+.acc-sec .call-btn { justify-self: start; min-height: 44px; padding: 0 18px; }
+.acc-wide, .acc-edit { grid-column: 1 / -1; }
+.acc-line { display: flex; flex-wrap: wrap; gap: 8px; }
+.acc-line .acc-input { flex: 1 1 200px; }
+.acc-egrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px 12px; }
+.acc-f { display: grid; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--ink-muted); }
+.acc-f .acc-input { width: 100%; }
+.call-btn-danger-soft { border: 1px solid var(--err-border); background: var(--err-bg); color: var(--err-ink); }
+.call-btn-danger-soft:hover { background: var(--err-ink); color: #fff; }
+.acc-last { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.acc-last li { display: grid; grid-template-columns: 100px minmax(0, 1fr) 90px 90px 130px; gap: 10px; align-items: center; font-size: 13.5px; padding: 6px 0; border-top: 1px solid var(--line); }
+.acc-last li b { overflow-wrap: anywhere; }
+.acc-ost { justify-self: end; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 700; background: var(--ib-border); color: var(--ink-muted); }
+.acc-msg { font-size: 13.5px; font-weight: 600; color: var(--ok-ink); margin-top: 8px; }
+@media (max-width: 760px) {
+  .acc-mbody { grid-template-columns: minmax(0, 1fr); }
+  .acc-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .acc-last li { grid-template-columns: 1fr auto; }
+  .acc-last li > span:nth-child(3), .acc-last li > span:nth-child(4) { display: none; }
+}

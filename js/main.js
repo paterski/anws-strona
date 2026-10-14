@@ -657,6 +657,8 @@
         fLogin.setAttribute('aria-invalid', 'true');
         alertBox.hidden = false;
         fLogin.focus(); fLogin.select();
+      } else if (res.error === 'blocked') {
+        showErr(fPass, ePass, t('auth.errBlocked'));
       } else if (res.error === 'password') {
         fPass.value = '';
         showErr(fPass, ePass, t('auth.errWrongPass'), true);

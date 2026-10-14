@@ -41,6 +41,7 @@
   const NOTE_KEY = 'anws-notifications';
   const BILL_KEY = 'anws-billing';     // model rozliczeń kont: wybór, opłacony abonament, historia opłat
   const PROFILE_KEY = 'anws-profiles'; // zmienione dane kontaktowe kont wbudowanych (prototyp; docelowo baza)
+  const META_KEY = 'anws-account-meta'; // dane administracyjne kont: blokada, notatka, ostatnie logowanie
   const SUB_PRICE = 500;               // abonament, zł netto / 30 dni
   const SUB_DAYS = 30;
   const DAY = 864e5;
@@ -98,7 +99,13 @@
   }
 
   // wszystkie konta: wbudowane (z ewentualnie zmienionym hasłem) + wnioski z rejestracji
+  const metaOf = (login) => loadRaw(META_KEY, {})[login] || {};
+  function setMeta(login, patch) { const m = loadRaw(META_KEY, {}); m[login] = Object.assign(m[login] || {}, patch); save(META_KEY, m); }
   function findAccount(login) {
+    const acc = findAccountRaw(login);
+    return acc ? Object.assign(acc, { meta: metaOf(acc.login) }) : null;
+  }
+  function findAccountRaw(login) {
     const l = String(login || '').trim().toLowerCase();
     const u = USERS.find((x) => x.login === l);
     if (u) {
@@ -156,7 +163,10 @@
   window.ANWSAuth = {
     // Sesja: „zapamiętaj mnie” → localStorage na 30 dni, bez niego → do zamknięcia karty
     getSession() {
-      return read(localStorage) || read(sessionStorage);
+      const s = read(localStorage) || read(sessionStorage);
+      // konto zablokowane przez administratora — sesja kończy się od razu
+      if (s && s.role !== 'admin' && metaOf(s.login).blocked) { endSessionsOf(s.login); return null; }
+      return s;
     },
 
     // Zwraca { ok: true, role } albo { ok: false, error: 'user' | 'password' }
@@ -165,6 +175,8 @@
       const user = findAccount(login);
       if (!user || !user.confirmed) return { ok: false, error: 'user' };
       if ((await sha256(password)) !== user.hash) return { ok: false, error: 'password' };
+      if (user.meta.blocked) return { ok: false, error: 'blocked' };
+      setMeta(user.login, { lastLoginAt: Date.now() });
       const session = { login: user.login, name: user.name, role: user.role, exp: remember ? Date.now() + REMEMBER_DAYS * 864e5 : null };
       safe(() => (remember ? localStorage : sessionStorage).setItem(KEY, JSON.stringify(session)));
       return { ok: true, role: user.role };
@@ -336,11 +348,65 @@
       };
     },
     // konta przewoźników (aktywne) — do statystyk i listy dokumentów w panelu administratora
-    accounts() {
+    accounts() { return this.allAccounts().filter((l) => !metaOf(l).blocked); },
+    allAccounts() {
       return USERS.filter((u) => u.role === 'user' && u.confirmed).map((u) => u.login)
         .concat(loadRegs().filter((r) => r.status === 'approved').map((r) => r.login));
     },
     billingAll() { return Array.from(new Set(this.accounts().concat(SEED.map((x) => x.login)))).map((login) => ({ login, history: billingState(login).history || [] })); },
+
+    /* ---------- administrator: konta użytkowników ---------- */
+    // wszystkie konta firm (bez administratora i bez wniosków oczekujących / odrzuconych)
+    adminAccounts() {
+      const logins = USERS.filter((u) => u.role !== 'admin').map((u) => u.login)
+        .concat(loadRegs().filter((r) => r.status === 'approved').map((r) => r.login));
+      return logins.map((login) => {
+        const a = findAccount(login);
+        return {
+          login, builtIn: !!a.builtIn, company: a.company || a.name || login, nip: a.nip || '', krs: a.krs || '', regon: a.regon || '', address: a.address || '',
+          contactName: a.contactName || '', email: a.email || '', phone: a.phone || '', alarmPhone: a.alarmPhone || '',
+          createdAt: a.createdAt || null, activatedAt: a.activatedAt || null,
+          status: !a.confirmed ? 'unconfirmed' : a.meta.blocked ? 'blocked' : 'active',
+          blockedAt: a.meta.blockedAt || null, blockReason: a.meta.blockReason || '', note: a.meta.note || '', lastLoginAt: a.meta.lastLoginAt || null,
+        };
+      });
+    },
+    // Blokada konta: brak logowania, koniec sesji, brak powiadomień o pilnych zleceniach; zlecenia i historia zostają
+    setBlocked(login, blocked, reason) {
+      const acc = findAccount(login);
+      if (!acc || acc.role === 'admin') return false;
+      setMeta(acc.login, blocked ? { blocked: true, blockedAt: Date.now(), blockReason: reason || '' } : { blocked: false, blockedAt: null, blockReason: '' });
+      if (blocked) endSessionsOf(acc.login);
+      if (acc.email) mail(acc.email, blocked ? 'Konto ANWS zostało zablokowane' : 'Konto ANWS zostało odblokowane', blocked
+        ? `Dzień dobry! Administrator ANWS zablokował konto „${acc.login}”${reason ? '. Powód: ' + reason : ''}. Do czasu odblokowania nie zalogujesz się na giełdę. W razie pytań: +48 884 106 851.`
+        : `Dzień dobry! Konto „${acc.login}” jest ponownie aktywne — możesz zalogować się na giełdę ANWS.`);
+      return true;
+    },
+    setNote(login, note) { setMeta(login, { note: String(note || '').slice(0, 1000) }); return true; },
+    // link do zmiany hasła wysłany na e-mail konta (jak „Nie pamiętasz hasła?”)
+    async adminSendReset(login) {
+      const acc = findAccount(login);
+      if (!acc || !acc.email || !acc.confirmed) return { ok: false };
+      return this.requestReset(acc.email);
+    },
+    // darmowy okres abonamentu od administratora (bez opłaty i bez faktury)
+    grantSubscription(login, days) {
+      const acc = findAccount(login);
+      if (!acc || acc.role === 'admin' || !(days > 0)) return false;
+      const b = billingState(acc.login);
+      const now = Date.now();
+      const running = b.paidUntil && now < b.paidUntil;
+      const freeUntil = acc.activatedAt ? acc.activatedAt + 30 * DAY : 0;
+      const from = running ? b.paidUntil : Math.max(now, freeUntil); // po opłaconym okresie albo po darmowym miesiącu
+      if (!running) { b.subStart = from; b.endNotified = false; }
+      b.paidUntil = from + days * DAY;
+      b.chosen = true; b.switchToCommission = false;
+      b.history = [{ type: 'grant', amount: 0, from, to: b.paidUntil, at: now }].concat(b.history || []).slice(0, 60);
+      saveBilling(acc.login, b);
+      if (acc.email) mail(acc.email, 'Darmowy okres abonamentu ANWS',
+        `Dzień dobry! Administrator ANWS przyznał kontu „${acc.login}” bezpłatny abonament na ${days} dni: ${new Date(from).toLocaleDateString('pl-PL')} – ${new Date(b.paidUntil).toLocaleDateString('pl-PL')}. W tym czasie rezerwujesz zlecenia bez prowizji.`);
+      return true;
+    },
 
     // Zmiana danych kontaktowych: { contactName, email, phone, alarmPhone } → { ok } albo { ok: false, error: 'email_taken' }
     async updateProfile(login, d) {
