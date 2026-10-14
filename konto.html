@@ -28,7 +28,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="css/style.css?v=202610141706">
+<link rel="stylesheet" href="css/style.css?v=202610141741">
 </head>
 <body data-title-key="k.metaTitle">
 <a class="skip" href="#tresc" data-i18n="skip">Przejdź do treści</a>
@@ -184,6 +184,66 @@
         </div>
       </section>
 
+      <!-- historia przewozów: zlecone przez konto i wykonane przez konto (bez terminu ważności) -->
+      <section class="admin-card hs-card" id="historia" aria-labelledby="hs-title">
+        <div class="hs-head">
+          <div>
+            <h2 id="hs-title" data-i18n="k.hsTitle">Historia przewozów</h2>
+            <p class="field-help" data-i18n="k.hsLead">Wszystkie Twoje zlecenia — także zarchiwizowane. Zapisujemy je bez terminu ważności.</p>
+          </div>
+          <div class="admin-tabs" role="tablist" aria-label="Rodzaj przewozów" data-i18n-aria="k.hsTabs">
+            <button type="button" role="tab" id="hs-tab-posted" aria-selected="true" aria-controls="hs-list" data-hs="posted"><span data-i18n="k.hsPosted">Zlecone przeze mnie</span> <b id="hs-n-posted">0</b></button>
+            <button type="button" role="tab" id="hs-tab-taken" aria-selected="false" aria-controls="hs-list" data-hs="taken"><span data-i18n="k.hsTaken">Wykonane przeze mnie</span> <b id="hs-n-taken">0</b></button>
+          </div>
+        </div>
+        <form class="hs-filters" id="hs-filters" role="search" novalidate>
+          <div class="field hs-q">
+            <label for="hs-q" data-i18n="k.hsQ">Szukaj</label>
+            <input id="hs-q" type="search" autocomplete="off" placeholder="Miasto, adres, kontrahent" data-i18n-ph="k.hsQph">
+          </div>
+          <div class="field">
+            <label for="hs-status" data-i18n="k.hsStatus">Status</label>
+            <select id="hs-status">
+              <option value="" data-i18n="k.hsAll">Wszystkie</option>
+              <option value="open" data-i18n="k.st2.open">Otwarte</option>
+              <option value="reserved" data-i18n="k.st2.reserved">Zarezerwowane</option>
+              <option value="done" data-i18n="k.st2.done">Zrealizowane</option>
+              <option value="expired" data-i18n="k.st2.expired">Niepodjęte</option>
+              <option value="cancelled" data-i18n="k.st2.cancelled">Anulowane</option>
+              <option value="removed" data-i18n="k.st2.removed">Usunięte przez administratora</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="hs-from" data-i18n="k.hsFrom">Wyjazd od</label>
+            <input id="hs-from" type="date">
+          </div>
+          <div class="field">
+            <label for="hs-to" data-i18n="k.hsTo">Wyjazd do</label>
+            <input id="hs-to" type="date">
+          </div>
+          <label class="check hs-arch">
+            <input type="checkbox" id="hs-arch">
+            <span class="check-box" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></span>
+            <span data-i18n="k.hsArchOnly">Tylko zarchiwizowane</span>
+          </label>
+          <button type="reset" class="sub-logout hs-reset" id="hs-reset" data-i18n="k.hsReset">Wyczyść filtry</button>
+        </form>
+        <p class="field-err" id="hs-err" role="alert" hidden></p>
+        <p class="hs-count" id="hs-count" aria-live="polite"></p>
+        <ul class="hs-list" id="hs-list"></ul>
+        <button type="button" class="call-btn call-btn-ghost hs-more" id="hs-more" hidden></button>
+      </section>
+
+      <!-- potwierdzenia zleceń: podgląd i pobranie PDF -->
+      <section class="admin-card hs-card" id="potwierdzenia" aria-labelledby="cf-title">
+        <div>
+          <h2 id="cf-title" data-i18n="k.cfTitle">Potwierdzenia zleceń</h2>
+          <p class="field-help" data-i18n="k.cfLead">Potwierdzenie powstaje przy każdej rezerwacji — w zleceniach, które wystawiłeś i które wykonujesz. Pobierzesz je tu jako PDF w każdej chwili.</p>
+        </div>
+        <ul class="hs-list cf-list" id="cf-list"></ul>
+        <button type="button" class="call-btn call-btn-ghost hs-more" id="cf-more" hidden></button>
+      </section>
+
       <div class="acc-grid">
         <!-- dane firmy: tylko do odczytu -->
         <section class="admin-card acc-card" aria-labelledby="co-title">
@@ -317,11 +377,12 @@
   </div>
 </dialog>
 
-<script src="js/i18n.js?v=202610141706"></script>
-<script src="js/auth.js?v=202610141706"></script>
-<script src="js/orders.js?v=202610141706"></script>
-<script src="js/main.js?v=202610141706" defer></script>
-<script src="js/account.js?v=202610141706" defer></script>
-<script src="js/konto.js?v=202610141706" defer></script>
+<script src="js/i18n.js?v=202610141741"></script>
+<script src="js/auth.js?v=202610141741"></script>
+<script src="js/orders.js?v=202610141741"></script>
+<script src="js/confirm.js?v=202610141741" defer></script>
+<script src="js/main.js?v=202610141741" defer></script>
+<script src="js/account.js?v=202610141741" defer></script>
+<script src="js/konto.js?v=202610141741" defer></script>
 </body>
 </html>

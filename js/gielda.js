@@ -132,6 +132,12 @@
       const c = typeof va === 'string' ? va.localeCompare(vb, locale()) : va - vb;
       return dir === 'asc' ? c : -c;
     });
+    // „Twoje zlecenia”: najpierw nadchodzące, zakończone kursy na końcu (od najnowszego)
+    if (state.scope === 'mine') {
+      const nowMs = now.getTime();
+      const done = list.filter((o) => o.arr <= nowMs).sort((a, b) => b.dep - a.dep);
+      list = list.filter((o) => o.arr > nowMs).concat(done);
+    }
     return list;
   }
 
@@ -212,10 +218,14 @@
     const acts = el('div', 'acts');
     const own = o.owner === me;
     const expired = o.status === 'expired';
+    const finished = store.state(o) === 'done';
+    if (finished) tr.classList.add('is-finished');
     if (expired) tr.classList.add('is-expired');
     const neg = el('button', 'g-btn g-btn-ghost', t('g.negotiate'));
     neg.type = 'button';
-    if (own && !expired) {
+    if (finished) {
+      neg.hidden = true;
+    } else if (own && !expired) {
       // własne zlecenie: zamiast negocjacji — anulowanie (płatne)
       neg.textContent = t('g.cx.btn');
       neg.className = 'g-btn g-btn-danger';
@@ -238,11 +248,22 @@
       neg.hidden = true;
       res.textContent = t('g.fee.payBtn', { x: zl(store.EXPIRE_FEE) });
       res.addEventListener('click', () => openFee(false));
-    } else if (own) { res.textContent = t('g.yours'); res.disabled = true; }
+    } else if (finished && (own || o.reservedBy === me)) { res.textContent = t('g.doneTrip'); res.disabled = true; res.classList.add('is-mine'); }
+    else if (own) { res.textContent = t('g.yours'); res.disabled = true; }
     else if (o.status !== 'open' && o.reservedBy === me) { res.textContent = t('g.reservedMine'); res.disabled = true; res.classList.add('is-mine'); }
     else if (o.status !== 'open') { res.textContent = t('g.reserved'); res.disabled = true; }
     else { res.textContent = t('g.reserve'); res.addEventListener('click', () => openReserve(o.id)); }
     acts.append(neg, res);
+    // archiwizacja — tylko w „Twoich zleceniach”; zlecenie zostaje w historii w panelu klienta
+    if (state.scope === 'mine' && store.canArchive(o, me)) {
+      const ar = el('button', 'ib arch-btn');
+      ar.type = 'button';
+      ar.innerHTML = ICON_ARCH;
+      ar.title = t('g.ar.btn');
+      ar.setAttribute('aria-label', t('g.ar.btn'));
+      ar.addEventListener('click', (e) => { e.stopPropagation(); openArchive(o.id); });
+      acts.appendChild(ar);
+    }
     const cell = td(acts);
     // kontrahent: administrator widzi zlecającego przy każdym zleceniu; pozostali — dopiero
     // w „Twoich zleceniach”: przewoźnik po rezerwacji widzi zleceniodawcę, zlecający — przewoźnika
@@ -288,6 +309,7 @@
     .replace(/SPÓŁKA AKCYJNA/gi, 'S.A.')
     .replace(/SPÓŁKA JAWNA/gi, 'Sp.j.')
     .replace(/\s+/g, ' ').trim();
+  const ICON_ARCH = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1.5"></rect><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M10 13h4"></path></svg>';
   const ICON_DOC = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5M9 13h6M9 17h4"></path></svg>';
   const SHIELD = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 5 6v5.5c0 4.3 3 8 7 9.5 4-1.5 7-5.2 7-9.5V6z"></path><path d="M8.8 12.2l2.2 2.2 4.2-4.4"></path></svg>';
   // znaczek „Firma zweryfikowana” (NIP, KRS i PKD z rejestrów) — podpowiedź mówi też o dokumentach
@@ -769,7 +791,7 @@
     d.classList.add('is-closing');
     setTimeout(() => { d.close(); d.classList.remove('is-closing'); }, reduce() ? 0 : 160);
   }
-  ['#rv-dialog', '#ng-dialog', '#cx-dialog', '#fee-dialog', '#rm-dialog', '#doc-dialog'].forEach((sel) => {
+  ['#rv-dialog', '#ng-dialog', '#cx-dialog', '#fee-dialog', '#rm-dialog', '#ar-dialog'].forEach((sel) => {
     const d = $(sel);
     $$('[data-close]', d).forEach((b) => b.addEventListener('click', () => closeDlg(d)));
     d.addEventListener('cancel', (e) => { e.preventDefault(); closeDlg(d); });
@@ -807,70 +829,8 @@
     return chip;
   }
 
-  /* ---------- potwierdzenie zlecenia (do druku / PDF) ---------- */
-  const esc = (v) => String(v == null ? '' : v).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
-  const fullDate = (ms) => new Date(ms).toLocaleString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  const docNo = (o) => { const d = new Date(o.reservedAt || o.createdAt); return `ANWS/${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${o.id.toUpperCase()}`; };
-  // dokument zawsze po polsku — to potwierdzenie między polskimi firmami
-  function docHtml(o) {
-    const firm = (login, role) => {
-      const p = auth.profile(login) || {};
-      const c = auth.contactOf(login);
-      const v = auth.verified(login);
-      const rows = [['NIP', p.nip], ['KRS', p.krs], ['REGON', p.regon], ['Osoba do kontaktu', c.person], ['Telefon', fmtPhone(c.phone)], ['Telefon alarmowy', fmtPhone(c.alarmPhone)], ['E-mail', c.email]]
-        .filter((r) => r[1]).map((r) => `<tr><th>${r[0]}</th><td>${esc(r[1])}</td></tr>`).join('');
-      return `<div class="ds-firm"><h4>${role}</h4><b>${esc(c.name)}</b>${v.registry ? '<span class="ds-ver">✓ Firma zweryfikowana w rejestrach (NIP, KRS, PKD)</span>' : ''}<table>${rows}</table></div>`;
-    };
-    const st = store.stops(o);
-    const stop = (p, letter, what) => `<tr><td class="ds-l">${letter}</td><td>${esc(p.label)}</td><td>${what}</td></tr>`;
-    const lines = st.pickups.map((p, i) => stop(p, st.pickups.length > 1 ? 'A' + (i + 1) : 'A', 'odbiór pasażerów'))
-      .concat(st.drops.map((p, i) => stop(p, st.drops.length > 1 ? 'B' + (i + 1) : 'B', 'miejsce docelowe')))
-      .concat(st.end ? [stop(st.end, 'C', 'koniec trasy')] : []).join('');
-    const c = store.crew(o);
-    const crewTxt = { one: '1 kierowca', ext: '1 kierowca (wydłużony czas jazdy do 10 h — dopuszczalny 2× w tygodniu)', two: '2 kierowców (załoga dwuosobowa)', rest: 'nocleg kierowców lub zmiana załogi' }[c.level];
-    const fee = o.fee ? `Prowizja ANWS dla przewoźnika: ${zl(o.fee.amount)} netto (${num(o.fee.pct * 100, o.fee.pct === 0.025 ? 1 : 0)}%).` : 'Rezerwacja bez prowizji ANWS (abonament lub pierwszy miesiąc).';
-    return `<header class="ds-head"><div><span class="ds-brand">ANWS</span><span class="ds-sub">Giełda zleceń przewozu osób</span></div>
-      <div class="ds-no"><b>Potwierdzenie zlecenia przewozu</b><span>nr ${docNo(o)}</span><span>z dnia ${new Date(o.reservedAt || Date.now()).toLocaleDateString('pl-PL')}</span></div></header>
-      <div class="ds-firms">${firm(o.owner, 'Zleceniodawca')}${firm(o.reservedBy, 'Przewoźnik')}</div>
-      <h4>Trasa</h4><table class="ds-route">${lines}</table>
-      <table class="ds-facts">
-        <tr><th>Wyjazd</th><td>${esc(fullDate(o.dep))}</td><th>Przyjazd</th><td>${esc(fullDate(o.arr))}</td></tr>
-        <tr><th>Liczba pasażerów</th><td>${o.pax}</td><th>Odległość</th><td>${num(o.km)} km</td></tr>
-        <tr><th>Obsada (szacunek)</th><td colspan="3">${crewTxt} · ok. ${hm(c.drive)} jazdy${c.breaks ? ', ' + c.breaks + ' × 45 min przerwy' : ''}</td></tr>
-        ${o.notes ? `<tr><th>Uwagi</th><td colspan="3">${esc(o.notes)}</td></tr>` : ''}
-      </table>
-      <div class="ds-total"><span>Stawka za przewóz</span><b>${zl(o.rate)} netto</b><small>+ VAT według obowiązującej stawki</small></div>
-      <ol class="ds-terms">
-        <li>Przewoźnik oświadcza, że posiada licencję na wykonywanie transportu drogowego osób oraz ważne ubezpieczenie OC przewoźnika i NNW pasażerów.</li>
-        <li>Przewoźnik podstawia pojazd sprawny technicznie, z liczbą miejsc nie mniejszą niż liczba pasażerów, i przestrzega przepisów o czasie pracy kierowców (rozporządzenie (WE) 561/2006).</li>
-        <li>Rozliczenie stawki następuje bezpośrednio między stronami na podstawie faktury przewoźnika. ${fee}</li>
-        <li>Anulowanie zlecenia odbywa się na giełdzie ANWS, zgodnie z regulaminem i cennikiem serwisu.</li>
-      </ol>
-      <div class="ds-sign"><div>Zleceniodawca<br><span></span></div><div>Przewoźnik<br><span></span></div></div>
-      <footer class="ds-foot">Dokument wygenerowany na giełdzie ANWS ${new Date().toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' })} · paterski.github.io/anws-strona</footer>`;
-  }
-  function openDoc(id) {
-    const o = store.get(id);
-    if (!o || !o.reservedBy) return;
-    $('#doc-sheet').innerHTML = docHtml(o);
-    $('#doc-dialog').dataset.no = docNo(o);
-    openDlg($('#doc-dialog'));
-    setTimeout(() => $('#doc-print').focus(), 40);
-  }
-  // druk: kopia dokumentu poza oknem dialogowym, reszta strony ukryta stylem @media print
-  $('#doc-print').addEventListener('click', () => {
-    const out = el('div', 'doc-sheet');
-    out.id = 'print-root';
-    out.innerHTML = $('#doc-sheet').innerHTML;
-    document.body.appendChild(out);
-    document.body.classList.add('print-doc');
-    const title = document.title;
-    document.title = 'Potwierdzenie ' + ($('#doc-dialog').dataset.no || '').replace(/\//g, '-'); // nazwa pliku PDF
-    const done = () => { out.remove(); document.body.classList.remove('print-doc'); document.title = title; removeEventListener('afterprint', done); };
-    addEventListener('afterprint', done);
-    try { window.print(); } catch (e) { /* podgląd bez drukowania */ }
-    setTimeout(() => { if (document.body.classList.contains('print-doc') && !matchMedia('print').matches) done(); }, 1500);
-  });
+  /* ---------- potwierdzenie zlecenia — wspólny moduł js/confirm.js (giełda i panel klienta) ---------- */
+  const openDoc = (id) => { if (window.ANWSConfirm) window.ANWSConfirm.open(id); };
 
   /* ---------- rezerwacja ---------- */
   let rvId = null;
@@ -982,6 +942,26 @@
     closeDlg($('#cx-dialog'));
     if (!ok) return;
     toast(t('g.cx.done', { x: zl(store.CANCEL_FEE) }));
+    render();
+  });
+
+  /* ---------- archiwizacja zlecenia (znika z „Twoich zleceń”, zostaje w panelu klienta) ---------- */
+  let arId = null;
+  function openArchive(id) {
+    const o = store.get(id);
+    if (!store.canArchive(o, me)) return;
+    arId = id;
+    routeSummary($('#ar-route'), o);
+    const up = $('#ar-upcoming');
+    up.hidden = !(o.arr > Date.now() && o.status === 'reserved');
+    openDlg($('#ar-dialog'));
+    setTimeout(() => $('#ar-confirm').focus(), 40);
+  }
+  $('#ar-confirm').addEventListener('click', () => {
+    const ok = store.archive(arId, me);
+    closeDlg($('#ar-dialog'));
+    if (!ok) return;
+    toast(t('g.ar.done'));
     render();
   });
 

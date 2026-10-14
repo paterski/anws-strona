@@ -109,33 +109,46 @@
     return { drive, span, breaks, level, kmh: BUS_KMH };
   }
 
+  // dane firmy do potwierdzenia zlecenia — zapisywane w chwili rezerwacji
+  function snapParty(login) {
+    const A = auth();
+    if (!A) return { name: login };
+    const p = A.profile(login) || {}, c = A.contactOf(login), v = A.verified(login);
+    return { login, name: c.name, nip: p.nip || '', krs: p.krs || '', regon: p.regon || '', person: c.person, phone: c.phone, alarmPhone: c.alarmPhone, email: c.email, verified: !!v.registry };
+  }
+  const isArchived = (o, login) => (o.archived || []).includes(login);
+
   /* Historia z ostatnich 10 tygodni — zakończone kursy do statystyk w panelu administratora.
    * Generowana raz (stałe ziarno), niewidoczna na giełdzie (kursy już się odbyły). */
-  const HIST_FLAG = 'anws-orders-history-v1';
+  const HIST_FLAG = 'anws-orders-history-v2';
   const HIST_ROUTES = [['waw', 'krk'], ['krk', 'zak'], ['gda', 'mal'], ['waw', 'ber'], ['wro', 'kar'], ['poz', 'ber'], ['krkAir', 'wie'], ['lodz', 'cze'], ['wawAir', 'waw'], ['kat', 'zak'], ['szc', 'kol'], ['wro', 'pra'], ['gda', 'sop'], ['lub', 'rze'], ['tor', 'gda'], ['bia', 'waw']];
   const HIST_WEIGHT = [9, 8, 4, 6, 5, 3, 4, 3, 7, 4, 3, 2, 3, 2, 2, 2];
   const COMPANIES = ['polbus', 'intertrans', 'pks.mysliborz'];
+  const PARTIES = COMPANIES.concat('demo'); // konto demo też ma historię — widać ją w panelu klienta
   function ensureHistory() {
     if (safe(() => localStorage.getItem(HIST_FLAG), '1')) return;
     let seed = 20261014; // mulberry32 — te same dane w każdej przeglądarce
     const rnd = () => { seed = (seed + 0x6D2B79F5) | 0; let x = Math.imul(seed ^ (seed >>> 15), 1 | seed); x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
     const total = HIST_WEIGHT.reduce((a, b) => a + b, 0);
     const pick = () => { let r = rnd() * total; for (let i = 0; i < HIST_WEIGHT.length; i++) { r -= HIST_WEIGHT[i]; if (r < 0) return HIST_ROUTES[i]; } return HIST_ROUTES[0]; };
-    const now = Date.now(), orders = load(), fees = loadFees();
-    for (let i = 0; i < 96; i++) {
-      // więcej zleceń w ostatnich tygodniach — giełda rośnie
-      const daysAgo = 3 + Math.floor(Math.pow(rnd(), 1.35) * 67);
+    const now = Date.now();
+    // poprzednia wersja historii — zastępujemy
+    const orders = load().filter((o) => !o.hist), fees = loadFees().filter((f) => !String(f.id).startsWith('fh'));
+    for (let i = 0; i < 130; i++) {
+      // więcej zleceń w ostatnich tygodniach — giełda rośnie; część sprzed roku (historia bez terminu ważności)
+      const daysAgo = i % 8 === 7 ? 70 + Math.floor(rnd() * 350) : 3 + Math.floor(Math.pow(rnd(), 1.35) * 67);
       const createdAt = roundTo(now - daysAgo * 864e5 - rnd() * 864e5, 15);
       const [a, b] = pick();
       const km = Math.max(8, Math.round(haversine(P[a], P[b]) * 1.25));
       const dep = roundTo(createdAt + (6 + rnd() * 54) * 36e5, 15);
       const arr = roundTo(dep + Math.max(0.5, km / 70) * 36e5, 15);
       const rate = Math.round((350 + km * (5.5 + rnd() * 2.5)) / 50) * 50;
-      const owner = COMPANIES[Math.floor(rnd() * 3)];
+      const owner = PARTIES[Math.floor(rnd() * PARTIES.length)];
       const roll = rnd();
       const o = { id: 'h' + (i + 1), from: P[a], to: P[b], pickups: [P[a]], drops: [P[b]], dep, arr, km, rate, pax: 15 + Math.floor(rnd() * 40), urgent: rnd() < 0.2, notes: '', owner, createdAt, hist: true, offers: [] };
       if (roll < 0.74) {
-        const by = COMPANIES.filter((c) => c !== owner)[Math.floor(rnd() * 2)];
+        const others = PARTIES.filter((c) => c !== owner);
+        const by = others[Math.floor(rnd() * others.length)];
         const c = commission(rate);
         Object.assign(o, { status: 'reserved', reservedBy: by, reservedAt: createdAt + rnd() * (dep - createdAt) * 0.6, fee: rnd() < 0.35 ? null : { pct: c.pct, amount: c.amount, paid: true } });
       } else if (roll < 0.9) {
@@ -146,8 +159,20 @@
         Object.assign(o, { status: 'cancelled', cancelledAt: at });
         fees.push({ id: 'fh' + i, login: owner, orderId: o.id, type: 'cancel', amount: CANCEL_FEE, route: routeText(o), dep, at, paid: true, paidAt: at });
       }
+      // przeszłe kursy są już zarchiwizowane u obu stron — w „Twoich zleceniach” zostają tylko dwa ostatnie kursy demo
+      o.archived = [o.owner, o.reservedBy].filter(Boolean);
+      if (o.status === 'reserved') o.snap = { owner: snapParty(o.owner), carrier: snapParty(o.reservedBy) };
       orders.push(o);
     }
+    // dwa niedawno zakończone kursy konta demo (do archiwizacji w „Twoich zleceniach”)
+    [['krk', 'zak', 'polbus', 'demo', 2], ['gda', 'mal', 'demo', 'intertrans', 1]].forEach(([a, b, owner, by, d], i) => {
+      const km = Math.max(8, Math.round(haversine(P[a], P[b]) * 1.25));
+      const dep = roundTo(now - d * 864e5 - 8 * 36e5, 15), arr = roundTo(dep + Math.max(0.5, km / 70) * 36e5, 15);
+      const rate = Math.round((350 + km * 6.5) / 50) * 50;
+      const o = { id: 'hd' + (i + 1), from: P[a], to: P[b], pickups: [P[a]], drops: [P[b]], dep, arr, km, rate, pax: 30 + i * 12, urgent: false, notes: '', owner, createdAt: dep - 3 * 864e5, hist: true, offers: [], status: 'reserved', reservedBy: by, reservedAt: dep - 2 * 864e5, fee: null };
+      o.snap = { owner: snapParty(owner), carrier: snapParty(by) };
+      orders.push(o);
+    });
     save(orders); saveFees(fees);
     safe(() => localStorage.setItem(HIST_FLAG, '1'));
   }
@@ -221,8 +246,50 @@
     },
 
     // zlecenia zarezerwowane przez przewoźnika — do wykonania
-    taken(login) { return this.active().filter((o) => o.status === 'reserved' && o.reservedBy === login); },
-    posted(login) { return this.active().filter((o) => o.owner === login).concat(this.unpaidExpired(login)); },
+    // „Twoje zlecenia”: aktualne i zakończone kursy, dopóki użytkownik ich nie zarchiwizuje
+    taken(login) { return this.list().filter((o) => o.status === 'reserved' && o.reservedBy === login && !isArchived(o, login)); },
+    posted(login) {
+      const now = Date.now();
+      return this.list().filter((o) => o.owner === login && !isArchived(o, login) && ((o.status === 'open' && o.arr > now) || o.status === 'reserved'))
+        .concat(this.unpaidExpired(login));
+    },
+    // pełna historia konta (bez terminu ważności): zlecone przez konto i przyjęte do wykonania
+    history(login) {
+      const all = this.list();
+      return { posted: all.filter((o) => o.owner === login), taken: all.filter((o) => o.reservedBy === login) };
+    },
+    // stan do wyświetlenia: open, reserved (przed kursem), done (zrealizowane), expired, cancelled, removed
+    state(o) { return o.status === 'reserved' ? (o.arr <= Date.now() ? 'done' : 'reserved') : o.status; },
+    isArchived,
+    // archiwizacja — tylko z listy „Twoje zlecenia” tego konta; zlecenie zostaje w historii w panelu klienta
+    canArchive(o, login) {
+      if (!o || isArchived(o, login)) return false;
+      if (o.owner === login && o.status === 'open') return false;              // otwarte zlecenie trzeba anulować
+      if (o.status === 'expired' && this.unpaidFees(login).some((f) => f.orderId === o.id)) return false; // najpierw opłata
+      return o.owner === login || o.reservedBy === login;
+    },
+    archive(id, login) {
+      const orders = this.list();
+      const o = orders.find((x) => x.id === id);
+      if (!this.canArchive(o, login)) return false;
+      o.archived = (o.archived || []).concat(login);
+      o.archivedAt = Object.assign({}, o.archivedAt, { [login]: Date.now() });
+      save(orders);
+      return true;
+    },
+    unarchive(id, login) {
+      const orders = this.list();
+      const o = orders.find((x) => x.id === id);
+      if (!o || !isArchived(o, login)) return false;
+      o.archived = o.archived.filter((x) => x !== login);
+      save(orders);
+      return true;
+    },
+    // dane firmy na potwierdzeniu: z chwili rezerwacji, a dla starszych zleceń — bieżące
+    party(o, role) {
+      const snap = o.snap && o.snap[role];
+      return snap || snapParty(role === 'owner' ? o.owner : o.reservedBy);
+    },
 
     counts(login) {
       const a = this.active();
@@ -250,7 +317,7 @@
     cancel(id, login) {
       const orders = this.list();
       const o = orders.find((x) => x.id === id);
-      if (!o || o.owner !== login || (o.status !== 'open' && o.status !== 'reserved')) return false;
+      if (!o || o.owner !== login || (o.status !== 'open' && o.status !== 'reserved') || o.arr <= Date.now()) return false;
       const now = Date.now();
       const wasReservedBy = o.status === 'reserved' ? o.reservedBy : null;
       o.status = 'cancelled';
@@ -311,6 +378,7 @@
       o.reservedBy = login;
       o.reservedAt = Date.now();
       o.fee = fee ? { pct: fee.pct, amount: fee.amount, paid: false } : null;
+      o.snap = { owner: snapParty(o.owner), carrier: snapParty(login) }; // dane obu firm na potwierdzenie zlecenia
       save(orders);
       const A = auth();
       if (A && A.notify) {
