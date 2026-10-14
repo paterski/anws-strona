@@ -1516,8 +1516,8 @@
   updateSteps();
   if (params.get('nowe') === '1') setTimeout(openCreate, 250);
   // link z powiadomienia (SMS, e-mail, dzwonek): pokaż to zlecenie na liście i na mapie
-  if (params.get('zlecenie')) {
-    const zid = params.get('zlecenie');
+  if (params.get('zlecenie') || params.get('z')) {
+    const zid = params.get('zlecenie') || params.get('z');
     setTimeout(() => {
       const o = store.get(zid);
       if (!o || !store.active().some((x) => x.id === zid)) { toast(t('g.linkGone')); return; }
@@ -1527,7 +1527,7 @@
   }
   // z powiadomienia o propozycji stawki: od razu lista propozycji przy tym zleceniu
   if (params.get('oferty')) { const oid = params.get('oferty'); setTimeout(() => { showRow(oid); openOffers(oid); }, 350); }
-  if (params.has('nowe') || params.has('pilne') || params.has('moje') || params.has('tab') || params.has('oferty') || params.has('zlecenie')) history.replaceState(null, '', location.pathname);
+  if (params.has('nowe') || params.has('pilne') || params.has('moje') || params.has('tab') || params.has('oferty') || params.has('zlecenie') || params.has('z')) history.replaceState(null, '', location.pathname);
   // terminy względne („za 3 godziny”) odświeżamy co minutę
   setInterval(() => { if (!document.hidden && !$$('dialog[open]').length) render(); }, 60000);
 })();

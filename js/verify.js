@@ -68,7 +68,7 @@
       if (!s) {
         result = { ok: false, reason: 'notfound' };
       } else {
-        const company = { name: s.name, nip, regon: s.regon || '', krs: s.krs || '', vat: s.statusVat || '' };
+        const company = { name: s.name, nip, regon: s.regon || '', krs: s.krs || '', vat: s.statusVat || '', address: s.workingAddress || s.residenceAddress || '' }; // adres — do faktur
         if (s.removalDate || !/^(Czynny|Zwolniony)$/.test(company.vat)) {
           result = { ok: false, reason: 'inactive', company };
         } else if (!requirePkd) {

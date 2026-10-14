@@ -198,7 +198,7 @@
   /* ---------- historia opłat: abonament, prowizje, opłaty za anulowanie / niepodjęte zlecenia ---------- */
   function renderHistory() {
     const items = [];
-    auth.getPlan(me).history.forEach((h) => items.push({ at: h.at, title: t('k.hSub', { x: day(h.from), y: day(h.to) }), amount: h.amount, state: 'paid' }));
+    auth.getPlan(me).history.forEach((h) => items.push({ at: h.at, title: t(h.type === 'grant' ? 'k.hGrant' : 'k.hSub', { x: day(h.from), y: day(h.to) }), amount: h.amount, state: h.type === 'grant' ? 'free' : 'paid' }));
     if (orders) {
       orders.list().filter((o) => o.reservedBy === me && o.fee).forEach((o) => items.push({ at: o.reservedAt, title: t('k.hComm', { x: o.from.label + ' → ' + o.to.label }), amount: o.fee.amount, state: o.fee.paid ? 'paid' : 'invoice' }));
       orders.fees(me).forEach((f) => items.push({ at: f.at, title: t(f.type === 'cancel' ? 'k.hCancel' : 'k.hExpired', { x: f.route }), amount: f.amount, state: f.paid ? 'paid' : 'due' }));
