@@ -245,9 +245,10 @@
     // kontrahent: administrator widzi zlecającego przy każdym zleceniu; pozostali — dopiero
     // w „Twoich zleceniach”: przewoźnik po rezerwacji widzi zleceniodawcę, zlecający — przewoźnika
     const inMine = state.scope === 'mine';
-    if (isAdmin && !own) cell.insertBefore(party(o.owner, 'g.party.owner'), acts);
-    else if (inMine && !own && o.status === 'reserved' && o.reservedBy === me) cell.insertBefore(party(o.owner, 'g.party.client'), acts);
-    else if (inMine && own && o.status !== 'open' && o.reservedBy) cell.insertBefore(party(o.reservedBy, 'g.party.carrier'), acts);
+    // w jednej linii z przyciskami, żeby wiersz nie rósł w pionie
+    if (isAdmin && !own) acts.prepend(party(o.owner, 'g.party.owner'));
+    else if (inMine && !own && o.status === 'reserved' && o.reservedBy === me) acts.prepend(party(o.owner, 'g.party.client'));
+    else if (inMine && own && o.status !== 'open' && o.reservedBy) acts.prepend(party(o.reservedBy, 'g.party.carrier'));
     if (isAdmin && o.status !== 'open' && o.reservedBy) cell.appendChild(el('span', 'offer-note', t('g.reservedBy', { x: auth.nameOf(o.reservedBy) })));
     const myOffer = (o.offers || []).find((x) => x.by === me);
     if (myOffer && o.status === 'open') cell.appendChild(el('span', 'offer-note', t('g.offerSent', { x: zl(myOffer.rate) })));
@@ -275,12 +276,21 @@
     const n = String(p || '').match(/^\+(\d{2,3})(\d+)$/);
     return n ? '+' + n[1] + ' ' + n[2].replace(/(\d{3})(?=\d)/g, '$1 ') : (p || '');
   };
+  // „SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ” → „Sp. z o.o.” itd. — krótsza nazwa w wierszu (pełna w podpowiedzi)
+  const shortName = (n) => String(n || '')
+    .replace(/SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ/gi, 'Sp. z o.o.')
+    .replace(/SPÓŁKA KOMANDYTOWO-AKCYJNA/gi, 'S.K.A.')
+    .replace(/SPÓŁKA KOMANDYTOWA/gi, 'Sp.k.')
+    .replace(/SPÓŁKA AKCYJNA/gi, 'S.A.')
+    .replace(/SPÓŁKA JAWNA/gi, 'Sp.j.')
+    .replace(/\s+/g, ' ').trim();
   function party(login, labelKey) {
     const c = auth.contactOf(login);
     const box = el('div', 'party');
     const txt = el('span', 'party-text');
+    txt.title = c.name;
     txt.appendChild(el('small', null, t(labelKey)));
-    txt.appendChild(el('b', null, c.name));
+    txt.appendChild(el('b', null, shortName(c.name)));
     box.appendChild(txt);
     const ic = el('span', 'party-ic');
     [['phone', ICON_PHONE, 'g.ph.contact'], ['alarmPhone', ICON_ALARM, 'g.ph.alarm']].forEach(([k, svg, key]) => {
@@ -322,7 +332,7 @@
     wt.appendChild(el('p', 'call-label', t('call.label')));
     const h = el('h2', 'call-name', c.person || c.name); h.id = 'phone-bub-name';
     wt.appendChild(h);
-    wt.appendChild(el('p', 'bub-company', c.name));
+    wt.appendChild(el('p', 'bub-company', shortName(c.name)));
     who.append(av, wt);
     bub.setAttribute('aria-labelledby', h.id);
     const lab = el('p', 'call-label bub-kind', t(which === 'phone' ? 'g.ph.contact' : 'g.ph.alarm'));
