@@ -282,8 +282,13 @@
     // poza „Twoimi zleceniami” zlecający widzi tylko, że kurs jest zarezerwowany
     if (own && !inMine && o.status !== 'open' && o.reservedBy) cell.appendChild(el('span', 'offer-note', t('g.reserved')));
     if (own && o.status === 'open' && (o.offers || []).length) {
-      const best = Math.max.apply(null, o.offers.map((x) => x.rate));
-      cell.appendChild(el('span', 'offer-note', t('g.offersN', { x: o.offers.length, y: zl(best) })));
+      // propozycje stawek — przycisk otwiera listę z akceptacją / odrzuceniem
+      const best = Math.min.apply(null, o.offers.map((x) => x.rate));
+      const ob = el('button', 'offer-note offer-open', t('g.offersN', { x: o.offers.length, y: zl(best) }));
+      ob.type = 'button';
+      ob.setAttribute('aria-haspopup', 'dialog');
+      ob.addEventListener('click', (e) => { e.stopPropagation(); openOffers(o.id); });
+      cell.appendChild(ob);
     }
 
     tr.addEventListener('mouseenter', () => setHl(o.id, false));
@@ -793,7 +798,7 @@
     d.classList.add('is-closing');
     setTimeout(() => { d.close(); d.classList.remove('is-closing'); }, reduce() ? 0 : 160);
   }
-  ['#rv-dialog', '#ng-dialog', '#cx-dialog', '#fee-dialog', '#rm-dialog', '#ar-dialog'].forEach((sel) => {
+  ['#rv-dialog', '#ng-dialog', '#cx-dialog', '#fee-dialog', '#rm-dialog', '#ar-dialog', '#of-dialog'].forEach((sel) => {
     const d = $(sel);
     $$('[data-close]', d).forEach((b) => b.addEventListener('click', () => closeDlg(d)));
     d.addEventListener('cancel', (e) => { e.preventDefault(); closeDlg(d); });
@@ -946,6 +951,81 @@
     toast(t('g.cx.done', { x: zl(store.CANCEL_FEE) }));
     render();
   });
+
+  /* ---------- propozycje stawek: akceptacja / odrzucenie (nazwa przewoźnika ukryta do akceptacji) ---------- */
+  let ofId = null, ofConfirm = null;
+  const agoLabel = (ms) => {
+    const rtf = new Intl.RelativeTimeFormat(locale(), { numeric: 'auto' });
+    const m = Math.round((ms - Date.now()) / 6e4);
+    if (Math.abs(m) < 60) return rtf.format(m, 'minute');
+    const h = Math.round(m / 60);
+    return Math.abs(h) < 24 ? rtf.format(h, 'hour') : rtf.format(Math.round(h / 24), 'day');
+  };
+  function openOffers(id) {
+    const o = store.get(id);
+    if (!o || o.owner !== me) return;
+    ofId = id; ofConfirm = null;
+    renderOffers();
+    openDlg($('#of-dialog'));
+    setTimeout(() => { const b = $('#of-list button'); if (b) b.focus(); }, 40);
+  }
+  function renderOffers() {
+    const o = store.get(ofId);
+    const list = $('#of-list');
+    list.textContent = '';
+    if (!o) return;
+    routeSummary($('#of-route'), o);
+    const offers = (o.offers || []).slice().sort((a, b) => a.rate - b.rate);
+    $('#of-sub').textContent = t('g.of.sub', { x: zl(o.rate) });
+    if (o.status !== 'open' || !offers.length) { list.appendChild(el('p', 'db-note', t(o.status !== 'open' ? 'g.of.closed' : 'g.of.none'))); return; }
+    offers.forEach((x, i) => {
+      const card = el('article', 'of-card' + (ofConfirm === x.by ? ' is-confirm' : ''));
+      const head = el('div', 'of-head');
+      const who = el('div', 'of-who');
+      const name = el('b', null, t('g.of.carrier', { x: i + 1 }));
+      const vb = verBadge(x.by);
+      if (vb) name.prepend(vb);
+      who.append(name, el('small', null, t('g.of.hidden') + ' · ' + agoLabel(x.at)));
+      const price = el('div', 'of-price');
+      const diff = x.rate - o.rate;
+      price.append(el('b', null, zl(x.rate)), el('small', 'of-diff' + (diff > 0 ? ' is-up' : diff < 0 ? ' is-down' : ''), diff === 0 ? t('g.of.same') : (diff > 0 ? '+' : '−') + zl(Math.abs(diff))));
+      head.append(who, price);
+      card.appendChild(head);
+      if (x.message) card.appendChild(el('p', 'of-msg', '„' + x.message + '”'));
+      const acts = el('div', 'of-acts');
+      if (ofConfirm === x.by) {
+        card.appendChild(el('p', 'db-note of-confirm-note', t('g.of.confirmNote', { x: zl(x.rate) })));
+        const back = el('button', 'call-btn call-btn-ghost', t('g.of.back')); back.type = 'button';
+        back.addEventListener('click', () => { ofConfirm = null; renderOffers(); });
+        const ok = el('button', 'call-btn call-btn-primary', t('g.of.confirm', { x: zl(x.rate) })); ok.type = 'button';
+        ok.addEventListener('click', () => acceptOffer(x.by));
+        acts.append(back, ok);
+        setTimeout(() => ok.focus(), 30);
+      } else {
+        const no = el('button', 'call-btn call-btn-ghost', t('g.of.reject')); no.type = 'button';
+        no.addEventListener('click', () => {
+          if (!store.rejectOffer(ofId, me, x.by)) return;
+          toast(t('g.of.rejected'));
+          render(); renderOffers();
+          if (!(store.get(ofId).offers || []).length) setTimeout(() => closeDlg($('#of-dialog')), 900);
+        });
+        const yes = el('button', 'call-btn call-btn-primary', t('g.of.accept')); yes.type = 'button';
+        yes.addEventListener('click', () => { ofConfirm = x.by; renderOffers(); });
+        acts.append(no, yes);
+      }
+      card.appendChild(acts);
+      list.appendChild(card);
+    });
+  }
+  function acceptOffer(by) {
+    const id = ofId;
+    if (!store.acceptOffer(id, me, by)) { toast(t('g.of.fail')); renderOffers(); return; }
+    closeDlg($('#of-dialog'));
+    toast(t('g.of.done', { x: auth.nameOf(by) }));
+    state.mineTab = 'posted';
+    if (state.scope !== 'mine') setScope('mine'); else render();
+    setTimeout(() => showRow(id), 200);
+  }
 
   /* ---------- archiwizacja zlecenia (znika z „Twoich zleceń”, zostaje w panelu klienta) ---------- */
   let arId = null;
@@ -1434,7 +1514,9 @@
   setScope(state.scope);
   updateSteps();
   if (params.get('nowe') === '1') setTimeout(openCreate, 250);
-  if (params.has('nowe') || params.has('pilne') || params.has('moje') || params.has('tab')) history.replaceState(null, '', location.pathname);
+  // z powiadomienia o propozycji stawki: od razu lista propozycji przy tym zleceniu
+  if (params.get('oferty')) { const oid = params.get('oferty'); setTimeout(() => { showRow(oid); openOffers(oid); }, 350); }
+  if (params.has('nowe') || params.has('pilne') || params.has('moje') || params.has('tab') || params.has('oferty')) history.replaceState(null, '', location.pathname);
   // terminy względne („za 3 godziny”) odświeżamy co minutę
   setInterval(() => { if (!document.hidden && !$$('dialog[open]').length) render(); }, 60000);
 })();

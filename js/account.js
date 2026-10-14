@@ -122,8 +122,11 @@
         const li = el('li', 'ap-item' + (newIds.has(x.id) ? ' is-new' : ''));
         const a = el('a');
         const isDoc = x.type === 'docSoon' || x.type === 'docExpired';
-        a.href = isDoc ? 'konto.html#dokumenty' : x.type === 'subEnded' ? 'konto.html' : (x.type === 'cancelled' || x.type === 'removed') ? 'lista-zlecen.html' : 'lista-zlecen.html?moje=1';
-        const ic = el('span', 'ap-ic ' + x.type); ic.innerHTML = ICON[isDoc ? 'doc' : x.type === 'subEnded' ? 'expired' : x.type === 'removed' ? 'cancelled' : x.type] || ICON.bell; ic.setAttribute('aria-hidden', 'true');
+        a.href = isDoc ? 'konto.html#dokumenty'
+          : x.type === 'offer' && x.orderId ? 'lista-zlecen.html?moje=1&oferty=' + encodeURIComponent(x.orderId)
+          : x.type === 'offerAccepted' ? 'lista-zlecen.html?moje=1&tab=wykonanie'
+          : x.type === 'offerRejected' || x.type === 'offerTaken' ? 'lista-zlecen.html' : x.type === 'subEnded' ? 'konto.html' : (x.type === 'cancelled' || x.type === 'removed') ? 'lista-zlecen.html' : 'lista-zlecen.html?moje=1';
+        const ic = el('span', 'ap-ic ' + x.type); ic.innerHTML = ICON[isDoc ? 'doc' : x.type === 'offerAccepted' ? 'reserve' : x.type === 'offerRejected' || x.type === 'offerTaken' ? 'cancelled' : x.type === 'subEnded' ? 'expired' : x.type === 'removed' ? 'cancelled' : x.type] || ICON.bell; ic.setAttribute('aria-hidden', 'true');
         const txt = el('span', 'ap-text');
         const who = x.byName || x.by;
         const msg = x.type === 'reserve' ? t('n.reserve', { x: who })
@@ -133,7 +136,10 @@
           : x.type === 'removed' ? t('n.removed')
           : x.type === 'docSoon' ? t('n.docSoon', { x: t('k.doc.' + x.doc), y: x.days })
           : x.type === 'docExpired' ? t('n.docExpired', { x: t('k.doc.' + x.doc) })
-          : t('n.offer', { x: who, y: zl(x.rate) });
+          : x.type === 'offerAccepted' ? t('n.offerAccepted', { x: zl(x.rate) })
+          : x.type === 'offerRejected' ? t('n.offerRejected', { x: zl(x.rate) })
+          : x.type === 'offerTaken' ? t('n.offerTaken')
+          : t('n.offer', { y: zl(x.rate) }); // nazwa przewoźnika ukryta do akceptacji
         txt.appendChild(el('span', null, msg));
         if (x.route) txt.appendChild(el('small', null, x.route));
         txt.appendChild(el('small', null, ago(x.at)));

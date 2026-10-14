@@ -1882,3 +1882,5 @@ html.is-loading .page *, html.is-loading .page *::before, html.is-loading .page 
   .cf-item { grid-template-columns: auto minmax(0, 1fr); }
   .cf-item .hs-acts { grid-column: 1 / -1; }
 }
+.ap-ic.offerAccepted { background: var(--bubble-olive); }
+.ap-ic.offerRejected, .ap-ic.offerTaken { background: #A3322A; }
