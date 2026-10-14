@@ -880,14 +880,25 @@
     openDlg($('#rv-dialog'));
     setTimeout(() => confirm.focus(), 40);
   }
-  $('#rv-confirm').addEventListener('click', () => {
+  $('#rv-confirm').addEventListener('click', async () => {
     const o = store.get(rvId);
     if (!o) return;
     const plan = auth.getPlan(me);
     if (!plan.chosen) { location.href = 'konto.html#model'; return; }
-    const ok = store.reserve(rvId, me, plan.free ? null : store.commission(o.rate));
+    const fee = plan.free ? null : store.commission(o.rate);
     closeDlg($('#rv-dialog'));
-    if (!ok) return;
+    // prowizja płatna od razu przy rezerwacji (PayU); rezerwacja dopiero po udanej płatności
+    let payment = null;
+    if (fee && window.ANWSPay && window.ANWSPay.enabledFor('commission')) {
+      const fresh = store.get(rvId);
+      if (!fresh || fresh.status !== 'open') { toast(t('g.rv.gone')); render(); return; }
+      const r = await window.ANWSPay.pay({ login: me, items: [{ kind: 'commission', net: fee.amount, title: t('pay.iComm', { x: o.from.label.split(',')[0] + ' → ' + o.to.label.split(',')[0] }) }] });
+      if (!r.ok) { toast(t('g.rv.payCancelled')); return; }
+      payment = r.id;
+    }
+    const ok = store.reserve(rvId, me, fee, payment);
+    // w prototypie zlecenie mogło zostać zajęte w trakcie płatności — serwer zwróci wtedy pieniądze
+    if (!ok) { toast(t(payment ? 'g.rv.goneRefund' : 'g.rv.gone')); render(); return; }
     toast(t('g.rv.done'));
     render();
     setTimeout(() => showRow(rvId), 120);
