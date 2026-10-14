@@ -1690,3 +1690,79 @@ html.is-loading .page *, html.is-loading .page *::before, html.is-loading .page 
   .tile { transform: none !important; }
   .title:hover .roll { transform: none; }
 }
+
+/* ---------- powiadomienia o dokumentach ---------- */
+.ap-ic.docSoon { background: var(--bubble-gold); }
+.ap-ic.docExpired { background: #A3322A; }
+
+/* ---------- weryfikacja firmy i dokumenty przewoźnika (panel klienta) ---------- */
+.vbadge { display: inline-grid; place-items: center; flex-shrink: 0; color: var(--ink-muted); }
+.vbadge.is-full { color: var(--ok-ink); }
+.acc-ver { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 14px; padding: 10px 16px; border-radius: 16px; font-size: 14.5px; line-height: 1.45; background: var(--ib-bg); color: var(--ink-muted); max-width: 760px; }
+.acc-ver b { color: var(--ink); }
+.acc-ver[data-state="full"] { background: var(--ok-bg); border: 1px solid var(--ok-border); }
+.acc-ver[data-state="full"] .vbadge, .acc-ver[data-state="part"] .vbadge { color: var(--ok-ink); }
+.acc-ver[data-state="none"] .vbadge { color: var(--err-ink); }
+.dc-lead { margin-top: -6px; }
+.dc-list { display: grid; gap: 14px; }
+.dc-row label { display: grid; gap: 1px; }
+.dc-row label small { font-size: 12.5px; font-weight: 500; color: var(--ink-muted); }
+.dc-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.dc-line input { flex: 1 1 170px; max-width: 220px; }
+.dc-pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+.dc-pill.is-ok { background: var(--ok-bg); color: var(--ok-ink); }
+.dc-pill.is-soon { background: rgba(168, 121, 63, .18); color: var(--ink); }
+.dc-pill.is-expired { background: var(--err-bg); color: var(--err-ink); }
+.dc-pill.is-missing { background: var(--ib-bg); color: var(--ink-muted); }
+#dc-save { justify-self: start; }
+
+/* ---------- panel administratora: statystyki ---------- */
+.admin-views button[aria-selected="true"] { background: var(--btn-bg); color: var(--btn-ink); }
+.admin-views button[aria-selected="true"] b { background: var(--btn-ink); color: var(--btn-bg); }
+#view-regs { display: grid; gap: 18px; }
+#view-regs[hidden], .st-view[hidden] { display: none; }
+.st-view { display: grid; gap: 18px; }
+.st-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+.st-tile { display: grid; gap: 4px; align-content: start; padding: 20px 22px; border-radius: 22px; background: var(--step-bg); border: 1px solid var(--step-border); box-shadow: var(--step-shadow); }
+.st-label { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-muted); }
+.st-value { font-family: var(--font-display, inherit); font-size: clamp(26px, 3vw, 34px); line-height: 1.1; color: var(--ink); font-variant-numeric: tabular-nums; }
+.st-sub { font-size: 13px; color: var(--ok-ink); font-weight: 600; }
+.st-tile.is-down .st-sub { color: var(--err-ink); }
+.st-tile:not(:first-child) .st-sub { color: var(--ink-muted); font-weight: 500; }
+.st-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.st-wide { grid-column: 1 / -1; }
+.st-card { align-content: start; min-width: 0; }
+.st-card h2 { font-size: 20px; }
+.st-note { font-size: 13px; color: var(--ink-muted); line-height: 1.5; margin-top: -8px; }
+.st-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--ink-muted); margin-top: -6px; }
+.st-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.st-legend i { width: 12px; height: 12px; border-radius: 4px; }
+.st-legend i.st-s1, .st-svg .st-s1 { background: var(--accent); fill: var(--accent); }
+.st-legend i.st-s2, .st-svg .st-s2 { background: #A79EA4; fill: #A79EA4; }
+.st-chart { position: relative; }
+.st-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.st-grid { stroke: var(--line); stroke-width: 1; }
+.st-axis { stroke: var(--ink-muted); stroke-opacity: .5; stroke-width: 1; }
+.st-tick { fill: var(--ink-muted); font-size: 11px; font-family: var(--font-body); }
+.st-hit { fill: transparent; }
+.st-bar { outline: none; cursor: default; }
+.st-bar:hover .st-hit, .st-bar:focus .st-hit { fill: var(--ib-bg); }
+.st-tip { position: absolute; top: 0; transform: translateX(-50%); display: grid; gap: 2px; padding: 8px 12px; border-radius: 12px; background: var(--btn-bg); color: var(--btn-ink); font-size: 12.5px; white-space: nowrap; pointer-events: none; box-shadow: 0 8px 22px rgba(0, 0, 0, .18); }
+.st-routes { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.st-rhead { display: flex; align-items: baseline; gap: 10px; font-size: 15px; }
+.st-rhead b { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.st-rank { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--ib-bg); font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.st-n { font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.st-rbar { display: block; height: 8px; margin: 6px 0 4px 32px; border-radius: 999px; background: var(--ib-bg); overflow: hidden; }
+.st-rbar span { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
+.st-rmeta { display: block; margin-left: 32px; font-size: 12.5px; color: var(--ink-muted); }
+.st-table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+.st-table th { text-align: left; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-muted); padding: 0 10px 8px 0; }
+.st-table td { padding: 10px 10px 10px 0; border-top: 1px solid var(--line); }
+.st-table .num, .st-table th:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+.st-docs th:not(:first-child), .st-docs td { text-align: left; }
+.st-table .st-sum td { font-weight: 700; border-top: 2px solid var(--ink-muted); }
+.st-scroll { overflow-x: auto; }
+.st-docs { min-width: 560px; }
+@media (max-width: 860px) { .st-grid2 { grid-template-columns: minmax(0, 1fr); } }
+.st-tip[hidden] { display: none; }

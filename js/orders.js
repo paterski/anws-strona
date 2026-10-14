@@ -95,6 +95,63 @@
     [['poz'], ['ber'], 190, 44, false, 'pks.mysliborz'],
   ];
 
+  /* Czas pracy kierowcy — szacunek wg rozporządzenia (WE) 561/2006:
+   * po 4,5 h jazdy 45 min przerwy; dziennie do 9 h jazdy (2× w tygodniu do 10 h); okres pracy jednego
+   * kierowcy mieści się w 13 h (24 h minus 11 h odpoczynku), załogi dwuosobowej — w 21 h (do 20 h jazdy).
+   * Średnią prędkość autokaru przyjmujemy 65 km/h (miasta, ograniczenia do 100 km/h).
+   * level: one — 1 kierowca; ext — 1 kierowca z wydłużoną jazdą 10 h; two — 2 kierowców; rest — nocleg / zmiana załogi */
+  const BUS_KMH = 65;
+  function crew(o) {
+    const drive = (o.km || 0) / BUS_KMH;
+    const span = Math.max(0, (o.arr - o.dep) / 36e5);
+    const breaks = Math.max(0, Math.ceil(drive / 4.5) - 1);
+    const level = drive > 20 || span > 21 ? 'rest' : drive > 10 || span > 13 ? 'two' : drive > 9 ? 'ext' : 'one';
+    return { drive, span, breaks, level, kmh: BUS_KMH };
+  }
+
+  /* Historia z ostatnich 10 tygodni — zakończone kursy do statystyk w panelu administratora.
+   * Generowana raz (stałe ziarno), niewidoczna na giełdzie (kursy już się odbyły). */
+  const HIST_FLAG = 'anws-orders-history-v1';
+  const HIST_ROUTES = [['waw', 'krk'], ['krk', 'zak'], ['gda', 'mal'], ['waw', 'ber'], ['wro', 'kar'], ['poz', 'ber'], ['krkAir', 'wie'], ['lodz', 'cze'], ['wawAir', 'waw'], ['kat', 'zak'], ['szc', 'kol'], ['wro', 'pra'], ['gda', 'sop'], ['lub', 'rze'], ['tor', 'gda'], ['bia', 'waw']];
+  const HIST_WEIGHT = [9, 8, 4, 6, 5, 3, 4, 3, 7, 4, 3, 2, 3, 2, 2, 2];
+  const COMPANIES = ['polbus', 'intertrans', 'pks.mysliborz'];
+  function ensureHistory() {
+    if (safe(() => localStorage.getItem(HIST_FLAG), '1')) return;
+    let seed = 20261014; // mulberry32 — te same dane w każdej przeglądarce
+    const rnd = () => { seed = (seed + 0x6D2B79F5) | 0; let x = Math.imul(seed ^ (seed >>> 15), 1 | seed); x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
+    const total = HIST_WEIGHT.reduce((a, b) => a + b, 0);
+    const pick = () => { let r = rnd() * total; for (let i = 0; i < HIST_WEIGHT.length; i++) { r -= HIST_WEIGHT[i]; if (r < 0) return HIST_ROUTES[i]; } return HIST_ROUTES[0]; };
+    const now = Date.now(), orders = load(), fees = loadFees();
+    for (let i = 0; i < 96; i++) {
+      // więcej zleceń w ostatnich tygodniach — giełda rośnie
+      const daysAgo = 3 + Math.floor(Math.pow(rnd(), 1.35) * 67);
+      const createdAt = roundTo(now - daysAgo * 864e5 - rnd() * 864e5, 15);
+      const [a, b] = pick();
+      const km = Math.max(8, Math.round(haversine(P[a], P[b]) * 1.25));
+      const dep = roundTo(createdAt + (6 + rnd() * 54) * 36e5, 15);
+      const arr = roundTo(dep + Math.max(0.5, km / 70) * 36e5, 15);
+      const rate = Math.round((350 + km * (5.5 + rnd() * 2.5)) / 50) * 50;
+      const owner = COMPANIES[Math.floor(rnd() * 3)];
+      const roll = rnd();
+      const o = { id: 'h' + (i + 1), from: P[a], to: P[b], pickups: [P[a]], drops: [P[b]], dep, arr, km, rate, pax: 15 + Math.floor(rnd() * 40), urgent: rnd() < 0.2, notes: '', owner, createdAt, hist: true, offers: [] };
+      if (roll < 0.74) {
+        const by = COMPANIES.filter((c) => c !== owner)[Math.floor(rnd() * 2)];
+        const c = commission(rate);
+        Object.assign(o, { status: 'reserved', reservedBy: by, reservedAt: createdAt + rnd() * (dep - createdAt) * 0.6, fee: rnd() < 0.35 ? null : { pct: c.pct, amount: c.amount, paid: true } });
+      } else if (roll < 0.9) {
+        Object.assign(o, { status: 'expired', expiredAt: dep });
+        fees.push({ id: 'fh' + i, login: owner, orderId: o.id, type: 'expired', amount: EXPIRE_FEE, route: routeText(o), dep, at: dep, paid: true, paidAt: dep + 864e5 });
+      } else {
+        const at = createdAt + (dep - createdAt) * 0.5;
+        Object.assign(o, { status: 'cancelled', cancelledAt: at });
+        fees.push({ id: 'fh' + i, login: owner, orderId: o.id, type: 'cancel', amount: CANCEL_FEE, route: routeText(o), dep, at, paid: true, paidAt: at });
+      }
+      orders.push(o);
+    }
+    save(orders); saveFees(fees);
+    safe(() => localStorage.setItem(HIST_FLAG, '1'));
+  }
+
   function roundTo(t, minutes) { const m = minutes * 6e4; return Math.ceil(t / m) * m; }
 
   function ensureSeed() {
@@ -150,7 +207,8 @@
   window.ANWSOrders = {
     CANCEL_FEE,
     EXPIRE_FEE,
-    list() { ensureSeed(); return sweep(load()); },
+    list() { ensureSeed(); ensureHistory(); return sweep(load()); },
+    allFees() { this.list(); return loadFees(); },
     get(id) { return this.list().find((o) => o.id === id) || null; },
 
     // zlecenia widoczne na giełdzie: nieanulowane, niewygasłe i jeszcze niezakończone
@@ -287,6 +345,7 @@
     },
 
     stops,
+    crew,
     commission,
     haversine,
     pathKm,

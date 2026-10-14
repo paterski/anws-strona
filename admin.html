@@ -27,7 +27,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="css/style.css?v=202610141609">
+<link rel="stylesheet" href="css/style.css?v=202610141706">
 </head>
 <body data-title-key="legal.adminTitle">
 <a class="skip" href="#tresc" data-i18n="skip">Przejdź do treści</a>
@@ -147,8 +147,8 @@
     <main id="tresc" class="admin-main">
       <section class="p-hero admin-hero">
         <span class="badge"><span class="live" aria-hidden="true"></span><span data-i18n="adm.badge">Panel administratora</span></span>
-        <h1 class="p-title" data-i18n="adm.title">Wnioski o rejestrację</h1>
-        <p class="lead p-lead" data-i18n="adm.lead">Sprawdź dane firmy i wynik weryfikacji w rejestrach, a potem zaakceptuj albo odrzuć wniosek. Klient dostanie e-mail z decyzją.</p>
+        <h1 class="p-title" data-i18n="adm.title">Zarządzanie giełdą</h1>
+        <p class="lead p-lead" data-i18n="adm.lead">Statystyki giełdy, dokumenty przewoźników i wnioski o rejestrację w jednym miejscu.</p>
       </section>
 
       <div class="admin-card admin-login" id="admin-login" hidden>
@@ -169,10 +169,9 @@
 
       <div class="admin-panel" id="admin-panel" hidden>
         <div class="admin-bar">
-          <div class="admin-tabs" role="group" aria-label="Filtr wniosków" data-i18n-aria="adm.filter">
-            <button type="button" data-filter="pending" aria-pressed="true"><span data-i18n="adm.tabPending">Oczekujące</span> <b id="cnt-pending">0</b></button>
-            <button type="button" data-filter="approved" aria-pressed="false"><span data-i18n="adm.tabApproved">Zaakceptowane</span> <b id="cnt-approved">0</b></button>
-            <button type="button" data-filter="rejected" aria-pressed="false"><span data-i18n="adm.tabRejected">Odrzucone</span> <b id="cnt-rejected">0</b></button>
+          <div class="admin-tabs admin-views" role="tablist" aria-label="Widok panelu" data-i18n-aria="adm.views">
+            <button type="button" role="tab" id="tab-stats" aria-controls="view-stats" aria-selected="true" data-view="stats"><span data-i18n="adm.vStats">Statystyki</span></button>
+            <button type="button" role="tab" id="tab-regs" aria-controls="view-regs" aria-selected="false" data-view="regs"><span data-i18n="adm.vRegs">Wnioski o rejestrację</span> <b id="cnt-pending-top">0</b></button>
           </div>
           <div class="admin-who"><span id="adm-who"></span> <button type="button" class="sub-logout" id="adm-logout" data-i18n="sub.logout">Wyloguj się</button></div>
         </div>
@@ -180,7 +179,19 @@
           <span data-i18n="adm.warn1">Używasz domyślnego hasła</span> <b>admin</b>. <span data-i18n="adm.warn2">Zmień je poniżej w sekcji „Zmiana hasła administratora”.</span>
         </p>
         <p class="sr-only" id="adm-live" aria-live="polite"></p>
-        <div class="reg-list" id="reg-list"></div>
+
+        <!-- statystyki giełdy -->
+        <section class="st-view" id="view-stats" role="tabpanel" aria-labelledby="tab-stats"></section>
+
+        <!-- wnioski o rejestrację -->
+        <section id="view-regs" role="tabpanel" aria-labelledby="tab-regs" hidden>
+          <div class="admin-tabs" role="group" aria-label="Filtr wniosków" data-i18n-aria="adm.filter">
+            <button type="button" data-filter="pending" aria-pressed="true"><span data-i18n="adm.tabPending">Oczekujące</span> <b id="cnt-pending">0</b></button>
+            <button type="button" data-filter="approved" aria-pressed="false"><span data-i18n="adm.tabApproved">Zaakceptowane</span> <b id="cnt-approved">0</b></button>
+            <button type="button" data-filter="rejected" aria-pressed="false"><span data-i18n="adm.tabRejected">Odrzucone</span> <b id="cnt-rejected">0</b></button>
+          </div>
+          <div class="reg-list" id="reg-list"></div>
+        </section>
 
         <section class="admin-card outbox" aria-labelledby="ob-title">
           <h2 id="ob-title" data-i18n="adm.outbox">Skrzynka nadawcza</h2>
@@ -258,9 +269,10 @@
   </div>
 </dialog>
 
-<script src="js/i18n.js?v=202610141609"></script>
-<script src="js/auth.js?v=202610141609"></script>
-<script src="js/main.js?v=202610141609" defer></script>
-<script src="js/admin.js?v=202610141609" defer></script>
+<script src="js/i18n.js?v=202610141706"></script>
+<script src="js/auth.js?v=202610141706"></script>
+<script src="js/orders.js?v=202610141706"></script>
+<script src="js/main.js?v=202610141706" defer></script>
+<script src="js/admin.js?v=202610141706" defer></script>
 </body>
 </html>
