@@ -526,6 +526,8 @@
     map = L.map('map', { zoomControl: true, worldCopyJump: true }).setView([52.1, 19.4], 6);
     L.tileLayer(TILE, { maxZoom: 18, attribution: ATTR }).addTo(map);
     layerGroup = L.layerGroup().addTo(map);
+    map.on('dragstart', () => { prevView = null; });
+    map.getContainer().addEventListener('wheel', () => { prevView = null; }, { passive: true });
   } else {
     $('#map').appendChild(el('p', 'map-note', 'Mapa jest chwilowo niedostępna.'));
   }
@@ -549,6 +551,9 @@
     layerGroup.clearLayers();
     markers.clear();
     clearRoute();
+    focusedId = null; routeSeq++;
+    map.getContainer().classList.remove('is-focus');
+    if (hlId && !list.some((o) => o.id === hlId)) hlId = null;
     list.forEach((o) => {
       const p = state.mapMode === 'dep' ? o.from : o.to;
       const cls = (state.mapMode === 'dep' ? 'mk-dep' : 'mk-arr') + (o.urgent ? ' mk-urgent' : '');
@@ -564,39 +569,133 @@
       const b = L.latLngBounds(list.map((o) => { const p = state.mapMode === 'dep' ? o.from : o.to; return [p.lat, p.lng]; }));
       map.fitBounds(b, { padding: [50, 50], maxZoom: list.length === 1 ? 8 : 11, animate: !reduce() });
     }
+    if (hlId) setTimeout(() => mapFocus(hlId), 0); // kursor nadal nad zleceniem — po odświeżeniu listy wracamy do skupienia
   }
 
   function clearRoute() { if (routeLayer && map) { map.removeLayer(routeLayer); routeLayer = null; } }
   let hlId = null;
-  function setHl(id) {
+  function setHl(id, fromMap) {
     if (hlId === id) return;
+    focusFromMap = !!fromMap;
     if (hlId) {
       const r = $(`.order[data-id="${hlId}"]`); if (r) r.classList.remove('is-hl');
       const m = markers.get(hlId); const e = m && m.getElement();
       if (e) { e.classList.remove('is-hl-wrap'); const mk = $('.mk', e); if (mk) mk.classList.remove('is-hl'); }
     }
-    clearRoute();
     hlId = id;
-    if (!id) return;
-    const r = $(`.order[data-id="${id}"]`); if (r) r.classList.add('is-hl');
-    const m = markers.get(id); const e = m && m.getElement();
-    if (e) { e.classList.add('is-hl-wrap'); const mk = $('.mk', e); if (mk) mk.classList.add('is-hl'); }
-    // trasa zlecenia jako przerywana linia (start → cel)
-    const o = store.get(id);
-    if (map && o) {
-      const css = getComputedStyle(root);
-      const st = store.stops(o);
-      const all = st.pickups.concat(st.drops, st.end ? [st.end] : []);
-      const shown = state.mapMode === 'dep' ? o.from : o.to;
-      const layers = [L.polyline(all.map((x) => [x.lat, x.lng]), { color: css.getPropertyValue('--accent').trim() || '#6B7F42', weight: 3, dashArray: '6 8', opacity: .9 })];
+    if (id) {
+      const r = $(`.order[data-id="${id}"]`); if (r) r.classList.add('is-hl');
+      const m = markers.get(id); const e = m && m.getElement();
+      if (e) { e.classList.add('is-hl-wrap'); const mk = $('.mk', e); if (mk) mk.classList.add('is-hl'); }
+    }
+    // mapa reaguje z krótkim opóźnieniem — przy szybkim przesuwaniu kursora po liście nic nie miga
+    clearTimeout(focusTimer);
+    focusTimer = setTimeout(() => mapFocus(hlId), id ? 90 : 160);
+  }
+
+  /* ---------- tryb skupienia na mapie: jedno zlecenie, jego punkty i rysowana trasa ---------- */
+  let focusTimer = 0, focusedId = null, routeSeq = 0, focusFromMap = false;
+  let prevView = null; // widok mapy sprzed skupienia — wracamy do niego po zjechaniu kursorem
+  const roads = new Map(); // trasy drogowe (OSRM) zapamiętane per zlecenie
+  const routePoints = (o) => { const st = store.stops(o); return { st, all: st.pickups.concat(st.drops, st.end ? [st.end] : []) }; };
+  function roadFor(o, all) {
+    if (!roads.has(o.id)) {
+      const coords = all.map((p) => `${p.lng},${p.lat}`).join(';');
+      roads.set(o.id, fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`)
+        .then((r) => r.json())
+        .then((j) => (j.routes && j.routes[0] ? j.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]) : null))
+        .catch(() => { roads.delete(o.id); return null; })); // bez sieci: spróbujemy przy kolejnym najechaniu
+    }
+    return roads.get(o.id);
+  }
+  // linia trasy: jasna obwódka + kolor akcentu; rysowanie animacją kreski (stroke-dashoffset)
+  function drawLine(latlngs, animate) {
+    const css = getComputedStyle(root);
+    const accent = css.getPropertyValue('--accent').trim() || '#6B7F42';
+    const casing = css.getPropertyValue('--bg-soft').trim() || '#F4EFE8';
+    const lines = [
+      L.polyline(latlngs, { color: casing, weight: 9, opacity: .95, lineCap: 'round', lineJoin: 'round', interactive: false, className: 'rt-casing' }),
+      L.polyline(latlngs, { color: accent, weight: 4.5, opacity: 1, lineCap: 'round', lineJoin: 'round', interactive: false, className: 'rt-line' }),
+    ];
+    lines.forEach((l) => routeLayer.addLayer(l));
+    if (!animate || reduce()) return lines;
+    lines.forEach((l) => {
+      const path = l.getElement();
+      if (!path || !path.getTotalLength) return;
+      const len = path.getTotalLength();
+      path.style.strokeDasharray = len + ' ' + len;
+      path.style.strokeDashoffset = len;
+      path.getBoundingClientRect();
+      path.style.transition = 'stroke-dashoffset .8s cubic-bezier(.55, 0, .25, 1)';
+      path.style.strokeDashoffset = '0';
+      // po narysowaniu zdejmujemy kreskowanie — przy zoomie Leaflet przelicza ścieżkę od nowa
+      path.addEventListener('transitionend', () => { path.style.transition = ''; path.style.strokeDasharray = ''; path.style.strokeDashoffset = ''; }, { once: true });
+    });
+    return lines;
+  }
+  function mapFocus(id) {
+    if (!map || focusedId === id) return;
+    const wasFocused = !!focusedId;
+    focusedId = id;
+    const seq = ++routeSeq;
+    clearRoute();
+    const box = map.getContainer();
+    box.classList.toggle('is-focus', !!id);
+    markers.forEach((m, oid) => { const e = m.getElement(); if (e) e.classList.toggle('is-dim', !!id && oid !== id); });
+    const o = id && store.get(id);
+    if (!o) {
+      // koniec skupienia: wracamy do widoku sprzed najechania (jeśli użytkownik sam nie przesunął mapy)
+      if (prevView && main.dataset.view !== 'list') map.flyTo(prevView.c, prevView.z, { duration: reduce() ? 0 : .55 });
+      prevView = null;
+      return;
+    }
+    if (!wasFocused) prevView = { c: map.getCenter(), z: map.getZoom() };
+    const { st, all } = routePoints(o);
+    routeLayer = L.layerGroup().addTo(map);
+    const shown = state.mapMode === 'dep' ? o.from : o.to;
+    // trasę drogową pobieramy od razu (w trakcie lotu mapy) — zwykle zdąży przed rysowaniem
+    const roadP = roadFor(o, all);
+    let lines = null;
+    const placePins = () => {
+      // punkty zlecenia: A1, A2… odbiór, B1… cele, C — koniec trasy; „wyskakują”, gdy dociera do nich linia
       all.forEach((x, i) => {
-        if (x === shown || (x.lat === shown.lat && x.lng === shown.lng)) return;
-        const pick = i < st.pickups.length;
+        if (x.lat === shown.lat && x.lng === shown.lng && x.label === shown.label) return; // ten punkt to widoczna pinezka zlecenia
         const end = st.end && i === all.length - 1;
-        const color = end ? (css.getPropertyValue('--bubble-gold').trim() || '#A8793F') : pick ? (css.getPropertyValue('--bubble-olive').trim() || '#6B7F42') : (css.getPropertyValue('--ln-a').trim() || '#3A1F3D');
-        layers.push(L.circleMarker([x.lat, x.lng], { radius: 6, color, weight: 3, fillColor: '#fff', fillOpacity: 1 }));
+        const pick = i < st.pickups.length;
+        const cls = end ? 'mk-c' : pick ? 'mk-a' : 'mk-b';
+        const label = end ? 'C' : pick ? 'A' + (st.pickups.length > 1 ? i + 1 : '') : 'B' + (st.drops.length > 1 ? i - st.pickups.length + 1 : '');
+        const delay = reduce() ? 0 : Math.round(120 + (all.length > 1 ? i / (all.length - 1) : 0) * 700);
+        const ic = L.divIcon({ className: '', html: `<span class="mk ${cls} mk-pop" style="animation-delay:${delay}ms"><i></i><b>${label}</b></span>`, iconSize: [30, 30], iconAnchor: [15, 30] });
+        routeLayer.addLayer(L.marker([x.lat, x.lng], { icon: ic, interactive: false, keyboard: false, zIndexOffset: 500 }));
       });
-      routeLayer = L.layerGroup(layers).addTo(map);
+    };
+    // rysujemy trasę drogową, jeśli jest gotowa (czekamy na nią najwyżej 250 ms); inaczej linię prostą,
+    // którą po nadejściu trasy drogowej podmieniamy (bez ponownej animacji)
+    const draw = () => Promise.race([roadP, new Promise((r) => setTimeout(r, 250))]).then((road) => {
+      if (seq !== routeSeq) return;
+      if (road) { lines = drawLine(road, true); placePins(); return; }
+      lines = drawLine(all.map((x) => [x.lat, x.lng]), true);
+      placePins();
+      roadP.then((r) => {
+        if (!r || seq !== routeSeq || !routeLayer) return;
+        lines.forEach((l) => routeLayer.removeLayer(l));
+        lines = drawLine(r, false);
+        lines.forEach((l) => { const e = l.getElement(); if (e) e.classList.add('rt-fade'); });
+      });
+    });
+    // przybliżamy do trasy, gdy wystaje z kadru albo jest w nim drobna; linię rysujemy po zakończeniu lotu
+    // (z pinezki na mapie — bez przesuwania, żeby mapa nie uciekała spod kursora)
+    const b = L.latLngBounds(all.map((x) => [x.lat, x.lng]));
+    const size = map.getSize();
+    const a1 = map.latLngToContainerPoint(b.getSouthWest()), a2 = map.latLngToContainerPoint(b.getNorthEast());
+    const small = Math.max(Math.abs(a2.x - a1.x) / size.x, Math.abs(a2.y - a1.y) / size.y) < 0.3;
+    const fly = !focusFromMap && main.dataset.view !== 'list' && (small || !map.getBounds().pad(-0.08).contains(b));
+    if (fly && !reduce()) {
+      map.once('moveend', () => { if (seq === routeSeq) draw(); });
+      map.flyToBounds(b, { padding: [70, 70], maxZoom: 11, duration: .6 });
+    } else {
+      if (fly) map.fitBounds(b, { padding: [70, 70], maxZoom: 11, animate: false });
+      draw();
     }
   }
 
