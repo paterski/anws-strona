@@ -186,6 +186,8 @@
     if (o.urgent) { const u = el('span', 'tag-urgent'); u.innerHTML = BOLT; u.appendChild(document.createTextNode(t('g.urgentTag'))); meta.push(u); }
     if (st.pickups.length > 1) meta.push(moreChip(st.pickups, 'g.morePickT'));
     meta.push(el('span', null, t('g.pax', { x: o.pax })));
+    const crewTag = crewChip(o);
+    if (crewTag) meta.push(crewTag);
     const toMeta = [];
     if (st.drops.length > 1) toMeta.push(moreChip(st.drops, 'g.moreDropT'));
     if (st.end) {
@@ -246,9 +248,10 @@
     // w „Twoich zleceniach”: przewoźnik po rezerwacji widzi zleceniodawcę, zlecający — przewoźnika
     const inMine = state.scope === 'mine';
     // w jednej linii z przyciskami, żeby wiersz nie rósł w pionie
-    if (isAdmin && !own) acts.prepend(party(o.owner, 'g.party.owner'));
-    else if (inMine && !own && o.status === 'reserved' && o.reservedBy === me) acts.prepend(party(o.owner, 'g.party.client'));
-    else if (inMine && own && o.status !== 'open' && o.reservedBy) acts.prepend(party(o.reservedBy, 'g.party.carrier'));
+    const docFor = o.status === 'reserved' && o.reservedBy ? o : null; // potwierdzenie zlecenia — po rezerwacji
+    if (isAdmin && !own) acts.prepend(party(o.owner, 'g.party.owner', docFor));
+    else if (inMine && !own && o.status === 'reserved' && o.reservedBy === me) acts.prepend(party(o.owner, 'g.party.client', docFor));
+    else if (inMine && own && o.status !== 'open' && o.reservedBy) acts.prepend(party(o.reservedBy, 'g.party.carrier', docFor));
     if (isAdmin && o.status !== 'open' && o.reservedBy) cell.appendChild(el('span', 'offer-note', t('g.reservedBy', { x: auth.nameOf(o.reservedBy) })));
     const myOffer = (o.offers || []).find((x) => x.by === me);
     if (myOffer && o.status === 'open') cell.appendChild(el('span', 'offer-note', t('g.offerSent', { x: zl(myOffer.rate) })));
@@ -285,13 +288,30 @@
     .replace(/SPÓŁKA AKCYJNA/gi, 'S.A.')
     .replace(/SPÓŁKA JAWNA/gi, 'Sp.j.')
     .replace(/\s+/g, ' ').trim();
-  function party(login, labelKey) {
+  const ICON_DOC = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5M9 13h6M9 17h4"></path></svg>';
+  const SHIELD = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 5 6v5.5c0 4.3 3 8 7 9.5 4-1.5 7-5.2 7-9.5V6z"></path><path d="M8.8 12.2l2.2 2.2 4.2-4.4"></path></svg>';
+  // znaczek „Firma zweryfikowana” (NIP, KRS i PKD z rejestrów) — podpowiedź mówi też o dokumentach
+  function verBadge(login) {
+    const v = auth.verified ? auth.verified(login) : null;
+    if (!v || !v.registry) return null;
+    const b = el('span', 'vbadge' + (v.docs ? ' is-full' : ''));
+    b.innerHTML = SHIELD;
+    const tip = t('g.ver.tip') + ' ' + t(v.docs ? 'g.ver.docsOk' : 'g.ver.docsNo');
+    b.title = tip;
+    b.setAttribute('role', 'img');
+    b.setAttribute('aria-label', tip);
+    return b;
+  }
+  function party(login, labelKey, docOrder) {
     const c = auth.contactOf(login);
     const box = el('div', 'party');
     const txt = el('span', 'party-text');
     txt.title = c.name;
     txt.appendChild(el('small', null, t(labelKey)));
-    txt.appendChild(el('b', null, shortName(c.name)));
+    const nm = el('b', null, shortName(c.name));
+    const vb = verBadge(login);
+    if (vb) { nm.prepend(vb); }
+    txt.appendChild(nm);
     box.appendChild(txt);
     const ic = el('span', 'party-ic');
     [['phone', ICON_PHONE, 'g.ph.contact'], ['alarmPhone', ICON_ALARM, 'g.ph.alarm']].forEach(([k, svg, key]) => {
@@ -305,6 +325,15 @@
       b.addEventListener('click', (e) => { e.stopPropagation(); openPhone(b, login, k); });
       ic.appendChild(b);
     });
+    if (docOrder) {
+      const b = el('button', 'ib party-btn is-doc');
+      b.type = 'button';
+      b.innerHTML = ICON_DOC;
+      b.setAttribute('aria-label', t('g.doc.btn'));
+      b.title = t('g.doc.btn');
+      b.addEventListener('click', (e) => { e.stopPropagation(); openDoc(docOrder.id); });
+      ic.appendChild(b);
+    }
     if (ic.childNodes.length) box.appendChild(ic);
     return box;
   }
@@ -740,7 +769,7 @@
     d.classList.add('is-closing');
     setTimeout(() => { d.close(); d.classList.remove('is-closing'); }, reduce() ? 0 : 160);
   }
-  ['#rv-dialog', '#ng-dialog', '#cx-dialog', '#fee-dialog', '#rm-dialog'].forEach((sel) => {
+  ['#rv-dialog', '#ng-dialog', '#cx-dialog', '#fee-dialog', '#rm-dialog', '#doc-dialog'].forEach((sel) => {
     const d = $(sel);
     $$('[data-close]', d).forEach((b) => b.addEventListener('click', () => closeDlg(d)));
     d.addEventListener('cancel', (e) => { e.preventDefault(); closeDlg(d); });
@@ -760,7 +789,88 @@
     meta.appendChild(el('span', null, t('g.pax', { x: o.pax })));
     meta.appendChild(el('b', null, zl(o.rate)));
     box.appendChild(meta);
+    const c = store.crew(o);
+    box.appendChild(el('p', 'dr-crew is-' + c.level, t('g.crew.line', { x: hm(c.drive), y: t('g.crew.' + c.level) })));
   }
+
+  /* ---------- czas pracy kierowcy (szacunek wg 561/2006) ---------- */
+  function hm(h) {
+    const m = Math.max(5, Math.round(h * 60 / 5) * 5);
+    return t('g.crew.hm', { x: Math.floor(m / 60), y: String(m % 60).padStart(2, '0') });
+  }
+  // w wierszu pokazujemy tylko to, co zmienia obsadę: 2 kierowców albo nocleg
+  function crewChip(o) {
+    const c = store.crew(o);
+    if (c.level !== 'two' && c.level !== 'rest') return null;
+    const chip = el('span', 'tag-crew is-' + c.level, t('g.crew.' + c.level));
+    chip.title = t('g.crew.line', { x: hm(c.drive), y: t('g.crew.' + c.level) }) + ' — ' + t('g.crew.why.' + c.level);
+    return chip;
+  }
+
+  /* ---------- potwierdzenie zlecenia (do druku / PDF) ---------- */
+  const esc = (v) => String(v == null ? '' : v).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+  const fullDate = (ms) => new Date(ms).toLocaleString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const docNo = (o) => { const d = new Date(o.reservedAt || o.createdAt); return `ANWS/${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${o.id.toUpperCase()}`; };
+  // dokument zawsze po polsku — to potwierdzenie między polskimi firmami
+  function docHtml(o) {
+    const firm = (login, role) => {
+      const p = auth.profile(login) || {};
+      const c = auth.contactOf(login);
+      const v = auth.verified(login);
+      const rows = [['NIP', p.nip], ['KRS', p.krs], ['REGON', p.regon], ['Osoba do kontaktu', c.person], ['Telefon', fmtPhone(c.phone)], ['Telefon alarmowy', fmtPhone(c.alarmPhone)], ['E-mail', c.email]]
+        .filter((r) => r[1]).map((r) => `<tr><th>${r[0]}</th><td>${esc(r[1])}</td></tr>`).join('');
+      return `<div class="ds-firm"><h4>${role}</h4><b>${esc(c.name)}</b>${v.registry ? '<span class="ds-ver">✓ Firma zweryfikowana w rejestrach (NIP, KRS, PKD)</span>' : ''}<table>${rows}</table></div>`;
+    };
+    const st = store.stops(o);
+    const stop = (p, letter, what) => `<tr><td class="ds-l">${letter}</td><td>${esc(p.label)}</td><td>${what}</td></tr>`;
+    const lines = st.pickups.map((p, i) => stop(p, st.pickups.length > 1 ? 'A' + (i + 1) : 'A', 'odbiór pasażerów'))
+      .concat(st.drops.map((p, i) => stop(p, st.drops.length > 1 ? 'B' + (i + 1) : 'B', 'miejsce docelowe')))
+      .concat(st.end ? [stop(st.end, 'C', 'koniec trasy')] : []).join('');
+    const c = store.crew(o);
+    const crewTxt = { one: '1 kierowca', ext: '1 kierowca (wydłużony czas jazdy do 10 h — dopuszczalny 2× w tygodniu)', two: '2 kierowców (załoga dwuosobowa)', rest: 'nocleg kierowców lub zmiana załogi' }[c.level];
+    const fee = o.fee ? `Prowizja ANWS dla przewoźnika: ${zl(o.fee.amount)} netto (${num(o.fee.pct * 100, o.fee.pct === 0.025 ? 1 : 0)}%).` : 'Rezerwacja bez prowizji ANWS (abonament lub pierwszy miesiąc).';
+    return `<header class="ds-head"><div><span class="ds-brand">ANWS</span><span class="ds-sub">Giełda zleceń przewozu osób</span></div>
+      <div class="ds-no"><b>Potwierdzenie zlecenia przewozu</b><span>nr ${docNo(o)}</span><span>z dnia ${new Date(o.reservedAt || Date.now()).toLocaleDateString('pl-PL')}</span></div></header>
+      <div class="ds-firms">${firm(o.owner, 'Zleceniodawca')}${firm(o.reservedBy, 'Przewoźnik')}</div>
+      <h4>Trasa</h4><table class="ds-route">${lines}</table>
+      <table class="ds-facts">
+        <tr><th>Wyjazd</th><td>${esc(fullDate(o.dep))}</td><th>Przyjazd</th><td>${esc(fullDate(o.arr))}</td></tr>
+        <tr><th>Liczba pasażerów</th><td>${o.pax}</td><th>Odległość</th><td>${num(o.km)} km</td></tr>
+        <tr><th>Obsada (szacunek)</th><td colspan="3">${crewTxt} · ok. ${hm(c.drive)} jazdy${c.breaks ? ', ' + c.breaks + ' × 45 min przerwy' : ''}</td></tr>
+        ${o.notes ? `<tr><th>Uwagi</th><td colspan="3">${esc(o.notes)}</td></tr>` : ''}
+      </table>
+      <div class="ds-total"><span>Stawka za przewóz</span><b>${zl(o.rate)} netto</b><small>+ VAT według obowiązującej stawki</small></div>
+      <ol class="ds-terms">
+        <li>Przewoźnik oświadcza, że posiada licencję na wykonywanie transportu drogowego osób oraz ważne ubezpieczenie OC przewoźnika i NNW pasażerów.</li>
+        <li>Przewoźnik podstawia pojazd sprawny technicznie, z liczbą miejsc nie mniejszą niż liczba pasażerów, i przestrzega przepisów o czasie pracy kierowców (rozporządzenie (WE) 561/2006).</li>
+        <li>Rozliczenie stawki następuje bezpośrednio między stronami na podstawie faktury przewoźnika. ${fee}</li>
+        <li>Anulowanie zlecenia odbywa się na giełdzie ANWS, zgodnie z regulaminem i cennikiem serwisu.</li>
+      </ol>
+      <div class="ds-sign"><div>Zleceniodawca<br><span></span></div><div>Przewoźnik<br><span></span></div></div>
+      <footer class="ds-foot">Dokument wygenerowany na giełdzie ANWS ${new Date().toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' })} · paterski.github.io/anws-strona</footer>`;
+  }
+  function openDoc(id) {
+    const o = store.get(id);
+    if (!o || !o.reservedBy) return;
+    $('#doc-sheet').innerHTML = docHtml(o);
+    $('#doc-dialog').dataset.no = docNo(o);
+    openDlg($('#doc-dialog'));
+    setTimeout(() => $('#doc-print').focus(), 40);
+  }
+  // druk: kopia dokumentu poza oknem dialogowym, reszta strony ukryta stylem @media print
+  $('#doc-print').addEventListener('click', () => {
+    const out = el('div', 'doc-sheet');
+    out.id = 'print-root';
+    out.innerHTML = $('#doc-sheet').innerHTML;
+    document.body.appendChild(out);
+    document.body.classList.add('print-doc');
+    const title = document.title;
+    document.title = 'Potwierdzenie ' + ($('#doc-dialog').dataset.no || '').replace(/\//g, '-'); // nazwa pliku PDF
+    const done = () => { out.remove(); document.body.classList.remove('print-doc'); document.title = title; removeEventListener('afterprint', done); };
+    addEventListener('afterprint', done);
+    try { window.print(); } catch (e) { /* podgląd bez drukowania */ }
+    setTimeout(() => { if (document.body.classList.contains('print-doc') && !matchMedia('print').matches) done(); }, 1500);
+  });
 
   /* ---------- rezerwacja ---------- */
   let rvId = null;
@@ -799,6 +909,15 @@
       note.appendChild(a);
       box.appendChild(note);
       confirm.textContent = t('g.rv.confirmPay');
+    }
+    // nieaktualne dokumenty przewoźnika — przypomnienie (rezerwacja nadal możliwa)
+    const docs = auth.docs ? auth.docs(me) : {};
+    const bad = Object.keys(docs).filter((k) => docs[k].state === 'expired' || docs[k].state === 'missing');
+    if (bad.length) {
+      const w = el('p', 'db-note is-warn', t('g.rv.docsWarn', { x: bad.map((k) => t('k.doc.' + k)).join(', ') }) + ' ');
+      const a = el('a', null, t('g.rv.docsLink')); a.href = 'konto.html#dokumenty';
+      w.appendChild(a);
+      box.appendChild(w);
     }
     openDlg($('#rv-dialog'));
     setTimeout(() => confirm.focus(), 40);
@@ -1191,6 +1310,7 @@
     if (!kmTouched) { cr.km.value = km; crClear(cr.km); }
     suggestArrival();
     updateRateHelp();
+    updateCrew();
   }
   function suggestArrival() {
     const dep = fromInput(cr.dep.value);
@@ -1200,14 +1320,38 @@
     arrAuto = true;
     crClear(cr.arr);
   }
+  // czas pracy kierowcy dla wpisanej trasy — na bieżąco, przy zmianie km i godzin
+  function updateCrew() {
+    const box = $('#cr-crew');
+    const km = +cr.km.value, dep = fromInput(cr.dep.value), arr = fromInput(cr.arr.value);
+    if (!(km > 0)) { box.hidden = true; return; }
+    const o = { km, dep: isNaN(dep) ? 0 : dep, arr: isNaN(arr) || isNaN(dep) || arr <= dep ? 0 : arr };
+    const c = store.crew(o);
+    box.textContent = '';
+    box.dataset.level = c.level;
+    const head = el('div', 'crew-head');
+    head.appendChild(el('b', null, t('g.crew.title')));
+    head.appendChild(el('span', 'crew-pill is-' + c.level, t('g.crew.' + c.level)));
+    box.appendChild(head);
+    const ul = el('ul', 'crew-facts');
+    ul.appendChild(el('li', null, t('g.crew.drive', { x: hm(c.drive), y: c.kmh })));
+    if (c.breaks) ul.appendChild(el('li', null, t('g.crew.breaks', { x: c.breaks })));
+    if (o.arr) ul.appendChild(el('li', null, t('g.crew.span', { x: hm(c.span) })));
+    // za mało czasu na przejazd z przerwami (bez końca trasy C — wtedy km obejmuje też powrót)
+    if (o.arr && !located('C').length && c.span < (c.drive + c.breaks * 0.75) * 0.9) ul.appendChild(el('li', 'is-warn', t('g.crew.tight')));
+    box.appendChild(ul);
+    box.appendChild(el('p', 'crew-why', t('g.crew.why.' + c.level)));
+    box.appendChild(el('p', 'crew-note', t('g.crew.note')));
+    box.hidden = false;
+  }
   function updateRateHelp() {
     const r = +cr.rate.value, k = +cr.km.value;
     $('#cr-rate-help').textContent = r > 0 && k > 0 ? t('g.cr.rateHint', { x: num(r / k, 1) }) : '';
   }
-  cr.km.addEventListener('input', () => { kmTouched = true; crClear(cr.km); updateRateHelp(); });
+  cr.km.addEventListener('input', () => { kmTouched = true; crClear(cr.km); updateRateHelp(); updateCrew(); });
   cr.rate.addEventListener('input', () => { crClear(cr.rate); updateRateHelp(); });
-  cr.dep.addEventListener('input', () => { crClear(cr.dep); suggestArrival(); });
-  cr.arr.addEventListener('input', () => { arrAuto = false; crClear(cr.arr); });
+  cr.dep.addEventListener('input', () => { crClear(cr.dep); suggestArrival(); updateCrew(); });
+  cr.arr.addEventListener('input', () => { arrAuto = false; crClear(cr.arr); updateCrew(); });
   cr.pax.addEventListener('input', () => crClear(cr.pax));
   cr.form.addEventListener('input', () => { });
 
@@ -1224,6 +1368,7 @@
     $$('.field-err', cr.form).forEach((e) => { e.hidden = true; e.dataset.key = ''; });
     $$('[aria-invalid]', cr.form).forEach((i) => i.removeAttribute('aria-invalid'));
     $('#cr-km-help').textContent = t('g.cr.kmHelp');
+    $('#cr-crew').hidden = true;
   }
   function openCreate() {
     if (store.unpaidFees(me).length) { openFee(true); return; }
@@ -1297,6 +1442,7 @@
     render();
     if (cr.dlg.open) updateSteps();
     updateRateHelp();
+    if (cr.dlg.open) updateCrew();
     $$('.field-err', cr.form).forEach((e) => { if (e.dataset.key) e.textContent = t(e.dataset.key); });
     if (crMap) renumber();
   });

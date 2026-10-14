@@ -34,6 +34,7 @@
     cancelled: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"></path></svg>',
     gear: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>',
     logout: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"></path></svg>',
+    doc: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5M9 13h6M9 17h4"></path></svg>',
     offer: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12V5a2 2 0 0 1 2-2h7l9 9-9 9z"></path><circle cx="8" cy="8" r="1.6" fill="currentColor"></circle></svg>',
   };
 
@@ -50,6 +51,14 @@
     else renderAll();
   }
 
+  // kropka przy kole zębatym: brak modelu rozliczeń albo brakujące / nieważne dokumenty przewoźnika
+  function attention(s) {
+    if (!s || s.role === 'admin') return null;
+    if (!auth.getPlan(s.login).chosen) return 'k.gearNeed';
+    const d = auth.docs ? auth.docs(s.login) : {};
+    return Object.keys(d).some((k) => d[k].state === 'expired' || d[k].state === 'missing') ? 'k.gearDocs' : null;
+  }
+
   function renderBox(box) {
     box.textContent = '';
     const s = auth.getSession();
@@ -63,6 +72,7 @@
       box.appendChild(b);
       return;
     }
+    if (auth.checkDocs) auth.checkDocs(s.login); // przypomnienia o kończącej się ważności dokumentów
     const n = auth.unreadCount(s.login);
     const bell = el('button', 'ib bell' + (n ? ' has-new' : ''));
     bell.type = 'button';
@@ -83,8 +93,8 @@
     const gear = el('a', 'ib acct-gear');
     const admin = s.role === 'admin';
     gear.href = admin ? 'admin.html' : 'konto.html';
-    const needPlan = !admin && !auth.getPlan(s.login).chosen;
-    gear.setAttribute('aria-label', admin ? t('adm.badge') : t(needPlan ? 'k.gearNeed' : 'k.gear'));
+    const need = attention(s), needPlan = !!need;
+    gear.setAttribute('aria-label', admin ? t('adm.badge') : t(need || 'k.gear'));
     gear.title = gear.getAttribute('aria-label');
     gear.innerHTML = ICON.gear;
     if (needPlan) gear.appendChild(el('span', 'gear-dot'));
@@ -111,8 +121,9 @@
       list.slice(0, 20).forEach((x) => {
         const li = el('li', 'ap-item' + (newIds.has(x.id) ? ' is-new' : ''));
         const a = el('a');
-        a.href = x.type === 'subEnded' ? 'konto.html' : (x.type === 'cancelled' || x.type === 'removed') ? 'lista-zlecen.html' : 'lista-zlecen.html?moje=1';
-        const ic = el('span', 'ap-ic ' + x.type); ic.innerHTML = ICON[x.type === 'subEnded' ? 'expired' : x.type === 'removed' ? 'cancelled' : x.type] || ICON.bell; ic.setAttribute('aria-hidden', 'true');
+        const isDoc = x.type === 'docSoon' || x.type === 'docExpired';
+        a.href = isDoc ? 'konto.html#dokumenty' : x.type === 'subEnded' ? 'konto.html' : (x.type === 'cancelled' || x.type === 'removed') ? 'lista-zlecen.html' : 'lista-zlecen.html?moje=1';
+        const ic = el('span', 'ap-ic ' + x.type); ic.innerHTML = ICON[isDoc ? 'doc' : x.type === 'subEnded' ? 'expired' : x.type === 'removed' ? 'cancelled' : x.type] || ICON.bell; ic.setAttribute('aria-hidden', 'true');
         const txt = el('span', 'ap-text');
         const who = x.byName || x.by;
         const msg = x.type === 'reserve' ? t('n.reserve', { x: who })
@@ -120,6 +131,8 @@
           : x.type === 'cancelled' ? t('n.cancelled', { x: who })
           : x.type === 'subEnded' ? t('n.subEnded')
           : x.type === 'removed' ? t('n.removed')
+          : x.type === 'docSoon' ? t('n.docSoon', { x: t('k.doc.' + x.doc), y: x.days })
+          : x.type === 'docExpired' ? t('n.docExpired', { x: t('k.doc.' + x.doc) })
           : t('n.offer', { x: who, y: zl(x.rate) });
         txt.appendChild(el('span', null, msg));
         if (x.route) txt.appendChild(el('small', null, x.route));
@@ -174,7 +187,7 @@
     if (!menu) return;
     menu.querySelectorAll('.menu-acct').forEach((x) => x.remove());
     const s = auth.getSession();
-    const needPlan = !!s && s.role !== 'admin' && !auth.getPlan(s.login).chosen;
+    const needPlan = !!attention(s);
     if (menuBtn) menuBtn.classList.toggle('has-dot', needPlan);
     if (!s) return;
     const go = el('a', 'menu-acct', t(s.role === 'admin' ? 'adm.badge' : 'k.gear'));

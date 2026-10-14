@@ -28,7 +28,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="css/style.css?v=202610141609">
+<link rel="stylesheet" href="css/style.css?v=202610141706">
 </head>
 <body data-title-key="k.metaTitle">
 <a class="skip" href="#tresc" data-i18n="skip">Przejdź do treści</a>
@@ -151,6 +151,7 @@
         <span class="badge"><span class="live" aria-hidden="true"></span><span data-i18n="k.badge">Panel klienta</span></span>
         <h1 class="p-title acc-title" id="acc-company"></h1>
         <p class="lead acc-lead"><span data-i18n="k.loggedAs">Login:</span> <b id="acc-login"></b> · <span id="acc-since"></span></p>
+        <p class="acc-ver" id="acc-ver"></p>
       </section>
 
       <p class="acc-need" id="acc-need" role="status" hidden>
@@ -192,6 +193,17 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"></rect><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"></path></svg>
             <span><span data-i18n="k.lock">Nazwy firmy i NIP nie można zmienić samodzielnie — pochodzą z rejestrów.</span> <a href="#kontakt" data-i18n="k.lockLink">Napisz do nas</a></span>
           </p>
+        </section>
+
+        <!-- dokumenty przewoźnika: daty ważności i przypomnienia -->
+        <section class="admin-card acc-card" id="dokumenty" aria-labelledby="dc-title">
+          <h2 id="dc-title" data-i18n="k.dcTitle">Dokumenty przewoźnika</h2>
+          <p class="field-help dc-lead" data-i18n="k.dcLead">Wpisz daty ważności — przypomnimy o przedłużeniu 30 i 7 dni wcześniej (powiadomienie i e-mail). Aktualne dokumenty widać przy znaczku weryfikacji Twojej firmy.</p>
+          <form class="auth-form" id="dc-form" novalidate>
+            <div class="dc-list" id="dc-list"></div>
+            <p class="pw-ok" id="dc-ok" role="status" hidden data-i18n="k.saved">Zapisano zmiany.</p>
+            <button type="submit" class="call-btn call-btn-primary" id="dc-save" disabled data-i18n="k.save">Zapisz zmiany</button>
+          </form>
         </section>
 
         <!-- dane kontaktowe: do zmiany -->
@@ -305,11 +317,11 @@
   </div>
 </dialog>
 
-<script src="js/i18n.js?v=202610141609"></script>
-<script src="js/auth.js?v=202610141609"></script>
-<script src="js/orders.js?v=202610141609"></script>
-<script src="js/main.js?v=202610141609" defer></script>
-<script src="js/account.js?v=202610141609" defer></script>
-<script src="js/konto.js?v=202610141609" defer></script>
+<script src="js/i18n.js?v=202610141706"></script>
+<script src="js/auth.js?v=202610141706"></script>
+<script src="js/orders.js?v=202610141706"></script>
+<script src="js/main.js?v=202610141706" defer></script>
+<script src="js/account.js?v=202610141706" defer></script>
+<script src="js/konto.js?v=202610141706" defer></script>
 </body>
 </html>
