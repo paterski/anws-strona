@@ -256,6 +256,19 @@ th[aria-sort="ascending"] .th-sort, th[aria-sort="descending"] .th-sort { color:
 .mk.is-hl i { transform: rotate(-45deg) scale(1.3); }
 .leaflet-marker-icon.is-hl-wrap { z-index: 999 !important; }
 .mk-a i { background: var(--bubble-olive); }
+
+/* skupienie na zleceniu: pozostałe pinezki gasną, punkty zlecenia „wyskakują”, trasa rysuje się linią */
+.map .leaflet-marker-icon { transition: opacity .3s ease; }
+.map .leaflet-marker-icon.is-dim { opacity: 0 !important; pointer-events: none; }
+.map .leaflet-tile-pane { transition: filter .45s ease; }
+:root:not([data-theme="dark"]) .map.is-focus .leaflet-tile-pane { filter: saturate(.5) brightness(1.03); }
+:root[data-theme="dark"] .map.is-focus .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.72) contrast(.92) saturate(.35); }
+.mk.mk-pop { transform-origin: 50% 100%; animation: mk-pop .5s var(--ease-spring) backwards; }
+@keyframes mk-pop { from { opacity: 0; transform: translateY(10px) scale(.2); } }
+.rt-line, .rt-casing { pointer-events: none; }
+.rt-fade { animation: rt-fade .35s ease both; }
+@keyframes rt-fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .mk.mk-pop, .rt-fade { animation: none; } .map .leaflet-marker-icon, .map .leaflet-tile-pane { transition: none; } }
 .mk-b i { background: var(--ln-a); }
 .mk-c i { background: var(--bubble-gold); }
 
