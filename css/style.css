@@ -46,6 +46,7 @@
   --cta3: #4A3328;
   --bubble-olive: #6B7F42;
   --bubble-brown: #6B4E3D;
+  --title-accent: #6B4E3D;   /* „przewozowe” w tytule — brąz kafelka „Pilne przewozy!” */
   --bubble-gold: #A8793F;
 
   --step-bg: rgba(255, 255, 255, 0.45);
@@ -157,6 +158,7 @@
 
   --bus: #F5F2ED;
   --bus2: #C9A58D;
+  --title-accent: #C9A58D;
   --bus-win: #1B1D22;
   --flow: #B5C77F;
   --flow-op: .55;
@@ -477,16 +479,16 @@ main { display: flex; flex-direction: column; gap: 72px; }
 .js .title-text:not(.is-split) { opacity: 0; }
 .title-text { display: block; }
 .word { display: inline-block; white-space: nowrap; }
-.word-accent { color: var(--accent-text); }
+.word-accent { color: var(--title-accent); }
 .ch { display: inline-block; transition: transform .35s var(--ease-spring); animation: letter .8s var(--ease-out) backwards; animation-delay: calc(var(--i) * 45ms + 250ms); }
 .ch { vertical-align: top; height: 1.25em; line-height: 1.25; }
 .ch { overflow: hidden; }
 .ch.is-set { animation: none; }
 
-/* rolka po najechaniu na tytuł: litera zjeżdża w górę, wjeżdża jej kopia w kolorze akcentu (a w drugim słowie — w kolorze tekstu) */
+/* rolka po najechaniu na tytuł: litera zjeżdża w górę, wjeżdża jej kopia w kolorze brązu (a w drugim słowie — w kolorze tekstu) */
 .roll { display: block; transition: transform .6s cubic-bezier(.7, 0, .2, 1); transition-delay: calc(var(--i) * 24ms); }
 .roll > span { display: block; height: 1.25em; }
-.roll > span + span { color: var(--accent-text); }
+.roll > span + span { color: var(--title-accent); }
 .word-accent .roll > span + span { color: var(--ink); }
 .title:hover .roll { transform: translateY(-1.25em); }
 @keyframes letter { from { opacity: 0; transform: translateY(.55em) rotate(4deg); filter: blur(8px); } to { opacity: 1; transform: none; filter: blur(0); } }
