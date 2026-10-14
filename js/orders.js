@@ -446,17 +446,18 @@
     },
 
     // Rezerwacja; fee = null (abonament / pierwszy miesiąc) albo { pct, amount } (prowizja do zapłaty)
-    reserve(id, login, fee) {
+    // payment — numer płatności PayU, gdy prowizja została zapłacona przy rezerwacji
+    reserve(id, login, fee, payment) {
       const orders = this.list();
       const o = orders.find((x) => x.id === id);
       if (!o || o.status !== 'open' || o.owner === login) return false;
       o.status = 'reserved';
       o.reservedBy = login;
       o.reservedAt = Date.now();
-      o.fee = fee ? { pct: fee.pct, amount: fee.amount, paid: false } : null;
+      o.fee = fee ? { pct: fee.pct, amount: fee.amount, paid: !!payment, paidAt: payment ? Date.now() : null, payment: payment || null } : null;
       o.snap = { owner: snapParty(o.owner), carrier: snapParty(login) }; // dane obu firm na potwierdzenie zlecenia
       save(orders);
-      if (o.fee && window.ANWSInt) window.ANWSInt.invoice('commission', { login, net: o.fee.amount, order: o });
+      if (o.fee && window.ANWSInt) window.ANWSInt.invoice('commission', { login, net: o.fee.amount, order: o, paid: !!payment, payment: payment || null });
       const A = auth();
       if (A && A.notify) {
         const name = A.nameOf(login);
