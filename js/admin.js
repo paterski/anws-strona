@@ -117,7 +117,8 @@
     if (!mails.length) ob.appendChild(el('li', null, t('adm.outboxEmpty')));
     mails.forEach((m) => {
       const li = el('li');
-      li.appendChild(el('span', 'ob-meta', `${t('adm.to')} ${m.to} · ${fmtDate(m.at)}`));
+      if (m.channel === 'sms') li.classList.add('is-sms');
+      li.appendChild(el('span', 'ob-meta', `${m.channel === 'sms' ? t('adm.smsTo') : t('adm.to')} ${m.to} · ${fmtDate(m.at)}`));
       li.appendChild(el('b', null, m.subject));
       li.appendChild(el('span', null, m.body));
       ob.appendChild(li);
@@ -134,7 +135,6 @@
   }
   document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
 
-  const shortName = (n) => String(n || '').replace(/SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ/gi, 'Sp. z o.o.').replace(/SPÓŁKA AKCYJNA/gi, 'S.A.').replace(/SPÓŁKA KOMANDYTOWA/gi, 'Sp.k.').replace(/SPÓŁKA JAWNA/gi, 'Sp.j.').replace(/\s+/g, ' ').trim();
   const city = (p) => p.label.split(',')[0].replace(/\s*\(.*\)$/, '').trim();
   const svgEl = (tag, attrs) => { const e = document.createElementNS('http://www.w3.org/2000/svg', tag); Object.keys(attrs).forEach((k) => e.setAttribute(k, attrs[k])); return e; };
 
@@ -174,11 +174,15 @@
       routes.set(k, r);
     });
     const top = [...routes.values()].sort((a, b) => b.n - a.n || b.sum - a.sum).slice(0, 6);
-    // dokumenty przewoźników
-    const docs = auth.billingAll().map((acc) => ({ login: acc.login, name: auth.nameOf(acc.login), d: auth.docs(acc.login) }));
-    return { created, createdPrev, decided, taken, reservedWin, gmv, r30, rAll, weeks, top, docs };
+    return { created, createdPrev, decided, taken, reservedWin, gmv, r30, rAll, weeks, top };
   }
 
+  const TEST_ROUTES = [
+    [{ label: 'Kraków, Rondo Mogilskie', lat: 50.0659, lng: 19.96 }, { label: 'Zakopane, Krupówki', lat: 49.2958, lng: 19.9503 }, 107, 1250, 48],
+    [{ label: 'Gdańsk, Długi Targ', lat: 54.3484, lng: 18.6533 }, { label: 'Malbork, Zamek', lat: 54.0396, lng: 19.0277 }, 58, 750, 35],
+    [{ label: 'Wrocław, Rynek', lat: 51.11, lng: 17.032 }, { label: 'Karpacz, centrum', lat: 50.7766, lng: 15.7563 }, 128, 1350, 50],
+  ];
+  let testN = 0;
   function tile(label, value, sub, cls) {
     const d = el('div', 'st-tile' + (cls ? ' ' + cls : ''));
     d.append(el('span', 'st-label', label), el('b', 'st-value', value));
@@ -247,6 +251,25 @@
     tiles.appendChild(tile(t('st.rev'), zl(rev), t('st.revSub')));
     box.appendChild(tiles);
 
+    // test alarmu: przykładowe pilne zlecenie od firmy testowej → powiadomienia, e-maile, SMS-y i alarm na otwartych stronach
+    const test = el('section', 'admin-card st-card st-test');
+    test.appendChild(el('h2', null, t('adm.testTitle')));
+    test.appendChild(el('p', 'st-note', t('adm.testText')));
+    const tb = el('button', 'call-btn call-btn-primary', t('adm.testBtn'));
+    tb.type = 'button';
+    const tmsg = el('p', 'pw-ok'); tmsg.hidden = true; tmsg.setAttribute('role', 'status');
+    tb.addEventListener('click', () => {
+      const R = TEST_ROUTES[testN++ % TEST_ROUTES.length];
+      const dep = Math.ceil((Date.now() + 5 * 36e5) / 9e5) * 9e5;
+      const o = store.add({ pickups: [R[0]], drops: [R[1]], end: null, dep, arr: dep + Math.round(R[2] / 65 * 36e5 / 9e5) * 9e5, km: R[2], rate: R[3], pax: R[4], notes: '' }, 'polbus');
+      const n = auth.accounts().filter((l) => l !== 'polbus').length;
+      tmsg.textContent = tv('adm.testDone', { x: o.from.label + ' → ' + o.to.label, y: n });
+      tmsg.hidden = false;
+      render();
+    });
+    test.append(tb, tmsg);
+    box.appendChild(test);
+
     const grid = el('div', 'st-grid2');
     // wykres tygodniowy
     const c1 = el('section', 'admin-card st-card st-wide');
@@ -287,31 +310,6 @@
     c3.appendChild(tbl);
     c3.appendChild(el('p', 'st-note', t('st.revNote')));
     grid.appendChild(c3);
-
-    // dokumenty przewoźników
-    const c4 = el('section', 'admin-card st-card st-wide');
-    c4.appendChild(el('h2', null, t('st.docsTitle')));
-    const rank = { expired: 0, missing: 1, soon: 2, ok: 3 };
-    const rows = S.docs.map((x) => ({ ...x, worst: Math.min(...Object.values(x.d).map((v) => rank[v.state])) })).sort((a, b) => a.worst - b.worst);
-    const issues = rows.filter((x) => x.worst < 3);
-    c4.appendChild(el('p', 'st-note', issues.length ? tv('st.docsIssues', { x: issues.length, y: rows.length }) : t('st.docsAllOk')));
-    const dt = el('table', 'st-table st-docs');
-    const dh = el('tr'); [t('st.carrier'), t('k.doc.license'), t('k.doc.oc'), t('k.doc.nnw')].forEach((h) => dh.appendChild(el('th', null, h))); dt.appendChild(dh);
-    rows.forEach((x) => {
-      const tr = el('tr');
-      const nm = el('td', null, shortName(x.name)); nm.title = x.name; tr.appendChild(nm);
-      ['license', 'oc', 'nnw'].forEach((k) => {
-        const v = x.d[k];
-        const td = el('td');
-        td.appendChild(el('span', 'dc-pill is-' + v.state, v.state === 'missing' ? t('k.dcMissing') : v.state === 'expired' ? tv('st.dExpired', { x: new Date(v.until).toLocaleDateString(locale()) })
-          : v.state === 'soon' ? tv('k.dcSoon', { x: v.days }) : new Date(v.until).toLocaleDateString(locale())));
-        tr.appendChild(td);
-      });
-      dt.appendChild(tr);
-    });
-    const scroll = el('div', 'st-scroll'); scroll.appendChild(dt);
-    c4.appendChild(scroll);
-    grid.appendChild(c4);
 
     box.appendChild(grid);
   }

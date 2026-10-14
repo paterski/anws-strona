@@ -318,29 +318,13 @@
     .replace(/\s+/g, ' ').trim();
   const ICON_ARCH = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1.5"></rect><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M10 13h4"></path></svg>';
   const ICON_DOC = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5M9 13h6M9 17h4"></path></svg>';
-  const SHIELD = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 5 6v5.5c0 4.3 3 8 7 9.5 4-1.5 7-5.2 7-9.5V6z"></path><path d="M8.8 12.2l2.2 2.2 4.2-4.4"></path></svg>';
-  // znaczek „Firma zweryfikowana” (NIP, KRS i PKD z rejestrów) — podpowiedź mówi też o dokumentach
-  function verBadge(login) {
-    const v = auth.verified ? auth.verified(login) : null;
-    if (!v || !v.registry) return null;
-    const b = el('span', 'vbadge' + (v.docs ? ' is-full' : ''));
-    b.innerHTML = SHIELD;
-    const tip = t('g.ver.tip') + ' ' + t(v.docs ? 'g.ver.docsOk' : 'g.ver.docsNo');
-    b.title = tip;
-    b.setAttribute('role', 'img');
-    b.setAttribute('aria-label', tip);
-    return b;
-  }
   function party(login, labelKey, docOrder) {
     const c = auth.contactOf(login);
     const box = el('div', 'party');
     const txt = el('span', 'party-text');
     txt.title = c.name;
     txt.appendChild(el('small', null, t(labelKey)));
-    const nm = el('b', null, shortName(c.name));
-    const vb = verBadge(login);
-    if (vb) { nm.prepend(vb); }
-    txt.appendChild(nm);
+    txt.appendChild(el('b', null, shortName(c.name)));
     box.appendChild(txt);
     const ic = el('span', 'party-ic');
     [['phone', ICON_PHONE, 'g.ph.contact'], ['alarmPhone', ICON_ALARM, 'g.ph.alarm']].forEach(([k, svg, key]) => {
@@ -893,15 +877,6 @@
       box.appendChild(note);
       confirm.textContent = t('g.rv.confirmPay');
     }
-    // nieaktualne dokumenty przewoźnika — przypomnienie (rezerwacja nadal możliwa)
-    const docs = auth.docs ? auth.docs(me) : {};
-    const bad = Object.keys(docs).filter((k) => docs[k].state === 'expired' || docs[k].state === 'missing');
-    if (bad.length) {
-      const w = el('p', 'db-note is-warn', t('g.rv.docsWarn', { x: bad.map((k) => t('k.doc.' + k)).join(', ') }) + ' ');
-      const a = el('a', null, t('g.rv.docsLink')); a.href = 'konto.html#dokumenty';
-      w.appendChild(a);
-      box.appendChild(w);
-    }
     openDlg($('#rv-dialog'));
     setTimeout(() => confirm.focus(), 40);
   }
@@ -999,8 +974,6 @@
       const head = el('div', 'of-head');
       const who = el('div', 'of-who');
       const name = el('b', null, t('g.of.carrier', { x: i + 1 }));
-      const vb = verBadge(x.by);
-      if (vb) name.prepend(vb);
       who.append(name, el('small', null, t('g.of.hidden') + ' · ' + agoLabel(x.at)));
       const price = el('div', 'of-price');
       const diff = x.rate - o.rate;
@@ -1123,7 +1096,7 @@
      i jeden koniec trasy (C, pole domyślnie puste) — np. powrót na pusto albo wycieczka objazdowa ---------- */
   const cr = {
     dlg: $('#cr-dialog'), form: $('#cr-form'), dep: $('#cr-dep'), arr: $('#cr-arr'),
-    pax: $('#cr-pax'), km: $('#cr-km'), rate: $('#cr-rate'), urgent: $('#cr-urgent'), notes: $('#cr-notes'),
+    pax: $('#cr-pax'), km: $('#cr-km'), rate: $('#cr-rate'), notes: $('#cr-notes'),
     hint: $('#cr-hint'), q: $('#cr-q'), results: $('#cr-results'),
     list: { A: $('#cr-list-a'), B: $('#cr-list-b'), C: $('#cr-list-c') }, empty: { A: $('#cr-empty-a'), B: $('#cr-empty-b') }, err: { A: $('#cr-a-err'), B: $('#cr-b-err'), C: $('#cr-c-err') },
   };
@@ -1420,13 +1393,22 @@
     box.appendChild(el('p', 'crew-note', t('g.crew.note')));
     box.hidden = false;
   }
+  // informacja, czy zlecenie będzie pilne (wyjazd za mniej niż 24 h od dodania — automatycznie)
+  function updateUrgentInfo() {
+    const box = $('#cr-urgent-info');
+    const dep = fromInput(cr.dep.value);
+    const state = isNaN(dep) ? 'none' : store.isUrgentDep(dep) ? 'yes' : 'no';
+    box.dataset.state = state;
+    box.innerHTML = state === 'yes' ? BOLT : '';
+    box.appendChild(el('span', null, t(state === 'yes' ? 'g.cr.urgYes' : state === 'no' ? 'g.cr.urgNo' : 'g.cr.urgNone')));
+  }
   function updateRateHelp() {
     const r = +cr.rate.value, k = +cr.km.value;
     $('#cr-rate-help').textContent = r > 0 && k > 0 ? t('g.cr.rateHint', { x: num(r / k, 1) }) : '';
   }
   cr.km.addEventListener('input', () => { kmTouched = true; crClear(cr.km); updateRateHelp(); updateCrew(); });
   cr.rate.addEventListener('input', () => { crClear(cr.rate); updateRateHelp(); });
-  cr.dep.addEventListener('input', () => { crClear(cr.dep); suggestArrival(); updateCrew(); });
+  cr.dep.addEventListener('input', () => { crClear(cr.dep); suggestArrival(); updateCrew(); updateUrgentInfo(); });
   cr.arr.addEventListener('input', () => { arrAuto = false; crClear(cr.arr); updateCrew(); });
   cr.pax.addEventListener('input', () => crClear(cr.pax));
   cr.form.addEventListener('input', () => { });
@@ -1445,11 +1427,13 @@
     $$('[aria-invalid]', cr.form).forEach((i) => i.removeAttribute('aria-invalid'));
     $('#cr-km-help').textContent = t('g.cr.kmHelp');
     $('#cr-crew').hidden = true;
+    updateUrgentInfo();
   }
   function openCreate() {
     if (store.unpaidFees(me).length) { openFee(true); return; }
     if (!hasMap) { toast('Mapa jest chwilowo niedostępna.'); return; }
     cr.dep.min = toLocalInput(Date.now());
+    updateUrgentInfo();
     cr.arr.min = toLocalInput(Date.now());
     openDlg(cr.dlg);
     setTimeout(() => {
@@ -1500,7 +1484,7 @@
     const plain = (p) => ({ label: p.input.value.trim(), lat: p.lat, lng: p.lng });
     const o = store.add({
       pickups: located('A').map(plain), drops: located('B').map(plain), end: located('C').length ? plain(located('C')[0]) : null,
-      dep, arr, km: Math.round(km), rate: Math.round(rate), pax, urgent: cr.urgent.checked, notes: cr.notes.value.trim(),
+      dep, arr, km: Math.round(km), rate: Math.round(rate), pax, notes: cr.notes.value.trim(),
     }, me);
     closeCreate();
     resetCreate();
@@ -1519,6 +1503,7 @@
     if (cr.dlg.open) updateSteps();
     updateRateHelp();
     if (cr.dlg.open) updateCrew();
+    updateUrgentInfo();
     $$('.field-err', cr.form).forEach((e) => { if (e.dataset.key) e.textContent = t(e.dataset.key); });
     if (crMap) renumber();
   });
@@ -1530,9 +1515,19 @@
   setScope(state.scope);
   updateSteps();
   if (params.get('nowe') === '1') setTimeout(openCreate, 250);
+  // link z powiadomienia (SMS, e-mail, dzwonek): pokaż to zlecenie na liście i na mapie
+  if (params.get('zlecenie')) {
+    const zid = params.get('zlecenie');
+    setTimeout(() => {
+      const o = store.get(zid);
+      if (!o || !store.active().some((x) => x.id === zid)) { toast(t('g.linkGone')); return; }
+      if (!$(`.order[data-id="${zid}"]`)) { resetFilters(true); setScope(o.urgent ? 'urgent' : 'all'); }
+      showRow(zid); selectOrder(zid);
+    }, 350);
+  }
   // z powiadomienia o propozycji stawki: od razu lista propozycji przy tym zleceniu
   if (params.get('oferty')) { const oid = params.get('oferty'); setTimeout(() => { showRow(oid); openOffers(oid); }, 350); }
-  if (params.has('nowe') || params.has('pilne') || params.has('moje') || params.has('tab') || params.has('oferty')) history.replaceState(null, '', location.pathname);
+  if (params.has('nowe') || params.has('pilne') || params.has('moje') || params.has('tab') || params.has('oferty') || params.has('zlecenie')) history.replaceState(null, '', location.pathname);
   // terminy względne („za 3 godziny”) odświeżamy co minutę
   setInterval(() => { if (!document.hidden && !$$('dialog[open]').length) render(); }, 60000);
 })();
