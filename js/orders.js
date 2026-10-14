@@ -154,7 +154,7 @@
     get(id) { return this.list().find((o) => o.id === id) || null; },
 
     // zlecenia widoczne na giełdzie: nieanulowane, niewygasłe i jeszcze niezakończone
-    active() { const now = Date.now(); return this.list().filter((o) => o.arr > now && o.status !== 'cancelled' && o.status !== 'expired'); },
+    active() { const now = Date.now(); return this.list().filter((o) => o.arr > now && o.status !== 'cancelled' && o.status !== 'expired' && o.status !== 'removed'); },
 
     // wygasłe zlecenia użytkownika z nieopłaconą opłatą (pokazujemy je w „Twoich zleceniach”, żeby dało się zapłacić)
     unpaidExpired(login) {
@@ -209,6 +209,24 @@
           subject: 'Zarezerwowane przez Ciebie zlecenie zostało anulowane',
           body: `Dzień dobry! Zlecający ${name} anulował zlecenie ${routeText(o)} z wyjazdem ${when(o.dep)}, które było przez Ciebie zarezerwowane. Kurs nie dojdzie do skutku — znajdź kolejne zlecenie na giełdzie ANWS.`,
         });
+      }
+      return true;
+    },
+
+    // Usunięcie zlecenia przez administratora — bez opłat i kar; zlecający (i przewoźnik, jeśli zarezerwował) dostaje powiadomienie
+    adminRemove(id, admin) {
+      const orders = this.list();
+      const o = orders.find((x) => x.id === id);
+      if (!o || o.status === 'removed') return false;
+      o.status = 'removed'; o.removedAt = Date.now(); o.removedBy = admin;
+      save(orders);
+      const A = auth();
+      if (A && A.notify) {
+        [o.owner, o.reservedBy].filter(Boolean).forEach((login) => A.notify(login, {
+          type: 'removed', orderId: o.id, route: routeText(o),
+          subject: 'Zlecenie usunięte przez administratora ANWS',
+          body: `Dzień dobry! Administrator ANWS usunął zlecenie ${routeText(o)} z wyjazdem ${when(o.dep)}. Nie naliczyliśmy za to żadnej opłaty. W razie pytań skontaktuj się z nami: +48 884 106 851.`,
+        }));
       }
       return true;
     },

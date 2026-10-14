@@ -433,6 +433,16 @@ window.I18N = {
     'v.contact': 'Kontakt z administratorem',
     'v.vat': 'status VAT',
 
+    'g.plan.admin': 'Administrator',
+    'g.party.owner': 'Zlecający', 'g.party.client': 'Zleceniodawca', 'g.party.carrier': 'Przewoźnik',
+    'g.ph.contact': 'Telefon kontaktowy', 'g.ph.alarm': 'Telefon alarmowy',
+    'g.rm.btn': 'Usuń', 'g.rm.title': 'Usunąć zlecenie?', 'g.rm.confirm': 'Usuń zlecenie',
+    'g.rm.owner': 'Zlecający: {x}',
+    'g.rm.note': 'Zlecenie zniknie z giełdy. Zlecający nie zapłaci żadnej opłaty — dostanie powiadomienie i e-mail o usunięciu.',
+    'g.rm.reservedNote': 'Zlecenie zarezerwował przewoźnik {x} — on też dostanie powiadomienie.',
+    'g.rm.done': 'Zlecenie usunięte — bez opłat dla zlecającego.',
+    'n.removed': 'Administrator usunął zlecenie (bez opłat)',
+
     'mb.urgent': 'Najbliższe pilne', 'mb.list': 'Najbliższe wyjazdy', 'mb.rate': 'Stawka netto', 'mb.net': 'netto',
     'mb.empty': 'Brak wolnych zleceń — zajrzyj wkrótce.', 'mb.emptyUrgent': 'Teraz brak pilnych zleceń — zajrzyj wkrótce.',
 
@@ -912,6 +922,16 @@ window.I18N = {
     'v.retry': 'Try again',
     'v.contact': 'Contact the administrator',
     'v.vat': 'VAT status',
+
+    'g.plan.admin': 'Administrator',
+    'g.party.owner': 'Posted by', 'g.party.client': 'Client', 'g.party.carrier': 'Carrier',
+    'g.ph.contact': 'Contact phone', 'g.ph.alarm': 'Alert phone',
+    'g.rm.btn': 'Delete', 'g.rm.title': 'Delete this order?', 'g.rm.confirm': 'Delete order',
+    'g.rm.owner': 'Posted by: {x}',
+    'g.rm.note': "The order disappears from the exchange. The client isn't charged — they get a notification and an email about it.",
+    'g.rm.reservedNote': 'This order was booked by {x} — they will be notified too.',
+    'g.rm.done': 'Order deleted — no fee for the client.',
+    'n.removed': 'An administrator deleted an order (no fee)',
 
     'mb.urgent': 'Next urgent trips', 'mb.list': 'Next departures', 'mb.rate': 'Net rate', 'mb.net': 'net',
     'mb.empty': 'No open orders right now — check back soon.', 'mb.emptyUrgent': 'No urgent orders right now — check back soon.',

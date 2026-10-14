@@ -16,6 +16,7 @@
   }
   root.classList.remove('js-guard');
   const me = session.login;
+  const isAdmin = session.role === 'admin'; // administrator widzi kontrahentów i może usuwać zlecenia, nie rezerwuje
 
   /* ---------- pomocnicze ---------- */
   const DICT = window.I18N || {};
@@ -72,8 +73,18 @@
 
   /* ---------- użytkownik i model rozliczeń ---------- */
   function renderUser() {
-    const plan = auth.getPlan(me);
     const chip = $('.user-chip');
+    if (isAdmin) {
+      const nm = session.name || me;
+      $('#uc-name').textContent = nm;
+      $('#uc-avatar').textContent = 'A';
+      chip.dataset.plan = 'admin';
+      chip.href = 'admin.html';
+      $('#uc-plan').textContent = t('g.plan.admin');
+      chip.title = nm + ' · ' + $('#uc-plan').textContent;
+      return;
+    }
+    const plan = auth.getPlan(me);
     const name = session.name || me;
     $('#uc-name').textContent = name;
     $('#uc-avatar').textContent = name.replace(/[^\p{L}\d ]/gu, '').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || me.slice(0, 2).toUpperCase();
@@ -215,7 +226,13 @@
     }
     const res = el('button', 'g-btn g-btn-primary');
     res.type = 'button';
-    if (own && expired) {
+    if (isAdmin && !own) {
+      // administrator: bez rezerwacji i negocjacji — tylko usunięcie zlecenia (bez opłat dla zlecającego)
+      neg.hidden = true;
+      res.textContent = t('g.rm.btn');
+      res.className = 'g-btn g-btn-danger';
+      res.addEventListener('click', () => openRemove(o.id));
+    } else if (own && expired) {
       neg.hidden = true;
       res.textContent = t('g.fee.payBtn', { x: zl(store.EXPIRE_FEE) });
       res.addEventListener('click', () => openFee(false));
@@ -225,12 +242,18 @@
     else { res.textContent = t('g.reserve'); res.addEventListener('click', () => openReserve(o.id)); }
     acts.append(neg, res);
     const cell = td(acts);
+    // kontrahent: administrator widzi zlecającego przy każdym zleceniu; pozostali — dopiero
+    // w „Twoich zleceniach”: przewoźnik po rezerwacji widzi zleceniodawcę, zlecający — przewoźnika
+    const inMine = state.scope === 'mine';
+    if (isAdmin && !own) cell.insertBefore(party(o.owner, 'g.party.owner'), acts);
+    else if (inMine && !own && o.status === 'reserved' && o.reservedBy === me) cell.insertBefore(party(o.owner, 'g.party.client'), acts);
+    else if (inMine && own && o.status !== 'open' && o.reservedBy) cell.insertBefore(party(o.reservedBy, 'g.party.carrier'), acts);
+    if (isAdmin && o.status !== 'open' && o.reservedBy) cell.appendChild(el('span', 'offer-note', t('g.reservedBy', { x: auth.nameOf(o.reservedBy) })));
     const myOffer = (o.offers || []).find((x) => x.by === me);
     if (myOffer && o.status === 'open') cell.appendChild(el('span', 'offer-note', t('g.offerSent', { x: zl(myOffer.rate) })));
-    if (!own && o.status === 'reserved' && o.reservedBy === me) cell.appendChild(clientContact(o.owner));
     if (own && expired) cell.appendChild(el('span', 'offer-note is-warn', t('g.fee.rowNote', { x: zl(store.EXPIRE_FEE) })));
-    // właściciel widzi propozycje stawek i to, kto zarezerwował
-    if (own && o.status !== 'open' && o.reservedBy) cell.appendChild(el('span', 'offer-note', t('g.reservedBy', { x: auth.nameOf(o.reservedBy) })));
+    // poza „Twoimi zleceniami” zlecający widzi tylko, że kurs jest zarezerwowany
+    if (own && !inMine && o.status !== 'open' && o.reservedBy) cell.appendChild(el('span', 'offer-note', t('g.reserved')));
     if (own && o.status === 'open' && (o.offers || []).length) {
       const best = Math.max.apply(null, o.offers.map((x) => x.rate));
       cell.appendChild(el('span', 'offer-note', t('g.offersN', { x: o.offers.length, y: zl(best) })));
@@ -243,17 +266,102 @@
     return tr;
   }
 
-  function clientContact(login) {
+  /* ---------- kontrahent: nazwa widoczna od razu, telefony w dymku ---------- */
+  const ICON_PHONE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></svg>';
+  const ICON_ALARM = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path><path d="M3 7.5 5 6M21 7.5 19 6"></path></svg>';
+  const fmtPhone = (p) => {
+    const m = String(p || '').match(/^\+48(\d{9})$/);
+    if (m) return '+48 ' + m[1].replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3');
+    const n = String(p || '').match(/^\+(\d{2,3})(\d+)$/);
+    return n ? '+' + n[1] + ' ' + n[2].replace(/(\d{3})(?=\d)/g, '$1 ') : (p || '');
+  };
+  function party(login, labelKey) {
     const c = auth.contactOf(login);
-    const box = el('div', 'client-note');
-    box.appendChild(el('span', null, t('g.mine.client', { x: c.name })));
-    const line = el('span', 'cn-links');
-    if (c.person) line.appendChild(el('span', null, c.person));
-    if (c.phone) { const a = el('a', null, c.phone); a.href = 'tel:' + c.phone.replace(/\s/g, ''); line.appendChild(a); }
-    if (c.email) { const a = el('a', null, c.email); a.href = 'mailto:' + c.email; line.appendChild(a); }
-    if (line.childNodes.length) box.appendChild(line);
+    const box = el('div', 'party');
+    const txt = el('span', 'party-text');
+    txt.appendChild(el('small', null, t(labelKey)));
+    txt.appendChild(el('b', null, c.name));
+    box.appendChild(txt);
+    const ic = el('span', 'party-ic');
+    [['phone', ICON_PHONE, 'g.ph.contact'], ['alarmPhone', ICON_ALARM, 'g.ph.alarm']].forEach(([k, svg, key]) => {
+      if (!c[k]) return;
+      const b = el('button', 'ib party-btn' + (k === 'alarmPhone' ? ' is-alarm' : ''));
+      b.type = 'button';
+      b.innerHTML = svg;
+      b.setAttribute('aria-label', t(key) + ': ' + c.name);
+      b.title = t(key);
+      b.setAttribute('aria-haspopup', 'dialog');
+      b.addEventListener('click', (e) => { e.stopPropagation(); openPhone(b, login, k); });
+      ic.appendChild(b);
+    });
+    if (ic.childNodes.length) box.appendChild(ic);
     return box;
   }
+
+  // dymek z numerem — wygląd okienka „Zadzwoń” z menu
+  const bub = el('div', 'call-panel phone-bub');
+  bub.id = 'phone-bub';
+  bub.setAttribute('role', 'dialog');
+  bub.hidden = true;
+  document.body.appendChild(bub);
+  let bubFrom = null;
+  function closePhone() { if (bub.hidden) return; bub.hidden = true; if (bubFrom) bubFrom.setAttribute('aria-expanded', 'false'); bubFrom = null; }
+  function openPhone(btn, login, which) {
+    if (bubFrom === btn) { closePhone(); return; }
+    closePhone();
+    const c = auth.contactOf(login);
+    const main = c[which], other = which === 'phone' ? c.alarmPhone : c.phone;
+    bub.textContent = '';
+    const x = el('button', 'call-x'); x.type = 'button'; x.setAttribute('aria-label', t('call.close'));
+    x.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>';
+    x.addEventListener('click', closePhone);
+    const who = el('div', 'call-who');
+    const initials = (c.person || c.name).replace(/[^\p{L} ]/gu, '').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+    const av = el('span', 'call-avatar', initials || '?'); av.setAttribute('aria-hidden', 'true');
+    const wt = el('div');
+    wt.appendChild(el('p', 'call-label', t('call.label')));
+    const h = el('h2', 'call-name', c.person || c.name); h.id = 'phone-bub-name';
+    wt.appendChild(h);
+    wt.appendChild(el('p', 'bub-company', c.name));
+    who.append(av, wt);
+    bub.setAttribute('aria-labelledby', h.id);
+    const lab = el('p', 'call-label bub-kind', t(which === 'phone' ? 'g.ph.contact' : 'g.ph.alarm'));
+    const num = el('a', 'call-num', fmtPhone(main)); num.href = 'tel:' + main; num.setAttribute('data-direct', '');
+    const row = el('div', 'call-row');
+    const call = el('a', 'call-btn call-btn-primary'); call.href = 'tel:' + main; call.setAttribute('data-direct', '');
+    call.innerHTML = ICON_PHONE; call.appendChild(el('span', null, t('call.btn')));
+    const copy = el('button', 'call-btn call-btn-ghost'); copy.type = 'button';
+    copy.appendChild(el('span', null, t('call.copy')));
+    copy.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(fmtPhone(main)); } catch (err) {}
+      copy.firstChild.textContent = t('call.copied');
+      setTimeout(() => { copy.firstChild.textContent = t('call.copy'); }, 2000);
+    });
+    row.append(call, copy);
+    bub.append(x, who, lab, num, row);
+    if (other && other !== main) {
+      const o2 = el('p', 'bub-other');
+      o2.appendChild(el('span', null, t(which === 'phone' ? 'g.ph.alarm' : 'g.ph.contact') + ': '));
+      const a2 = el('a', null, fmtPhone(other)); a2.href = 'tel:' + other; a2.setAttribute('data-direct', '');
+      o2.appendChild(a2);
+      bub.appendChild(o2);
+    }
+    bub.hidden = false;
+    bubFrom = btn; btn.setAttribute('aria-expanded', 'true');
+    // pozycja: pod ikoną, w granicach ekranu (na telefonie — przyklejony do dołu)
+    if (!matchMedia('(max-width: 640px)').matches) {
+      const r = btn.getBoundingClientRect(), w = bub.offsetWidth, hh = bub.offsetHeight;
+      let left = Math.min(Math.max(12, r.right - w), innerWidth - w - 12);
+      let top = r.bottom + 10;
+      if (top + hh > innerHeight - 12) top = Math.max(12, r.top - hh - 10);
+      bub.style.left = left + 'px'; bub.style.top = top + 'px';
+    } else { bub.style.left = ''; bub.style.top = ''; }
+    setTimeout(() => call.focus(), 20);
+  }
+  document.addEventListener('pointerdown', (e) => { if (!bub.hidden && !bub.contains(e.target) && !(bubFrom && bubFrom.contains(e.target))) closePhone(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !bub.hidden) { const b = bubFrom; closePhone(); if (b) b.focus(); } });
+  $('#gl-scroll').addEventListener('scroll', closePhone, { passive: true });
+  addEventListener('resize', closePhone);
 
   function render() {
     const list = filtered();
@@ -509,7 +617,7 @@
     d.classList.add('is-closing');
     setTimeout(() => { d.close(); d.classList.remove('is-closing'); }, reduce() ? 0 : 160);
   }
-  ['#rv-dialog', '#ng-dialog', '#cx-dialog', '#fee-dialog'].forEach((sel) => {
+  ['#rv-dialog', '#ng-dialog', '#cx-dialog', '#fee-dialog', '#rm-dialog'].forEach((sel) => {
     const d = $(sel);
     $$('[data-close]', d).forEach((b) => b.addEventListener('click', () => closeDlg(d)));
     d.addEventListener('cancel', (e) => { e.preventDefault(); closeDlg(d); });
@@ -632,6 +740,28 @@
     closeDlg($('#cx-dialog'));
     if (!ok) return;
     toast(t('g.cx.done', { x: zl(store.CANCEL_FEE) }));
+    render();
+  });
+
+  /* ---------- administrator: usunięcie zlecenia bez opłat dla zlecającego ---------- */
+  let rmId = null;
+  function openRemove(id) {
+    const o = store.get(id);
+    if (!isAdmin || !o) return;
+    rmId = id;
+    routeSummary($('#rm-route'), o);
+    $('#rm-owner').textContent = t('g.rm.owner', { x: auth.nameOf(o.owner) });
+    const rs = $('#rm-reserved');
+    rs.hidden = !o.reservedBy;
+    if (o.reservedBy) rs.textContent = t('g.rm.reservedNote', { x: auth.nameOf(o.reservedBy) });
+    openDlg($('#rm-dialog'));
+    setTimeout(() => $('#rm-dialog [data-close].call-btn').focus(), 40);
+  }
+  $('#rm-confirm').addEventListener('click', () => {
+    const ok = store.adminRemove(rmId, me);
+    closeDlg($('#rm-dialog'));
+    if (!ok) return;
+    toast(t('g.rm.done'));
     render();
   });
 

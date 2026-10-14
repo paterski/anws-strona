@@ -65,6 +65,8 @@ body.app { height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-
 .uc-plan { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-muted); white-space: nowrap; }
 .user-chip[data-plan="sub"] .uc-plan, .user-chip[data-plan="free"] .uc-plan { color: var(--ok-ink); }
 .user-chip[data-plan="need"] .uc-plan { color: var(--err-ink); }
+.user-chip[data-plan="admin"] .uc-plan { color: var(--accent-text); }
+.user-chip[data-plan="admin"] .uc-avatar { background: var(--btn-bg); color: var(--btn-ink); }
 a.user-chip { color: var(--ink); text-decoration: none; transition: background-color .2s; }
 a.user-chip:hover { background: var(--ib-hover); color: var(--ink); }
 
@@ -373,11 +375,39 @@ th[aria-sort="ascending"] .th-sort, th[aria-sort="descending"] .th-sort { color:
 
 /* ---------- węższe ekrany ---------- */
 
+/* na giełdzie pasek jest pełny: wylogowanie zawsze jako ikona, WhatsApp i e-mail są na pozostałych stronach */
+.app-head .acct-logout { width: var(--btn, 44px); padding: 0; justify-content: center; }
+.app-head .acct-logout span { display: none; }
+.app-head .social { display: none; }
+@media (max-width: 1700px) {
+  .uc-text { display: none; }
+  .user-chip { padding: 3px; }
+  .app-head .phone-num { display: none; }
+  .app-head .ib.call { width: var(--btn, 44px); padding: 0; justify-content: center; border-radius: 50%; }
+}
+@media (max-width: 1360px) and (min-width: 1181px) {
+  .an-btn .an-ic { display: none; }
+  .an-btn { padding: 0 16px; }
+}
+/* do 1180 px przyciski giełdy przechodzą na dolny pasek (jak na telefonie) */
+@media (max-width: 1180px) {
+  .app-head { grid-template-columns: auto 1fr; padding: 8px 12px; gap: 10px; -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--menu-bg); }
+  .app-tools { justify-content: flex-end; gap: 6px; }
+  .app-nav {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    justify-content: space-around; gap: 4px; padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+    background: var(--menu-bg); border-top: 1px solid var(--line); box-shadow: 0 -8px 24px rgba(0, 0, 0, .08);
+  }
+  .an-btn { flex: 1 1 0; min-width: 0; flex-direction: column; gap: 4px; min-height: 58px; padding: 6px 2px; text-align: center; line-height: 1.15; white-space: normal; border-radius: 16px; font-size: 12px; border: 0; background: none; }
+  .an-btn:hover { transform: none; background: var(--ib-bg); }
+  .an-create { background: var(--an-create); }
+  .an-count { position: absolute; top: 4px; left: calc(50% + 10px); padding: 1px 6px; font-size: 11px; }
+  .app-main { padding-bottom: calc(74px + env(safe-area-inset-bottom)); }
+  .toast { bottom: calc(90px + env(safe-area-inset-bottom)); }
+}
 @media (max-width: 1360px) {
   .an-btn { padding: 0 14px 0 7px; font-size: 14px; }
   .app-head .social { display: none; }
-  .app-head .acct-logout { width: var(--btn, 44px); padding: 0; justify-content: center; }
-  .app-head .acct-logout span { display: none; }
 }
 @media (max-width: 1240px) {
   .uc-text { display: none; }
@@ -424,6 +454,33 @@ th[aria-sort="ascending"] .th-sort, th[aria-sort="descending"] .th-sort { color:
 }
 @media (prefers-reduced-motion: reduce) {
   .an-create .an-ic { animation: none; }
+}
+
+/* kontrahent przy zleceniu: nazwa od razu, telefony w dymku */
+.party { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-bottom: 8px; text-align: right; }
+.party-text { display: grid; gap: 1px; min-width: 0; line-height: 1.25; }
+.party-text small { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-muted); }
+.party-text b { font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
+.party-ic { display: inline-flex; gap: 6px; flex-shrink: 0; }
+.party-btn { --btn: 34px; color: var(--accent-text); }
+.party-btn.is-alarm { color: var(--err-ink); }
+.party-btn[aria-expanded="true"] { background: var(--btn-bg); color: var(--btn-ink); }
+.phone-bub { position: fixed; z-index: 1300; width: min(340px, calc(100vw - 24px)); gap: 14px; padding: 22px 22px 20px; animation: call-in .2s var(--ease-out); }
+.phone-bub[hidden] { display: none; }
+.phone-bub .call-x { top: 10px; right: 10px; width: 38px; height: 38px; }
+.phone-bub .call-who { padding-right: 40px; }
+.phone-bub .call-avatar { width: 46px; height: 46px; border-radius: 16px; }
+.phone-bub .call-name { font-size: 19px; }
+.bub-company { font-size: 12.5px; color: var(--ink-muted); line-height: 1.3; margin-top: 2px; overflow-wrap: anywhere; }
+.bub-kind { justify-self: center; margin-bottom: -10px; }
+.phone-bub .call-num { font-size: clamp(24px, 6vw, 28px); }
+.phone-bub .call-row { grid-template-columns: 1fr 1fr; }
+.phone-bub .call-btn { min-height: 44px; padding: 0 12px; font-size: 14px; }
+.bub-other { justify-self: stretch; text-align: center; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--ink-muted); }
+.bub-other a { color: var(--accent-text); font-weight: 700; text-decoration: none; font-variant-numeric: tabular-nums; }
+@container list (max-width: 1060px) { .party { justify-content: flex-start; text-align: left; } }
+@media (max-width: 640px) {
+  .phone-bub { left: 12px !important; right: 12px; top: auto !important; bottom: calc(90px + env(safe-area-inset-bottom)); width: auto; }
 }
 
 /* Twoje zlecenia: wystawione / do wykonania */

@@ -361,10 +361,10 @@
       return acc ? (acc.name || acc.login) : login;
     },
 
-    // kontakt do zleceniodawcy — pokazujemy go dopiero przewoźnikowi, który zarezerwował zlecenie
+    // kontakt do kontrahenta — administratorowi zawsze, pozostałym dopiero po rezerwacji („Twoje zlecenia”)
     contactOf(login) {
       const acc = findAccount(login) || {};
-      return { name: acc.name || acc.login || login, person: acc.contactName || '', phone: acc.phone || '', email: acc.email || '' };
+      return { name: acc.name || acc.login || login, person: acc.contactName || '', phone: acc.phone || '', alarmPhone: acc.alarmPhone || '', email: acc.email || '' };
     },
 
     /* Powiadomienia dla właściciela zlecenia (rezerwacja, propozycja stawki).
