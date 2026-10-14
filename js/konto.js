@@ -265,12 +265,153 @@
     });
   }
 
-  function renderAll() { renderHead(); renderPlan(); renderCompany(); renderDocs(); renderHistory(); }
+  /* ---------- historia przewozów: zlecone i wykonane, z filtrami (domyślnie wszystko) ---------- */
+  const confirmDoc = () => window.ANWSConfirm;
+  const ICON_DOC = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5M9 13h6M9 17h4"></path></svg>';
+  const ICON_DL = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"></path></svg>';
+  const PAGE = 50;
+  const hs = { tab: 'posted', q: '', status: '', from: '', to: '', arch: false, shown: PAGE };
+  const cf = { shown: 10 };
+  const norm = (v) => String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ł/g, 'l');
+  const dtShort = (ms) => new Date(ms).toLocaleString(locale(), { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  // kontrahent widoczny dopiero po rezerwacji (tak jak w „Twoich zleceniach”)
+  const shortName = (n) => String(n || '').replace(/SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ/gi, 'Sp. z o.o.').replace(/SPÓŁKA AKCYJNA/gi, 'S.A.').replace(/SPÓŁKA KOMANDYTOWA/gi, 'Sp.k.').replace(/SPÓŁKA JAWNA/gi, 'Sp.j.').replace(/\s+/g, ' ').trim();
+  const counterpart = (o) => (o.reservedBy ? (o.owner === me ? o.reservedBy : o.owner) : null);
+  const routeOf = (o) => { const st = orders.stops(o); return st.pickups.concat(st.drops, st.end ? [st.end] : []); };
+  const iconBtn = (cls, svg, label, onClick) => { const b = el('button', 'ib ' + cls); b.type = 'button'; b.innerHTML = svg; b.title = label; b.setAttribute('aria-label', label); b.addEventListener('click', onClick); return b; };
+
+  function hsFiltered() {
+    const all = orders.history(me)[hs.tab].slice().sort((a, b) => b.dep - a.dep);
+    const q = norm(hs.q.trim());
+    const from = hs.from ? new Date(hs.from + 'T00:00').getTime() : -Infinity;
+    const to = hs.to ? new Date(hs.to + 'T23:59:59').getTime() : Infinity;
+    return {
+      all,
+      list: all.filter((o) => {
+        if (hs.status && orders.state(o) !== hs.status) return false;
+        if (o.dep < from || o.dep > to) return false;
+        if (hs.arch && !orders.isArchived(o, me)) return false;
+        if (q) {
+          const cp = counterpart(o);
+          const hay = routeOf(o).map((x) => x.label).concat(cp ? auth.nameOf(cp) : '', o.notes || '').map(norm).join(' | ');
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      }),
+    };
+  }
+  const hsActive = () => !!(hs.q.trim() || hs.status || hs.from || hs.to || hs.arch);
+
+  function tripItem(o, withDocs) {
+    const li = el('li', 'hs-item');
+    const st = orders.state(o);
+    const when = el('div', 'hs-when');
+    when.append(el('b', null, new Date(o.dep).toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' })), el('span', null, new Date(o.dep).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })));
+    const main = el('div', 'hs-main');
+    const stops = orders.stops(o);
+    const more = stops.pickups.length + stops.drops.length - 2;
+    main.appendChild(el('b', 'hs-route', o.from.label + ' → ' + o.to.label + (more > 0 ? ' ' + t('k.hsMore', { x: more }) : '')));
+    const meta = el('span', 'hs-meta');
+    const cp = counterpart(o);
+    const bits = [t('g.pax', { x: o.pax }), t('g.km', { x: o.km })];
+    if (cp) bits.push(t(o.owner === me ? 'g.party.carrier' : 'g.party.client') + ': ' + shortName(auth.nameOf(cp)));
+    meta.textContent = bits.join(' · ');
+    main.appendChild(meta);
+    if (orders.isArchived(o, me)) {
+      const tag = el('span', 'hs-arch-tag', t('k.hsArchived'));
+      main.appendChild(tag);
+    }
+    const side = el('div', 'hs-side');
+    side.append(el('b', 'hs-rate', zl(o.rate)), el('span', 'hs-st is-' + st, t('k.st2.' + st)));
+    const acts = el('div', 'hs-acts');
+    const C = confirmDoc();
+    if (withDocs && C && C.has(o)) {
+      acts.appendChild(iconBtn('hs-doc', ICON_DOC, t('k.cfView'), () => C.open(o.id)));
+      acts.appendChild(iconBtn('hs-dl', ICON_DL, t('k.cfPdf'), () => C.download(o)));
+    }
+    if (orders.isArchived(o, me)) {
+      const r = el('button', 'hs-restore', t('k.hsRestoreShort'));
+      r.type = 'button';
+      r.title = t('k.hsRestore');
+      r.setAttribute('aria-label', t('k.hsRestore'));
+      r.addEventListener('click', () => { orders.unarchive(o.id, me); renderTrips(); $('#hs-count').textContent = t('k.hsRestored'); });
+      acts.appendChild(r);
+    }
+    li.append(when, main, side, acts);
+    return li;
+  }
+
+  function renderTrips() {
+    if (!orders) return;
+    const h = orders.history(me);
+    $('#hs-n-posted').textContent = h.posted.length;
+    $('#hs-n-taken').textContent = h.taken.length;
+    document.querySelectorAll('[data-hs]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.hs === hs.tab)));
+    const err = $('#hs-err');
+    const bad = hs.from && hs.to && hs.from > hs.to;
+    err.hidden = !bad;
+    if (bad) err.textContent = t('k.hsBadRange');
+    const { all, list } = hsFiltered();
+    const ul = $('#hs-list');
+    ul.textContent = '';
+    const sum = list.filter((o) => o.status === 'reserved').reduce((a, o) => a + o.rate, 0);
+    $('#hs-count').textContent = !all.length ? '' : hsActive()
+      ? t('k.hsFound', { x: list.length, y: all.length }) + (sum ? ' · ' + t('k.hsSum', { x: zl(sum) }) : '')
+      : t('k.hsTotal', { x: all.length }) + (sum ? ' · ' + t('k.hsSum', { x: zl(sum) }) : '');
+    if (!list.length) ul.appendChild(el('li', 'acc-empty', t(all.length ? 'k.hsNone' : hs.tab === 'posted' ? 'k.hsEmptyPosted' : 'k.hsEmptyTaken')));
+    list.slice(0, hs.shown).forEach((o) => ul.appendChild(tripItem(o, true)));
+    const more = $('#hs-more');
+    more.hidden = list.length <= hs.shown;
+    more.textContent = t('k.hsShowMore', { x: Math.min(PAGE, list.length - hs.shown) });
+  }
+
+  function renderConfirms() {
+    if (!orders) return;
+    const C = confirmDoc();
+    const h = orders.history(me);
+    const list = h.posted.concat(h.taken).filter((o) => C && C.has(o)).sort((a, b) => (b.reservedAt || b.dep) - (a.reservedAt || a.dep));
+    const ul = $('#cf-list');
+    ul.textContent = '';
+    if (!list.length) ul.appendChild(el('li', 'acc-empty', t('k.cfEmpty')));
+    list.slice(0, cf.shown).forEach((o) => {
+      const li = el('li', 'hs-item cf-item');
+      const ic = el('span', 'cf-ic'); ic.innerHTML = ICON_DOC;
+      const main = el('div', 'hs-main');
+      main.append(el('b', 'hs-route', C.number(o)), el('span', 'hs-meta', o.from.label + ' → ' + o.to.label + ' · ' + dtShort(o.dep) + ' · ' + t(o.owner === me ? 'k.cfAsOwner' : 'k.cfAsCarrier')));
+      const acts = el('div', 'hs-acts');
+      const view = el('button', 'call-btn call-btn-ghost cf-btn', t('k.cfView')); view.type = 'button';
+      view.addEventListener('click', () => C.open(o.id));
+      const dl = el('button', 'call-btn call-btn-primary cf-btn'); dl.type = 'button';
+      dl.innerHTML = ICON_DL; dl.appendChild(el('span', null, t('k.cfPdfShort')));
+      dl.setAttribute('aria-label', t('k.cfPdf') + ': ' + C.number(o));
+      dl.addEventListener('click', async () => { dl.disabled = true; await C.download(o); dl.disabled = false; });
+      acts.append(view, dl);
+      li.append(ic, main, acts);
+      ul.appendChild(li);
+    });
+    const more = $('#cf-more');
+    more.hidden = list.length <= cf.shown;
+    more.textContent = t('k.hsShowMore', { x: Math.min(10, list.length - cf.shown) });
+  }
+
+  document.querySelectorAll('[data-hs]').forEach((b) => b.addEventListener('click', () => { hs.tab = b.dataset.hs; hs.shown = PAGE; renderTrips(); }));
+  const hsForm = $('#hs-filters');
+  hsForm.addEventListener('submit', (e) => e.preventDefault());
+  hsForm.addEventListener('input', () => {
+    hs.q = $('#hs-q').value; hs.status = $('#hs-status').value; hs.from = $('#hs-from').value; hs.to = $('#hs-to').value; hs.arch = $('#hs-arch').checked;
+    hs.shown = PAGE; renderTrips();
+  });
+  hsForm.addEventListener('change', () => hsForm.dispatchEvent(new Event('input')));
+  hsForm.addEventListener('reset', () => setTimeout(() => { Object.assign(hs, { q: '', status: '', from: '', to: '', arch: false, shown: PAGE }); renderTrips(); }, 0));
+  $('#hs-more').addEventListener('click', () => { hs.shown += PAGE; renderTrips(); });
+  $('#cf-more').addEventListener('click', () => { cf.shown += 10; renderConfirms(); });
+
+  function renderAll() { renderHead(); renderPlan(); renderCompany(); renderDocs(); renderHistory(); renderTrips(); renderConfirms(); }
   document.addEventListener('anws:lang', () => {
     renderAll();
     [...document.querySelectorAll('.field-err')].forEach((e) => { if (e.dataset.key) e.textContent = t(e.dataset.key); });
   });
   renderAll();
   fillContact();
-  if (location.hash === '#model' || location.hash === '#dokumenty') setTimeout(() => $(location.hash).scrollIntoView({ block: 'start' }), 60);
+  if (['#model', '#dokumenty', '#historia', '#potwierdzenia'].includes(location.hash)) setTimeout(() => $(location.hash).scrollIntoView({ block: 'start' }), 60);
 })();
