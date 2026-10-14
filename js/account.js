@@ -111,14 +111,15 @@
       list.slice(0, 20).forEach((x) => {
         const li = el('li', 'ap-item' + (newIds.has(x.id) ? ' is-new' : ''));
         const a = el('a');
-        a.href = x.type === 'subEnded' ? 'konto.html' : x.type === 'cancelled' ? 'lista-zlecen.html' : 'lista-zlecen.html?moje=1';
-        const ic = el('span', 'ap-ic ' + x.type); ic.innerHTML = ICON[x.type === 'subEnded' ? 'expired' : x.type] || ICON.bell; ic.setAttribute('aria-hidden', 'true');
+        a.href = x.type === 'subEnded' ? 'konto.html' : (x.type === 'cancelled' || x.type === 'removed') ? 'lista-zlecen.html' : 'lista-zlecen.html?moje=1';
+        const ic = el('span', 'ap-ic ' + x.type); ic.innerHTML = ICON[x.type === 'subEnded' ? 'expired' : x.type === 'removed' ? 'cancelled' : x.type] || ICON.bell; ic.setAttribute('aria-hidden', 'true');
         const txt = el('span', 'ap-text');
         const who = x.byName || x.by;
         const msg = x.type === 'reserve' ? t('n.reserve', { x: who })
           : x.type === 'expired' ? t('n.expired', { x: zl(x.amount || 50) })
           : x.type === 'cancelled' ? t('n.cancelled', { x: who })
           : x.type === 'subEnded' ? t('n.subEnded')
+          : x.type === 'removed' ? t('n.removed')
           : t('n.offer', { x: who, y: zl(x.rate) });
         txt.appendChild(el('span', null, msg));
         if (x.route) txt.appendChild(el('small', null, x.route));

@@ -28,8 +28,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-<link rel="stylesheet" href="css/style.css?v=202610141219">
-<link rel="stylesheet" href="css/gielda.css?v=202610141219">
+<link rel="stylesheet" href="css/style.css?v=202610141511">
+<link rel="stylesheet" href="css/gielda.css?v=202610141511">
 </head>
 <body class="app" data-title-key="g.metaTitle">
 <a class="skip" href="#gl-body" data-i18n="skip">Przejdź do treści</a>
@@ -338,6 +338,24 @@
   </div>
 </dialog>
 
+<!-- administrator: usunięcie zlecenia bez opłat dla zlecającego -->
+<dialog class="call-dlg auth-dlg" id="rm-dialog" aria-labelledby="rm-title">
+  <div class="call-panel auth-panel g-dlg">
+    <button type="button" class="call-x" data-close aria-label="Zamknij" data-i18n-aria="call.close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+    <h2 class="auth-title" id="rm-title" data-i18n="g.rm.title">Usunąć zlecenie?</h2>
+    <div class="dlg-route" id="rm-route"></div>
+    <div class="dlg-box">
+      <p class="db-note" id="rm-owner"></p>
+      <p class="db-note" data-i18n="g.rm.note">Zlecenie zniknie z giełdy. Zlecający nie zapłaci żadnej opłaty — dostanie powiadomienie i e-mail o usunięciu.</p>
+      <p class="db-note" id="rm-reserved" hidden></p>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="call-btn call-btn-ghost" data-close data-i18n="g.cx.keep">Nie, zostaw</button>
+      <button type="button" class="call-btn call-btn-primary" id="rm-confirm" data-i18n="g.rm.confirm">Usuń zlecenie</button>
+    </div>
+  </div>
+</dialog>
+
 <!-- nieopłacona opłata za niepodjęte zlecenie: blokuje wystawianie nowych zleceń -->
 <dialog class="call-dlg auth-dlg" id="fee-dialog" aria-labelledby="fee-title">
   <div class="call-panel auth-panel g-dlg">
@@ -384,11 +402,11 @@
 </dialog>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script src="js/i18n.js?v=202610141219"></script>
-<script src="js/auth.js?v=202610141219"></script>
-<script src="js/orders.js?v=202610141219"></script>
-<script src="js/main.js?v=202610141219" defer></script>
-<script src="js/account.js?v=202610141219" defer></script>
-<script src="js/gielda.js?v=202610141219" defer></script>
+<script src="js/i18n.js?v=202610141511"></script>
+<script src="js/auth.js?v=202610141511"></script>
+<script src="js/orders.js?v=202610141511"></script>
+<script src="js/main.js?v=202610141511" defer></script>
+<script src="js/account.js?v=202610141511" defer></script>
+<script src="js/gielda.js?v=202610141511" defer></script>
 </body>
 </html>
