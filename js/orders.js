@@ -366,17 +366,29 @@
     feeFor(orderId) { return loadFees().find((f) => f.orderId === orderId) || null; },
 
     // Opłacenie kary (prototyp: bez bramki płatności — kliknięcie „Zapłać” oznacza opłatę jako zapłaconą)
-    payFee(feeId, login) {
+    payFee(feeId, login, payment) {
       const fees = loadFees();
       const f = fees.find((x) => x.id === feeId && x.login === login);
       if (!f || f.paid) return false;
-      f.paid = true; f.paidAt = Date.now();
+      f.paid = true; f.paidAt = Date.now(); f.payment = payment || null;
       saveFees(fees);
+      if (window.ANWSInt) window.ANWSInt.markPaid(f.type, f.orderId, payment); // faktura w Fakturowni → opłacona
       return true;
     },
+    // Opłacenie prowizji (PayU) — faktura wystawiona przy rezerwacji staje się opłacona
+    payCommission(id, login, payment) {
+      const orders = this.list();
+      const o = orders.find((x) => x.id === id);
+      if (!o || o.reservedBy !== login || !o.fee || o.fee.paid) return false;
+      o.fee.paid = true; o.fee.paidAt = Date.now(); o.fee.payment = payment || null;
+      save(orders);
+      if (window.ANWSInt) window.ANWSInt.markPaid('commission', o.id, payment);
+      return true;
+    },
+    unpaidCommissions(login) { return this.list().filter((o) => o.reservedBy === login && o.status === 'reserved' && o.fee && !o.fee.paid); },
 
     // Anulowanie własnego zlecenia — z opłatą CANCEL_FEE zł (płatną od razu)
-    cancel(id, login) {
+    cancel(id, login, payment) {
       const orders = this.list();
       const o = orders.find((x) => x.id === id);
       if (!o || o.owner !== login || (o.status !== 'open' && o.status !== 'reserved') || o.arr <= Date.now()) return false;
@@ -386,8 +398,8 @@
       o.cancelledAt = now;
       save(orders);
       const fees = loadFees();
-      fees.push({ id: 'f' + now.toString(36), login, orderId: o.id, type: 'cancel', amount: CANCEL_FEE, route: routeText(o), dep: o.dep, at: now, paid: true, paidAt: now });
-      if (window.ANWSInt) window.ANWSInt.invoice('cancel', { login, net: CANCEL_FEE, order: o, paid: true });
+      fees.push({ id: 'f' + now.toString(36), login, orderId: o.id, type: 'cancel', amount: CANCEL_FEE, route: routeText(o), dep: o.dep, at: now, paid: true, paidAt: now, payment: payment || null });
+      if (window.ANWSInt) window.ANWSInt.invoice('cancel', { login, net: CANCEL_FEE, order: o, paid: true, payment: payment || null });
       saveFees(fees);
       const A = auth();
       if (A && A.notify && wasReservedBy) {

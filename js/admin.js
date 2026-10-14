@@ -461,8 +461,70 @@
       say(m, hadKey ? 'int.savedKey' : 'int.saved', hadKey);
     });
     grid.appendChild(fv);
+
+    /* --- PayU --- */
+    const pu = el('section', 'admin-card st-card int-card st-wide int-payu');
+    pu.appendChild(cardHead('PayU', t('int.payuSub'), cfg.payu.enabled));
+    const cols = el('div', 'int-cols');
+    const c1 = el('div', 'int-col'), c2 = el('div', 'int-col');
+    c1.appendChild(check('pu-on', t('int.payuOn'), cfg.payu.enabled, t('int.payuOnHelp')));
+    const env = el('select'); env.id = 'pu-env';
+    [['sandbox', 'int.payuSandbox'], ['production', 'int.payuProd']].forEach(([v, k]) => { const o = el('option', null, t(k)); o.value = v; if (cfg.payu.env === v) o.selected = true; env.appendChild(o); });
+    c1.appendChild(field('pu-env', t('int.payuEnv'), env, t('int.payuEnvHelp')));
+    const row2 = el('div', 'int-row3');
+    row2.append(field('pu-pos', t('int.payuPos'), inp('pu-pos', 'text', cfg.payu.posId, { inputMode: 'numeric', spellcheck: false })), field('pu-client', t('int.payuClient'), inp('pu-client', 'text', cfg.payu.clientId, { spellcheck: false })));
+    c1.appendChild(row2);
+    c1.appendChild(el('p', 'field-help', t('int.payuKeysHelp')));
+    c2.appendChild(secret('pu-secret', t('int.payuSecret')));
+    c2.appendChild(secret('pu-md5', t('int.payuMd5'), t('int.payuMd5Help')));
+    const nf2 = el('div', 'field'); nf2.append(el('label', null, t('int.payuNotify')), el('p', 'int-ro', t('int.payuNotifyVal')));
+    c2.appendChild(nf2);
+    const pk = el('fieldset', 'int-kinds');
+    pk.appendChild(el('legend', null, t('int.payuKinds')));
+    ['subscription', 'cancel', 'expired', 'commission'].forEach((k) => pk.appendChild(check('pu-k-' + k, t('int.pk.' + k), cfg.payu.kinds[k])));
+    c2.appendChild(pk);
+    cols.append(c1, c2);
+    pu.appendChild(cols);
+    const puTest = el('button', 'call-btn call-btn-ghost', t('int.fvTestBtn')); puTest.type = 'button';
+    const puSave = el('button', 'call-btn call-btn-primary', t('int.save')); puSave.type = 'button';
+    const puMsg = msgBox();
+    const puBtns = el('div', 'int-row'); puBtns.append(puTest, puSave);
+    pu.append(puBtns, puMsg);
+    puTest.addEventListener('click', () => say(puMsg, 'int.needServer', true));
+    puSave.addEventListener('click', () => {
+      const c = INT.settings();
+      c.payu.enabled = $('#pu-on').checked; c.payu.env = $('#pu-env').value;
+      c.payu.posId = $('#pu-pos').value.trim(); c.payu.clientId = $('#pu-client').value.trim();
+      ['subscription', 'cancel', 'expired', 'commission'].forEach((k) => { c.payu.kinds[k] = $('#pu-k-' + k).checked; });
+      INT.saveSettings(c);
+      const hadKey = !!($('#pu-secret').value || $('#pu-md5').value);
+      renderInt();
+      say($('#view-int .int-payu .int-msg'), hadKey ? 'int.savedKey' : 'int.saved', hadKey);
+    });
+    grid.appendChild(pu);
     box.appendChild(grid);
     preview();
+
+    /* --- płatności PayU --- */
+    const pc = el('section', 'admin-card st-card');
+    const pays = window.ANWSPay ? window.ANWSPay.payments() : [];
+    pc.appendChild(el('h2', null, t('int.payTitle')));
+    pc.appendChild(el('p', 'st-note', pays.length ? tv('int.payNote', { x: pays.length }) : t('int.payNone')));
+    if (pays.length) {
+      const tbl = el('table', 'st-table int-q');
+      const hr = el('tr'); [t('int.pDate'), t('int.pId'), t('int.pWho'), t('int.pWhat'), t('int.pMethod'), t('int.pGross'), t('int.pStatus')].forEach((h) => hr.appendChild(el('th', null, h)));
+      tbl.appendChild(hr);
+      pays.slice(0, 50).forEach((p) => {
+        const tr = el('tr');
+        const what = el('td'); p.items.forEach((i) => what.appendChild(el('span', 'int-pi', i.title)));
+        tr.append(el('td', null, fmtDate(p.at)), el('td', null, p.id + (p.env === 'sandbox' ? ' · sandbox' : '')), el('td', null, auth.nameOf(p.login)), what,
+          el('td', null, p.method === 'blik' ? 'BLIK' : t(p.method === 'card' ? 'pay.card' : 'pay.pbl')), el('td', 'num', zl2(p.gross)), el('td', null, t('int.pDone')));
+        tbl.appendChild(tr);
+      });
+      const sc = el('div', 'st-scroll'); sc.appendChild(tbl);
+      pc.appendChild(sc);
+    }
+    box.appendChild(pc);
 
     /* --- faktury do wystawienia --- */
     const qc = el('section', 'admin-card st-card');
@@ -482,7 +544,7 @@
         det.append(el('summary', null, t('int.qPayload')), el('pre', null, JSON.stringify(INT.fakturowniaPayload(it), null, 2)));
         pos.appendChild(det);
         tr.append(el('td', null, fmtDate(it.at)), buyer, pos, el('td', 'num', zl2(it.position.net)), el('td', 'num', it.position.vat + '%'), el('td', 'num', zl2(it.position.gross)),
-          el('td', null, t(it.paid ? 'int.qPaid' : 'int.qPending')));
+          el('td', null, t(it.paid ? 'int.qPaid' : 'int.qPending') + (it.payment ? ' · ' + tv('int.qPayU', { x: it.payment }) : '')));
         tbl.appendChild(tr);
       });
       const sc = el('div', 'st-scroll'); sc.appendChild(tbl);
