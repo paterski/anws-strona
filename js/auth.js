@@ -41,15 +41,6 @@
   const NOTE_KEY = 'anws-notifications';
   const BILL_KEY = 'anws-billing';     // model rozliczeń kont: wybór, opłacony abonament, historia opłat
   const PROFILE_KEY = 'anws-profiles'; // zmienione dane kontaktowe kont wbudowanych (prototyp; docelowo baza)
-  const DOCS_KEY = 'anws-docs';       // daty ważności dokumentów przewoźnika (licencja, OC, NNW)
-  const DOC_TYPES = ['license', 'oc', 'nnw'];
-  const DOC_NAMES = { license: 'licencja na przewóz osób', oc: 'polisa OC przewoźnika', nnw: 'polisa NNW pasażerów' };
-  const DOC_SOON = 30;                 // dni przed końcem ważności — przypomnienia 30, 7 i 0 dni
-  // dokumenty kont testowych (dni od dziś) — żeby w panelach było widać wszystkie stany
-  const DOC_SEED = {
-    demo: { license: 240, oc: 19, nnw: 200 }, abonament: { license: 300, oc: 150, nnw: 150 },
-    polbus: { license: 420, oc: 120, nnw: 120 }, 'pks.mysliborz': { license: 11, oc: 90, nnw: 90 }, intertrans: { license: 380, oc: -3, nnw: 60 },
-  };
   const SUB_PRICE = 500;               // abonament, zł netto / 30 dni
   const SUB_DAYS = 30;
   const DAY = 864e5;
@@ -70,7 +61,13 @@
   function mail(to, subject, body) {
     const out = loadRaw(OUT_KEY, []);
     out.unshift({ to, subject, body, at: Date.now() });
-    save(OUT_KEY, out.slice(0, 50));
+    save(OUT_KEY, out.slice(0, 120));
+  }
+  // SMS (prototyp: trafia do skrzynki nadawczej w panelu administratora; docelowo bramka SMS na serwerze)
+  function sms(to, body) {
+    const out = loadRaw(OUT_KEY, []);
+    out.unshift({ channel: 'sms', to, subject: 'SMS', body, at: Date.now() });
+    save(OUT_KEY, out.slice(0, 120));
   }
 
   // Wnioski testowe dodajemy raz na przeglądarkę (panel nie jest pusty przy pierwszym otwarciu)
@@ -148,26 +145,6 @@
     return map[login];
   }
   function saveBilling(login, b) { const map = loadRaw(BILL_KEY, {}); map[login] = b; save(BILL_KEY, map); }
-
-  /* Dokumenty przewoźnika: { license, oc, nnw } — data końca ważności (ms, koniec dnia) albo null */
-  const endOfDay = (ms) => { const d = new Date(ms); d.setHours(23, 59, 0, 0); return d.getTime(); };
-  function docsMap() {
-    let map = loadRaw(DOCS_KEY, null);
-    if (!map) {
-      map = {};
-      Object.keys(DOC_SEED).forEach((login) => {
-        map[login] = {};
-        DOC_TYPES.forEach((k) => { map[login][k] = endOfDay(Date.now() + DOC_SEED[login][k] * DAY); });
-      });
-      save(DOCS_KEY, map);
-    }
-    return map;
-  }
-  function docState(ms) {
-    if (!ms) return { state: 'missing', days: null };
-    const days = Math.ceil((ms - Date.now()) / DAY);
-    return { state: ms < Date.now() ? 'expired' : days <= DOC_SOON ? 'soon' : 'ok', days };
-  }
 
   function endSessionsOf(login) {
     [localStorage, sessionStorage].forEach((st) => {
@@ -354,61 +331,8 @@
       return {
         login: acc.login, builtIn: !!acc.builtIn, company: acc.company || acc.name || acc.login, nip: acc.nip || '', krs: acc.krs || '', regon: acc.regon || '',
         pkd: acc.pkd || [], contactName: acc.contactName || '', email: acc.email || '', phone: acc.phone || '', alarmPhone: acc.alarmPhone || '',
-        createdAt: acc.createdAt || null, activatedAt: acc.activatedAt || null, verified: this.verified(acc.login),
+        createdAt: acc.createdAt || null, activatedAt: acc.activatedAt || null,
       };
-    },
-    // Dokumenty przewoźnika i ich stan: { license: { until, state, days }, ... }
-    docs(login) {
-      const d = docsMap()[login] || {};
-      const out = {};
-      DOC_TYPES.forEach((k) => { out[k] = Object.assign({ until: d[k] || null }, docState(d[k])); });
-      return out;
-    },
-    saveDocs(login, d) {
-      const map = docsMap();
-      const cur = map[login] || {};
-      DOC_TYPES.forEach((k) => {
-        const v = d[k] ? endOfDay(d[k]) : null;
-        if (v !== (cur[k] || null)) delete (cur.sent || {})[k]; // nowa data — przypomnienia od nowa
-        cur[k] = v;
-      });
-      map[login] = cur;
-      save(DOCS_KEY, map);
-      return { ok: true };
-    },
-    /* Przypomnienia o kończącej się ważności (30, 7 i 0 dni) — każde wysyłamy raz: powiadomienie + e-mail.
-     * Prototyp sprawdza przy każdym otwarciu strony; docelowo zrobi to serwer raz dziennie. */
-    checkDocs(login) {
-      const acc = findAccount(login);
-      if (!acc || acc.role === 'admin') return;
-      const map = docsMap();
-      const cur = map[login];
-      if (!cur) return;
-      let changed = false;
-      DOC_TYPES.forEach((k) => {
-        const st = docState(cur[k]);
-        if (st.state !== 'soon' && st.state !== 'expired') return;
-        const step = st.state === 'expired' ? 0 : st.days <= 7 ? 7 : 30;
-        cur.sent = cur.sent || {};
-        if (cur.sent[k] != null && cur.sent[k] <= step) return;
-        cur.sent[k] = step; changed = true;
-        const until = new Date(cur[k]).toLocaleDateString('pl-PL');
-        this.notify(login, step === 0
-          ? { type: 'docExpired', doc: k, route: '', subject: `Dokument stracił ważność: ${DOC_NAMES[k]}`,
-            body: `Dzień dobry! W panelu klienta ANWS ${DOC_NAMES[k]} konta „${login}” była ważna do ${until}. Przewóz osób bez ważnego dokumentu jest niezgodny z przepisami — wpisz nową datę ważności w panelu klienta (Dokumenty przewoźnika).` }
-          : { type: 'docSoon', doc: k, days: st.days, route: '', subject: `Za ${st.days} dni kończy się ${DOC_NAMES[k]}`,
-            body: `Dzień dobry! ${DOC_NAMES[k][0].toUpperCase() + DOC_NAMES[k].slice(1)} konta „${login}” jest ważna do ${until}. Pamiętaj o przedłużeniu i wpisz nową datę w panelu klienta ANWS (Dokumenty przewoźnika).` });
-      });
-      if (changed) { map[login] = cur; save(DOCS_KEY, map); }
-    },
-    /* Weryfikacja firmy: registry — NIP, KRS i PKD przewozu osób sprawdzone w rejestrach przy rejestracji
-     * (konta testowe traktujemy jak sprawdzone); docs — licencja i polisy wpisane i ważne */
-    verified(login) {
-      const acc = findAccount(login);
-      if (!acc || acc.role === 'admin') return { registry: false, docs: false };
-      const registry = acc.builtIn ? !!acc.confirmed : !!(acc.nip && acc.pkd && acc.pkd.length);
-      const d = this.docs(login);
-      return { registry, docs: DOC_TYPES.every((k) => d[k].state === 'ok' || d[k].state === 'soon'), detail: d };
     },
     // konta przewoźników (aktywne) — do statystyk i listy dokumentów w panelu administratora
     accounts() {
@@ -472,7 +396,8 @@
       if (acc && acc.email && n.subject) mail(acc.email, n.subject, n.body);
       return item;
     },
-    notifications(login) { return loadRaw(NOTE_KEY, []).filter((x) => x.to === login); },
+    sms(to, body) { if (to) sms(to, body); },
+    notifications(login) { return loadRaw(NOTE_KEY, []).filter((x) => x.to === login && x.type !== 'docSoon' && x.type !== 'docExpired'); }, // przypomnienia o dokumentach wycofane
     unreadCount(login) { return this.notifications(login).filter((x) => !x.read).length; },
     markNotificationsRead(login) {
       const list = loadRaw(NOTE_KEY, []);

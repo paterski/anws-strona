@@ -31,7 +31,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="css/style.css?v=202610141925">
+<link rel="stylesheet" href="css/style.css?v=202610142103">
 </head>
 <body>
 <!-- loader: logo, droga z paskiem postępu i autobusem; przejście wybierane w js/main.js (?loader=) -->
@@ -306,7 +306,7 @@
       <section class="how in t7" id="jak-to-dziala" aria-labelledby="how-title">
         <div class="how-head">
           <h2 id="how-title" data-i18n="how.title">Jak to działa</h2>
-          <span data-i18n="how.sub">Giełda przewozów osób: dwie drogi, jeden wspólny kurs</span>
+          <span data-i18n="how.sub">Jedno konto firmy: wystawiasz zlecenia i wykonujesz przewozy</span>
         </div>
 
         <div class="role-switch" role="group" aria-label="Pokaż drogę dla" data-i18n-aria="role.label">
@@ -328,7 +328,7 @@
           <span class="ln-badge badge-b" data-role="b" aria-hidden="true" data-i18n="tag.b">Przewoźnik</span>
           <span class="handshake" aria-hidden="true">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4v16M4 16l4 4 4-4M16 20V4M12 8l4-4 4 4"></path></svg>
-            <span data-i18n="how.handshake">pobiera zlecenie</span>
+            <span data-i18n="how.handshake">rezerwuje zlecenie</span>
           </span>
 
           <ol class="nstops">
@@ -336,38 +336,38 @@
               <span class="nstop-dot" aria-hidden="true">1</span>
               <div class="nstop-card">
                 <span class="nstop-tag tag-all" data-i18n="tag.all">Wszyscy</span>
-                <h3 data-i18n="s1.t">Zarejestruj się</h3>
-                <p data-i18n="s1.p">Poczekaj na potwierdzenie konta i zaloguj się.</p>
+                <h3 data-i18n="s1.t">Zarejestruj firmę</h3>
+                <p data-i18n="s1.p">Sprawdzamy NIP, aktywujemy konto. Pierwszy miesiąc gratis.</p>
               </div>
             </li>
             <li class="nstop st2" data-role="a">
               <span class="nstop-dot" aria-hidden="true">2</span>
               <div class="nstop-card">
                 <span class="nstop-tag tag-a" data-i18n="tag.a">Zlecający</span>
-                <h3 data-i18n="s2.t">Opisz przejazd</h3>
-                <p data-i18n="s2.p">W krótkim formularzu podaj trasę, datę i liczbę osób.</p>
+                <h3 data-i18n="s2.t">Dodaj zlecenie za darmo</h3>
+                <p data-i18n="s2.p">Trasa, termin, liczba osób i stawka. Wyjazd w ciągu 24 h — zlecenie pilne.</p>
               </div>
             </li>
             <li class="nstop st3" data-role="a">
               <span class="nstop-dot" aria-hidden="true">3</span>
               <div class="nstop-card">
                 <span class="nstop-tag tag-a" data-i18n="tag.a">Zlecający</span>
-                <h3 data-i18n="s3.t">Przewoźnicy odpowiadają</h3>
-                <p data-i18n="s3.p">Zainteresowany przewoźnik pobiera Twoje zlecenie.</p>
+                <h3 data-i18n="s3.t">Rezerwacja lub nowa stawka</h3>
+                <p data-i18n="s3.p">Przewoźnik rezerwuje albo proponuje inną stawkę — Ty akceptujesz.</p>
               </div>
             </li>
             <li class="nstop st4" data-role="b">
               <span class="nstop-dot" aria-hidden="true">4</span>
               <div class="nstop-card">
                 <span class="nstop-tag tag-b" data-i18n="tag.b">Przewoźnik</span>
-                <h3 data-i18n="s4.t">Wybierz i jedź</h3>
-                <p data-i18n="s4.p">Wybierz zlecenie z listy i ruszaj w trasę.</p>
+                <h3 data-i18n="s4.t">Rezerwuj i jedź</h3>
+                <p data-i18n="s4.p">Prowizja 2–3% od zlecenia albo abonament 500 zł netto/mies.</p>
               </div>
             </li>
             <li class="nstop st-end" data-role="both">
               <span class="nstop-dot end-dot" aria-hidden="true"><svg viewBox="0 0 44 28" aria-hidden="true"><rect class="nb-body" x="2" y="2" width="40" height="20" rx="6"></rect><rect class="nb-win" x="6" y="6" width="24" height="7" rx="2"></rect><rect class="nb-win" x="33" y="6" width="6" height="10" rx="2"></rect><circle class="nb-wheel" cx="12" cy="22" r="4.5" stroke-width="2.4"></circle><circle class="nb-wheel" cx="32" cy="22" r="4.5" stroke-width="2.4"></circle></svg></span>
               <div class="nstop-card">
-                <h3 data-i18n="how.end">Jedziecie!</h3>
+                <h3 data-i18n="how.end">Szerokiej drogi!</h3>
               </div>
             </li>
           </ol>
@@ -647,13 +647,13 @@
   </div>
 </dialog>
 
-<script src="js/i18n.js?v=202610141925"></script>
-<script src="js/auth.js?v=202610141925"></script>
-<script src="js/orders.js?v=202610141925"></script>
-<script src="js/verify.js?v=202610141925"></script>
-<script src="js/main.js?v=202610141925" defer></script>
-<script src="js/account.js?v=202610141925" defer></script>
-<script src="js/forgot.js?v=202610141925" defer></script>
-<script src="js/register.js?v=202610141925" defer></script>
+<script src="js/i18n.js?v=202610142103"></script>
+<script src="js/auth.js?v=202610142103"></script>
+<script src="js/orders.js?v=202610142103"></script>
+<script src="js/verify.js?v=202610142103"></script>
+<script src="js/main.js?v=202610142103" defer></script>
+<script src="js/account.js?v=202610142103" defer></script>
+<script src="js/forgot.js?v=202610142103" defer></script>
+<script src="js/register.js?v=202610142103" defer></script>
 </body>
 </html>

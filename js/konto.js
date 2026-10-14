@@ -48,54 +48,7 @@
     $('#acc-login').textContent = pr.login;
     $('#acc-since').textContent = pr.activatedAt ? t('k.since', { x: day(pr.activatedAt) }) : '';
     document.title = t('k.metaTitle');
-    // znaczek weryfikacji: rejestry (NIP, KRS, PKD) + aktualne dokumenty
-    const v = pr.verified, ver = $('#acc-ver');
-    ver.textContent = '';
-    ver.dataset.state = v.registry && v.docs ? 'full' : v.registry ? 'part' : 'none';
-    const ic = el('span', 'vbadge'); ic.innerHTML = SHIELD; ver.appendChild(ic);
-    ver.appendChild(el('b', null, t(v.registry ? 'k.verOk' : 'k.verNo')));
-    ver.appendChild(el('span', null, t(v.registry ? (v.docs ? 'k.verDocsOk' : 'k.verDocsNo') : 'k.verNoText')));
   }
-  const SHIELD = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 5 6v5.5c0 4.3 3 8 7 9.5 4-1.5 7-5.2 7-9.5V6z"></path><path d="M8.8 12.2l2.2 2.2 4.2-4.4"></path></svg>';
-
-  /* ---------- dokumenty przewoźnika ---------- */
-  const DOCS = ['license', 'oc', 'nnw'];
-  const pad = (n) => String(n).padStart(2, '0');
-  const toInput = (ms) => { if (!ms) return ''; const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
-  let docsSaved = '';
-  const docValues = () => DOCS.map((k) => $('#dc-' + k).value).join('|');
-  function renderDocs() {
-    const d = auth.docs(me);
-    const box = $('#dc-list');
-    box.textContent = '';
-    DOCS.forEach((k) => {
-      const x = d[k];
-      const row = el('div', 'field dc-row');
-      const lab = el('label', null, t('k.doc.' + k)); lab.htmlFor = 'dc-' + k;
-      lab.appendChild(el('small', null, t('k.docHelp.' + k)));
-      const line = el('div', 'dc-line');
-      const inp = el('input'); inp.type = 'date'; inp.id = 'dc-' + k; inp.value = toInput(x.until);
-      const pill = el('span', 'dc-pill is-' + x.state,
-        x.state === 'missing' ? t('k.dcMissing') : x.state === 'expired' ? t('k.dcExpired', { x: day(x.until) })
-          : x.state === 'soon' ? t('k.dcSoon', { x: x.days }) : t('k.dcOk', { x: day(x.until) }));
-      line.append(inp, pill);
-      row.append(lab, line);
-      box.appendChild(row);
-    });
-    docsSaved = docValues();
-    $('#dc-save').disabled = true;
-  }
-  $('#dc-form').addEventListener('input', () => { $('#dc-ok').hidden = true; $('#dc-save').disabled = docValues() === docsSaved; });
-  $('#dc-form').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const d = {};
-    DOCS.forEach((k) => { const v = $('#dc-' + k).value; d[k] = v ? new Date(v + 'T12:00').getTime() : null; });
-    auth.saveDocs(me, d);
-    renderDocs(); renderHead();
-    if (window.ANWSAccount) window.ANWSAccount.refresh();
-    $('#dc-ok').hidden = false;
-  });
-
   /* ---------- model rozliczeń ---------- */
   let confirmBuy = false; // drugi krok przy płatności za abonament
   function renderPlan() {
@@ -421,12 +374,12 @@
   $('#hs-more').addEventListener('click', () => { hs.shown += PAGE; renderTrips(); });
   $('#cf-more').addEventListener('click', () => { cf.shown += 10; renderConfirms(); });
 
-  function renderAll() { renderHead(); renderPlan(); renderCompany(); renderDocs(); renderHistory(); renderTrips(); renderConfirms(); }
+  function renderAll() { renderHead(); renderPlan(); renderCompany(); renderHistory(); renderTrips(); renderConfirms(); }
   document.addEventListener('anws:lang', () => {
     renderAll();
     [...document.querySelectorAll('.field-err')].forEach((e) => { if (e.dataset.key) e.textContent = t(e.dataset.key); });
   });
   renderAll();
   fillContact();
-  if (['#model', '#dokumenty', '#historia', '#potwierdzenia'].includes(location.hash)) setTimeout(() => $(location.hash).scrollIntoView({ block: 'start' }), 60);
+  if (['#model', '#historia', '#potwierdzenia'].includes(location.hash)) setTimeout(() => $(location.hash).scrollIntoView({ block: 'start' }), 60);
 })();

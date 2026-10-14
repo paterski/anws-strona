@@ -42,7 +42,7 @@
       const p = store.party(o, role);
       const rows = [['NIP', p.nip], ['KRS', p.krs], ['REGON', p.regon], ['Osoba do kontaktu', p.person], ['Telefon', fmtPhone(p.phone)], ['Telefon alarmowy', fmtPhone(p.alarmPhone)], ['E-mail', p.email]]
         .filter((r) => r[1]).map((r) => `<tr><th>${r[0]}</th><td>${esc(r[1])}</td></tr>`).join('');
-      return `<div class="ds-firm"><h4>${title}</h4><b>${esc(p.name)}</b>${p.verified ? '<span class="ds-ver">✓ Firma zweryfikowana w rejestrach (NIP, KRS, PKD)</span>' : ''}<table>${rows}</table></div>`;
+      return `<div class="ds-firm"><h4>${title}</h4><b>${esc(p.name)}</b><table>${rows}</table></div>`;
     };
     const st = store.stops(o);
     const stop = (p, letter, what) => `<tr><td class="ds-l">${letter}</td><td>${esc(p.label)}</td><td>${what}</td></tr>`;

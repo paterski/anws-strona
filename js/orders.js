@@ -13,7 +13,8 @@
  */
 (function () {
   const KEY = 'anws-orders';
-  const SEED_FLAG = 'anws-orders-seeded-v3';
+  const SEED_FLAG = 'anws-orders-seeded-v4';
+  const URGENT_H = 24; // zlecenie dodane z wyjazdem za mniej niż 24 h jest pilne (na stałe — także gdy później zostanie mniej niż 24 h, zwykłe nie staje się pilne)
   const FEES_KEY = 'anws-fees';
   const CANCEL_FEE = 100;
   const EXPIRE_FEE = 50;
@@ -113,8 +114,8 @@
   function snapParty(login) {
     const A = auth();
     if (!A) return { name: login };
-    const p = A.profile(login) || {}, c = A.contactOf(login), v = A.verified(login);
-    return { login, name: c.name, nip: p.nip || '', krs: p.krs || '', regon: p.regon || '', person: c.person, phone: c.phone, alarmPhone: c.alarmPhone, email: c.email, verified: !!v.registry };
+    const p = A.profile(login) || {}, c = A.contactOf(login);
+    return { login, name: c.name, nip: p.nip || '', krs: p.krs || '', regon: p.regon || '', person: c.person, phone: c.phone, alarmPhone: c.alarmPhone, email: c.email };
   }
   const isArchived = (o, login) => (o.archived || []).includes(login);
 
@@ -177,6 +178,42 @@
     safe(() => localStorage.setItem(HIST_FLAG, '1'));
   }
 
+  /* Pilne zlecenie: powiadomienie (dzwonek + alarm na otwartej stronie), e-mail i SMS do wszystkich
+   * zarejestrowanych przewoźników poza zlecającym — z kompletem danych do wykonania przewozu i linkiem. */
+  const SITE = (() => { try { return location.href.replace(/[^/]*([?#].*)?$/, ''); } catch (e) { return 'https://paterski.github.io/anws-strona/'; } })();
+  const orderLink = (o) => SITE + 'lista-zlecen.html?zlecenie=' + encodeURIComponent(o.id || o);
+  const fullWhen = (ms) => new Date(ms).toLocaleString('pl-PL', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const plzl = (n) => new Intl.NumberFormat('pl-PL', { useGrouping: 'always' }).format(n) + ' zł';
+  function urgentText(o) {
+    const st = stops(o);
+    const lines = st.pickups.map((p, i) => `  ${st.pickups.length > 1 ? 'A' + (i + 1) : 'A'} (odbiór): ${p.label}`)
+      .concat(st.drops.map((p, i) => `  ${st.drops.length > 1 ? 'B' + (i + 1) : 'B'} (cel): ${p.label}`))
+      .concat(st.end ? [`  C (koniec trasy): ${st.end.label}`] : []);
+    const c = crew(o);
+    const crewTxt = { one: '1 kierowca', ext: '1 kierowca (10 h jazdy)', two: '2 kierowców', rest: 'nocleg kierowców / zmiana załogi' }[c.level];
+    return `PILNE ZLECENIE na giełdzie ANWS — wyjazd ${fullWhen(o.dep)}.\n\nTrasa:\n${lines.join('\n')}\n\nWyjazd: ${fullWhen(o.dep)}\nPrzyjazd: ${fullWhen(o.arr)}\nLiczba osób: ${o.pax}\nOdległość: ${o.km} km\nStawka: ${plzl(o.rate)} netto (${(o.rate / o.km).toFixed(1).replace('.', ',')} zł/km)\nObsada (szacunek): ${crewTxt}${o.notes ? '\nUwagi: ' + o.notes : ''}\n\nZlecenie na giełdzie: ${orderLink(o)}\nKto pierwszy zarezerwuje, ten jedzie.`;
+  }
+  function urgentSms(o) {
+    const st = stops(o);
+    const route = st.pickups.concat(st.drops).map((p) => p.label.split(',')[0]).join(' > ');
+    const d = new Date(o.dep), a = new Date(o.arr);
+    const hm = (x) => x.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+    return `ANWS PILNE: ${route}${st.end ? ' (koniec: ' + st.end.label.split(',')[0] + ')' : ''} | ${d.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit' })} ${hm(d)}-${hm(a)} | ${o.pax} os. | ${o.km} km | ${plzl(o.rate)} netto | ${orderLink(o)}`;
+  }
+  function broadcastUrgent(o) {
+    const A = auth();
+    if (!A || !A.accounts) return;
+    const body = urgentText(o), text = urgentSms(o);
+    A.accounts().filter((login) => login !== o.owner).forEach((login) => {
+      A.notify(login, {
+        type: 'urgent', orderId: o.id, route: routeText(o), rate: o.rate, pax: o.pax, km: o.km, dep: o.dep, arr: o.arr, link: orderLink(o),
+        subject: `PILNE zlecenie: ${routeText(o)} — ${fullWhen(o.dep)}, ${o.pax} os., ${plzl(o.rate)} netto`, body,
+      });
+      const c = A.contactOf(login);
+      A.sms(c.alarmPhone || c.phone, text); // SMS na telefon alarmowy przewoźnika
+    });
+  }
+
   /* Przykładowe zlecenie konta demo z dwiema propozycjami stawek — do wypróbowania akceptacji.
    * Dodawane raz; gdy wcześniejsze zlecenia testowe już minęły, tworzymy nowe na najbliższe dni. */
   const OFFER_FLAG = 'anws-offers-demo-v1';
@@ -206,13 +243,15 @@
     if (safe(() => localStorage.getItem(SEED_FLAG), '1')) return;
     const now = Date.now();
     const orders = load().filter((o) => !o.seed); // starsze zlecenia testowe zastępujemy nowymi
-    SEED.forEach(([as, bs, h, pax, urgent, owner], i) => {
+    SEED.forEach(([as, bs, h, pax, , owner], i) => {
       const pickups = as.map((k) => P[k]), drops = bs.map((k) => P[k]);
       const km = Math.max(8, Math.round(pathKm(pickups.concat(drops)) * 1.25));
       const dep = roundTo(now + h * 36e5, 15);
       const arr = roundTo(dep + Math.max(0.5, km / 70) * 36e5, 15);
       const rate = Math.round((350 + km * 6.5) / 50) * 50;
-      orders.push({ id: 'o' + (i + 1), from: pickups[0], to: drops[0], pickups, drops, dep, arr, km, rate, pax, urgent, notes: '', owner, createdAt: now - (i + 1) * 36e5, status: 'open', seed: true, offers: [] });
+      const createdAt = now - (i + 1) * 36e5;
+      const urgent = dep - createdAt < URGENT_H * 36e5; // pilne = dodane z wyjazdem za mniej niż 24 h
+      orders.push({ id: 'o' + (i + 1), from: pickups[0], to: drops[0], pickups, drops, dep, arr, km, rate, pax, urgent, notes: '', owner, createdAt, status: 'open', seed: true, offers: [] });
     });
     // przykładowa propozycja stawki do zlecenia konta demo — żeby dzwonek powiadomień nie był pusty
     const demoOrder = orders.find((o) => o.id === 'o4');
@@ -385,11 +424,12 @@
       const pickups = d.pickups, drops = d.drops;
       const o = {
         id: 'o' + Date.now().toString(36), from: pickups[0], to: drops[0], pickups, drops, end: d.end || null, dep: d.dep, arr: d.arr,
-        km: d.km, rate: d.rate, pax: d.pax, urgent: !!d.urgent, notes: d.notes || '',
+        km: d.km, rate: d.rate, pax: d.pax, urgent: this.isUrgentDep(d.dep), notes: d.notes || '',
         owner, createdAt: Date.now(), status: 'open', offers: [],
       };
       orders.push(o);
       save(orders);
+      if (o.urgent) broadcastUrgent(o);
       return o;
     },
 
@@ -488,6 +528,11 @@
       });
       return true;
     },
+
+    // czy zlecenie dodane teraz z takim wyjazdem będzie pilne
+    isUrgentDep(dep) { return dep - Date.now() < URGENT_H * 36e5; },
+    URGENT_H,
+    link: orderLink,
 
     stops,
     crew,
