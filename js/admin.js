@@ -774,7 +774,11 @@
     render();
   }));
 
-  $('#adm-logout').addEventListener('click', () => { auth.logout(); show(); });
+  $('#adm-logout').addEventListener('click', () => { auth.logout(); show(); if (window.ANWSAccount) window.ANWSAccount.refresh(); });
+  // wylogowanie z menu (dzwonek / „Wyloguj się”) — panel wraca do logowania
+  document.addEventListener('anws:auth', show);
+  // nowy wniosek z innej karty — odśwież listę i liczniki
+  addEventListener('storage', (e) => { if (e.key === 'anws-registrations' && isAdmin()) { render(); renderStats(); } });
 
   // logowanie administratora
   const form = $('#admin-form');
@@ -792,6 +796,7 @@
     if (res.role !== 'admin') { auth.logout(); return msg(errBox, 'adm.e.role'); }
     form.reset();
     show();
+    document.dispatchEvent(new CustomEvent('anws:login')); // menu: dzwonek, panel, wylogowanie
   });
 
   // zmiana hasła administratora
@@ -822,4 +827,8 @@
   });
 
   show();
+  // link z powiadomienia o nowym wniosku
+  const fromHash = () => { if (location.hash === '#wnioski' && isAdmin()) { setView('regs'); $('#view-regs').scrollIntoView({ block: 'start' }); } };
+  fromHash();
+  addEventListener('hashchange', fromHash); // kliknięcie powiadomienia, gdy panel jest już otwarty
 })();

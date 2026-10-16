@@ -209,6 +209,8 @@
       save(REG_KEY, regs);
       mail(ADMIN_EMAIL, `Nowy wniosek o rejestrację: ${reg.company}`,
         `Firma ${reg.company} (NIP ${reg.nip}) prosi o założenie konta „${reg.login}”. Osoba do kontaktu: ${reg.contactName}. Sprawdź i zaakceptuj wniosek w panelu administratora.`);
+      // dzwonek administratora (e-mail poszedł wyżej, na adres administratora)
+      USERS.filter((u) => u.role === 'admin').forEach((a) => this.notify(a.login, { type: 'registration', regId: reg.id, company: reg.company, nip: reg.nip, route: '' }));
       return { ok: true };
     },
 

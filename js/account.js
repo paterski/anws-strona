@@ -49,7 +49,7 @@
   function logout() {
     auth.logout();
     if (document.body.classList.contains('app')) location.href = 'index.html';
-    else renderAll();
+    else { renderAll(); document.dispatchEvent(new CustomEvent('anws:auth')); } // np. panel administratora wraca do logowania
   }
 
   // kropka przy kole zębatym: brak wybranego modelu rozliczeń
@@ -119,11 +119,12 @@
       list.slice(0, 20).forEach((x) => {
         const li = el('li', 'ap-item' + (newIds.has(x.id) ? ' is-new' : ''));
         const a = el('a');
-        a.href = x.type === 'urgent' && x.orderId ? 'lista-zlecen.html?zlecenie=' + encodeURIComponent(x.orderId)
+        a.href = x.type === 'registration' ? 'admin.html#wnioski'
+          : x.type === 'urgent' && x.orderId ? 'lista-zlecen.html?zlecenie=' + encodeURIComponent(x.orderId)
           : x.type === 'offer' && x.orderId ? 'lista-zlecen.html?moje=1&oferty=' + encodeURIComponent(x.orderId)
           : x.type === 'offerAccepted' ? 'lista-zlecen.html?moje=1&tab=wykonanie'
           : x.type === 'offerRejected' || x.type === 'offerTaken' ? 'lista-zlecen.html' : x.type === 'subEnded' ? 'konto.html' : (x.type === 'cancelled' || x.type === 'removed') ? 'lista-zlecen.html' : 'lista-zlecen.html?moje=1';
-        const ic = el('span', 'ap-ic ' + x.type); ic.innerHTML = ICON[x.type === 'urgent' ? 'urgent' : x.type === 'offerAccepted' ? 'reserve' : x.type === 'offerRejected' || x.type === 'offerTaken' ? 'cancelled' : x.type === 'subEnded' ? 'expired' : x.type === 'removed' ? 'cancelled' : x.type] || ICON.bell; ic.setAttribute('aria-hidden', 'true');
+        const ic = el('span', 'ap-ic ' + x.type); ic.innerHTML = ICON[x.type === 'registration' ? 'user' : x.type === 'urgent' ? 'urgent' : x.type === 'offerAccepted' ? 'reserve' : x.type === 'offerRejected' || x.type === 'offerTaken' ? 'cancelled' : x.type === 'subEnded' ? 'expired' : x.type === 'removed' ? 'cancelled' : x.type] || ICON.bell; ic.setAttribute('aria-hidden', 'true');
         const txt = el('span', 'ap-text');
         const who = x.byName || x.by;
         const msg = x.type === 'reserve' ? t('n.reserve', { x: who })
@@ -131,6 +132,7 @@
           : x.type === 'cancelled' ? t('n.cancelled', { x: who })
           : x.type === 'subEnded' ? t('n.subEnded')
           : x.type === 'removed' ? t('n.removed')
+          : x.type === 'registration' ? t('n.registration', { x: x.company })
           : x.type === 'urgent' ? t('n.urgent', { x: whenLabel(x.dep) })
           : x.type === 'offerAccepted' ? t('n.offerAccepted', { x: zl(x.rate) })
           : x.type === 'offerRejected' ? t('n.offerRejected', { x: zl(x.rate) })
@@ -151,7 +153,8 @@
     }
     panel.appendChild(el('p', 'ap-note', t('n.mailNote')));
     const foot = el('div', 'ap-foot');
-    const go = el('a', null, t('n.open')); go.href = 'lista-zlecen.html?moje=1';
+    const isAdm = s.role === 'admin';
+    const go = el('a', null, t(isAdm ? 'adm.badge' : 'n.open')); go.href = isAdm ? 'admin.html' : 'lista-zlecen.html?moje=1';
     const out = el('button', null, t('sub.logout')); out.type = 'button';
     out.addEventListener('click', logout);
     foot.append(go, out);
@@ -312,6 +315,7 @@
   document.addEventListener('anws:lang', renderAll);
   // nowe powiadomienia z innej karty przeglądarki
   addEventListener('storage', (e) => { if (e.key === 'anws-notifications' || e.key === 'anws-session') renderAll(); });
+  document.addEventListener('anws:login', renderAll); // logowanie bez przeładowania strony (panel administratora)
   // nowe pilne zlecenie z tej samej karty / bez zdarzenia storage — sprawdzamy co kilka sekund
   setInterval(() => { const s = auth.getSession(); if (!!pendingUrgent(s).length !== alarm.on) renderAll(); }, 4000);
   renderAll();
