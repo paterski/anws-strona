@@ -38,8 +38,7 @@ window.I18N = {
     't2.cta': 'Przeglądaj zlecenia',
 
     't3.title': 'Pilne przewozy!',
-    't3.tag': 'Premium',
-    't3.count': 'zleceń premium',
+    't3.count': 'pilnych zleceń',
     't3.cta': 'Zobacz zlecenia na już',
 
     'band.label': 'Rodzaje przewozów',
@@ -411,6 +410,7 @@ window.I18N = {
     'g.cr.urgNone': "Zlecenie dodane z wyjazdem za mniej niż 24 h automatycznie staje się pilne.",
     'g.linkGone': "To zlecenie nie jest już dostępne na giełdzie.",
     'adm.smsTo': "SMS do",
+    'n.registration': "Nowy wniosek o rejestrację: {x}",
     'n.urgent': "PILNE zlecenie — wyjazd {x}",
     'n.urgentMeta': "{x} os. · {y} km · {z} netto",
     'al.title': "Nowe pilne zlecenie!",
@@ -868,8 +868,7 @@ window.I18N = {
     't2.cta': 'Browse orders',
 
     't3.title': 'Urgent transport!',
-    't3.tag': 'Premium',
-    't3.count': 'premium orders',
+    't3.count': 'urgent orders',
     't3.cta': 'See urgent orders',
 
     'band.label': 'Types of trips',
@@ -1241,6 +1240,7 @@ window.I18N = {
     'g.cr.urgNone': "An order posted with departure in under 24 h automatically becomes urgent.",
     'g.linkGone': "This order is no longer available on the exchange.",
     'adm.smsTo': "SMS to",
+    'n.registration': "New registration request: {x}",
     'n.urgent': "URGENT order — departure {x}",
     'n.urgentMeta': "{x} pax · {y} km · {z} net",
     'al.title': "New urgent order!",
